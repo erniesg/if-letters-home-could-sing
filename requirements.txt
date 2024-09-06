@@ -1,0 +1,6 @@
+boto3
+pytest
+requests
+moto
+moto[s3]
+apache-airflow
