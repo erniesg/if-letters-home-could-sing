@@ -67,9 +67,9 @@ def sample_and_display(image_dir, char_label_dir, line_label_dir, font_path, num
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    image_dir = "/Users/erniesg/code/erniesg/if_letters_home_could_sing/data/M5HisDoc/M5HisDoc_regular/images"
-    char_label_dir = "/Users/erniesg/code/erniesg/if_letters_home_could_sing/data/M5HisDoc/M5HisDoc_regular/label_char"
-    line_label_dir = "/Users/erniesg/code/erniesg/if_letters_home_could_sing/data/M5HisDoc/M5HisDoc_regular/label_textline"
+    image_dir = "/Users/erniesg/code/erniesg/if-letters-home-could-sing/data/M5HisDoc/M5HisDoc_regular/images"
+    char_label_dir = "/Users/erniesg/code/erniesg/if-letters-home-could-sing/data/M5HisDoc/M5HisDoc_regular/label_char"
+    line_label_dir = "/Users/erniesg/code/erniesg/if-letters-home-could-sing/data/M5HisDoc/M5HisDoc_regular/label_textline"
     font_path = "/System/Library/Fonts/BabelStoneHan.ttf"
 
     sample_and_display(image_dir, char_label_dir, line_label_dir, font_path)
