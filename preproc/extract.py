@@ -3,7 +3,8 @@ import argparse
 from tqdm import tqdm
 from preproc.config import PROCESSED_DIR, DATA_DIR, FONT_PATH
 from preproc.processors.m5hisdoc import M5HisDocProcessor
-from preproc.utils import load_char_mappings, validate_extraction, validate_output_structure, count_extracted_images
+from preproc.utils import load_char_mappings, count_extracted_images
+from preproc.reporting import generate_summary_stats, print_summary_stats
 
 def process_m5hisdoc(sample_percentage):
     processor = M5HisDocProcessor()
@@ -21,20 +22,10 @@ def process_m5hisdoc(sample_percentage):
         img_path = os.path.join(char_dir, f"{dataset_name}_{char}_{len(os.listdir(char_dir))}.png")
         img.save(img_path)
 
-    # Validate extraction
-    for txt_file in processor.get_full_dataset():
-        label_path = os.path.join(processor.label_char_dir, txt_file)
-        extracted_chars = [char for char, _, _ in processor.process(char_to_id, txt_file)]
-        if not validate_extraction(extracted_chars, label_path, char_to_id, FONT_PATH):
-            print(f"Validation failed for {txt_file}")
-
-    # Validate output structure
-    if not validate_output_structure(output_dir, char_to_id, id_to_char):
-        print("Output directory structure validation failed")
-
-    # Count extracted images
+    # Count extracted images and generate summary stats
     char_counts = count_extracted_images(output_dir)
-    print("Extracted character counts:", char_counts)
+    stats = generate_summary_stats(char_counts, id_to_char)
+    print_summary_stats(stats)
 
 def main():
     parser = argparse.ArgumentParser(description="Extract characters from datasets")
