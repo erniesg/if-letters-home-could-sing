@@ -16,3 +16,4 @@ airflow_settings.yaml
 ref/
 *.json
 remarkable_raw_data.txt
+.DS_Store
