@@ -1,17 +1,19 @@
 import os
 from PIL import Image
-from preproc.config import M5HISDOC_DIR
-from preproc.utils import sample_dataset
+from preproc.config import M5HISDOC_DIR, PROCESSED_DIR, FONT_PATH
+from preproc.utils import sample_dataset, is_char_in_font
 
 class M5HisDocProcessor:
     def __init__(self):
         self.label_char_dir = os.path.join(M5HISDOC_DIR, 'M5HisDoc_regular', 'label_char')
         self.images_dir = os.path.join(M5HISDOC_DIR, 'M5HisDoc_regular', 'images')
+        self.output_dir = os.path.join(PROCESSED_DIR, 'M5HisDoc')
+        self.dataset_name = 'M5HisDoc'
 
     def get_full_dataset(self):
         return [f for f in os.listdir(self.label_char_dir) if f.endswith('.txt')]
 
-    def process(self, base_mapping, sample_percentage=1.0):
+    def process(self, char_to_id, sample_percentage=1.0):
         full_dataset = self.get_full_dataset()
         sampled_files = sample_dataset(full_dataset, sample_percentage)
 
@@ -30,13 +32,14 @@ class M5HisDocProcessor:
                         parts = line.strip().split(',')
                         if len(parts) == 5:
                             x1, y1, x2, y2, char = int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]), parts[4]
-                            char_img = img.crop((x1, y1, x2, y2))
-                            yield char, char_img
+                            if is_char_in_font(char, FONT_PATH) and char in char_to_id:
+                                char_img = img.crop((x1, y1, x2, y2))
+                                yield char, char_img, self.dataset_name
             except Exception as e:
                 print(f"Error processing file {txt_file}: {str(e)}")
 
 def get_full_dataset():
     return M5HisDocProcessor().get_full_dataset()
 
-def process(base_mapping, sample_percentage=1.0):
-    return M5HisDocProcessor().process(base_mapping, sample_percentage)
+def process(char_to_id, sample_percentage=1.0):
+    return M5HisDocProcessor().process(char_to_id, sample_percentage)

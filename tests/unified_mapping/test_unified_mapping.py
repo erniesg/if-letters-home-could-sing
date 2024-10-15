@@ -95,12 +95,27 @@ class TestUnifiedCharMapping(unittest.TestCase):
     def test_save_mapping(self):
         self.mapping.process_m5hisdoc()
         self.mapping.process_gb2312_80()
+        print(f"Mapping before save: {self.mapping.get_mapping()}")
         self.mapping.save_mapping()
-        output_path = os.path.join(self.test_output_dir, 'unified_char_mapping.json')
-        self.assertTrue(os.path.exists(output_path), "Unified mapping file not created")
-        with open(output_path, 'r', encoding='utf-8') as f:
-            saved_mapping = json.load(f)
-        self.assertEqual(self.mapping.get_mapping(), saved_mapping, "Saved mapping does not match the original")
+        char_to_id_path = os.path.join(self.test_output_dir, 'unified_char_to_id_mapping.json')
+        id_to_char_path = os.path.join(self.test_output_dir, 'unified_id_to_char_mapping.json')
+        print(f"Test output directory: {self.test_output_dir}")
+        print(f"Expected char_to_id path: {char_to_id_path}")
+        print(f"Expected id_to_char path: {id_to_char_path}")
+        print(f"Directory contents: {os.listdir(self.test_output_dir)}")
+        self.assertTrue(os.path.exists(char_to_id_path), f"Unified char_to_id mapping file not created at {char_to_id_path}")
+        self.assertTrue(os.path.exists(id_to_char_path), f"Unified id_to_char mapping file not created at {id_to_char_path}")
+        if os.path.exists(char_to_id_path) and os.path.exists(id_to_char_path):
+            with open(char_to_id_path, 'r', encoding='utf-8') as f:
+                saved_char_to_id = json.load(f)
+            with open(id_to_char_path, 'r', encoding='utf-8') as f:
+                saved_id_to_char = json.load(f)
+            print(f"Saved char_to_id mapping: {saved_char_to_id}")
+            print(f"Saved id_to_char mapping: {saved_id_to_char}")
+            self.assertEqual(self.mapping.get_mapping(), saved_char_to_id, "Saved char_to_id mapping does not match the original")
+            self.assertEqual(self.mapping.get_reverse_mapping(), saved_id_to_char, "Saved id_to_char mapping does not match the original")
+        else:
+            print("One or both files were not created")
 
     def test_print_summary(self):
         self.mapping.process_m5hisdoc()
