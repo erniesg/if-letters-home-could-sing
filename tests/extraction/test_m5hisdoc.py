@@ -13,8 +13,10 @@ class TestM5HisDocProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.processor = M5HisDocProcessor()
-        cls.test_output_dir = os.path.join(PROCESSED_DIR, 'M5HisDoc_test')
+        cls.test_output_dir = os.path.join(PROCESSED_DIR, 'test_M5HisDoc')
+        cls.progress_dir = os.path.join(PROCESSED_DIR, 'progress')
         os.makedirs(cls.test_output_dir, exist_ok=True)
+        os.makedirs(cls.progress_dir, exist_ok=True)
         cls.char_to_id_path = os.path.join(DATA_DIR, 'processed', 'unified_char_to_id_mapping.json')
         cls.id_to_char_path = os.path.join(DATA_DIR, 'processed', 'unified_id_to_char_mapping.json')
         cls.char_to_id, cls.id_to_char = load_char_mappings(cls.char_to_id_path, cls.id_to_char_path)
@@ -22,6 +24,16 @@ class TestM5HisDocProcessor(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.test_output_dir)
+
+    def setUp(self):
+        # Create a fresh test output directory for each test
+        self.test_output_dir = os.path.join(PROCESSED_DIR, f'test_M5HisDoc_{self.id()}')
+        os.makedirs(self.test_output_dir, exist_ok=True)
+
+    def tearDown(self):
+        # Clean up the test-specific output directory after each test
+        if os.path.exists(self.test_output_dir):
+            shutil.rmtree(self.test_output_dir)
 
     def test_sampling(self):
         full_dataset = self.processor.get_full_dataset()
@@ -180,7 +192,7 @@ class TestM5HisDocProcessor(unittest.TestCase):
         samples = dataset_handler.get_deterministic_sample(sample_percentage)
         print(f"Sample size: {len(samples)}")
 
-        progress_tracker = ProgressTracker('M5HisDoc', self.test_output_dir)
+        progress_tracker = ProgressTracker('M5HisDoc', self.progress_dir)
         progress_tracker.initialize_progress(samples)
 
         print("Initial progress state:")

@@ -11,12 +11,16 @@ class TestPuzzlePiecesPicker(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.processor = PuzzlePiecesPicker()
-        cls.test_output_dir = os.path.join(PROCESSED_DIR, 'PuzzlePiecesPicker_test')
-        os.makedirs(cls.test_output_dir, exist_ok=True)
+        cls.progress_dir = os.path.join(PROCESSED_DIR, 'progress')
+        os.makedirs(cls.progress_dir, exist_ok=True)
 
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(cls.test_output_dir)
+    def setUp(self):
+        self.test_output_dir = os.path.join(PROCESSED_DIR, f'PuzzlePiecesPicker_test_{self.id()}')
+        os.makedirs(self.test_output_dir, exist_ok=True)
+
+    def tearDown(self):
+        if os.path.exists(self.test_output_dir):
+            shutil.rmtree(self.test_output_dir)
 
     def test_get_full_dataset(self):
         full_dataset = self.processor.get_full_dataset()
@@ -29,16 +33,16 @@ class TestPuzzlePiecesPicker(unittest.TestCase):
         dataset_handler = DatasetHandler('PuzzlePiecesPicker', full_dataset)
         sampled_dataset = dataset_handler.get_deterministic_sample(0.01)
 
-        for folder_id, img, dataset_name, original_filename in self.processor.process(sampled_dataset):
-            self.assertIsInstance(folder_id, str)
+        for char_id, img, dataset_name, filename in self.processor.process(sampled_dataset):
+            self.assertIsInstance(char_id, str)
             self.assertIsInstance(img, Image.Image)
             self.assertEqual(dataset_name, 'PuzzlePiecesPicker')
             self.assertTrue(img.size[0] > 0 and img.size[1] > 0)
 
             # Save the extracted image
-            output_folder = os.path.join(self.test_output_dir, folder_id)
+            output_folder = os.path.join(self.test_output_dir, char_id)
             os.makedirs(output_folder, exist_ok=True)
-            img_path = os.path.join(output_folder, f"{dataset_name}_{original_filename}")
+            img_path = os.path.join(output_folder, filename)
             img.save(img_path)
             img.close()
 
@@ -75,7 +79,7 @@ class TestPuzzlePiecesPicker(unittest.TestCase):
         samples = samples[:sample_size]  # Ensure we have exactly 15 samples
         print(f"Sample size: {len(samples)}")
 
-        progress_tracker = ProgressTracker('PuzzlePiecesPicker', self.test_output_dir)
+        progress_tracker = ProgressTracker('PuzzlePiecesPicker', self.progress_dir)
         progress_tracker.initialize_progress(samples)
 
         print("Initial progress state:")

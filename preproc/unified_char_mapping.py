@@ -4,7 +4,7 @@ import json
 import os
 import unicodedata
 from preproc.utils import is_char_in_font
-from preproc.config import FONT_PATH, PUZZLE_PIECES_DIR, M5HISDOC_DIR, DATA_DIR
+from preproc.config import FONT_PATH, PUZZLE_PIECES_DIR, M5HISDOC_DIR, DATA_DIR, PROCESSED_DIR
 
 def get_gb2312_80_level1_set():
     gb2312_80_level1 = set()
@@ -24,7 +24,7 @@ class UnifiedCharMapping:
             'M5HisDoc': set(),
             'GB2312-80': set()
         }
-        self.output_dir = os.path.join(DATA_DIR, 'processed')
+        self.output_dir = PROCESSED_DIR  # Use PROCESSED_DIR from config
 
     def load_puzzle_pieces_mapping(self):
         with open(os.path.join(PUZZLE_PIECES_DIR, 'Chinese_to_ID.json'), 'r', encoding='utf-8') as f:

@@ -1,7 +1,7 @@
 from collections import Counter
 from statistics import mean, median, stdev
 
-def generate_summary_stats(char_counts, id_to_char):
+def generate_summary_stats(char_counts, id_to_char, chars_not_in_mapping=None):
     if not isinstance(char_counts, dict):
         raise ValueError("char_counts must be a dictionary")
 
@@ -26,7 +26,8 @@ def generate_summary_stats(char_counts, id_to_char):
             "std_dev": 0,
             "most_common": [],
             "least_common": [],
-            "gini": 0
+            "gini": 0,
+            "chars_not_in_mapping": []
         }
 
     avg_count = mean(counts_list)
@@ -41,7 +42,7 @@ def generate_summary_stats(char_counts, id_to_char):
     sorted_counts = sorted(counts_list)
     gini = sum(2 * i * count for i, count in enumerate(sorted_counts, 1)) / (len(sorted_counts) * sum(sorted_counts)) - (len(sorted_counts) + 1) / len(sorted_counts)
 
-    return {
+    summary = {
         "total_chars": total_chars,
         "unique_chars": unique_chars,
         "avg_count": avg_count,
@@ -49,8 +50,11 @@ def generate_summary_stats(char_counts, id_to_char):
         "std_dev": std_dev,
         "most_common": [(id_to_char.get(char_id, char_id), count) for char_id, count in most_common],
         "least_common": [(id_to_char.get(char_id, char_id), count) for char_id, count in least_common],
-        "gini": gini
+        "gini": gini,
+        "chars_not_in_mapping": list(chars_not_in_mapping) if chars_not_in_mapping else []
     }
+
+    return summary
 
 def print_summary_stats(stats):
     print(f"\nExtraction Summary:")
@@ -66,3 +70,6 @@ def print_summary_stats(stats):
     for char, count in stats['least_common']:
         print(f"  {char}: {count}")
     print(f"\nGini coefficient (measure of unbalancedness): {stats['gini']:.4f}")
+    if stats['chars_not_in_mapping']:
+        print(f"\nCharacters not in mapping ({len(stats['chars_not_in_mapping'])}):")
+        print(", ".join(stats['chars_not_in_mapping']))

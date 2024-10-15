@@ -8,12 +8,15 @@ class M5HisDocProcessor:
         self.label_char_dir = os.path.join(M5HISDOC_DIR, 'M5HisDoc_regular', 'label_char')
         self.images_dir = os.path.join(M5HISDOC_DIR, 'M5HisDoc_regular', 'images')
         self.output_dir = os.path.join(PROCESSED_DIR, 'M5HisDoc')
+        self.progress_dir = os.path.join(PROCESSED_DIR, 'progress')
         self.dataset_name = 'M5HisDoc'
 
     def get_full_dataset(self):
         return [f for f in os.listdir(self.label_char_dir) if f.endswith('.txt')]
 
     def process(self, char_to_id, samples):
+        os.makedirs(self.output_dir, exist_ok=True)
+        os.makedirs(self.progress_dir, exist_ok=True)
         for txt_file in samples:
             img_file = txt_file.replace('.txt', '.jpg')
             img_path = os.path.join(self.images_dir, img_file)
@@ -31,7 +34,9 @@ class M5HisDocProcessor:
                             x1, y1, x2, y2, char = int(parts[0]), int(parts[1]), int(parts[2]), int(parts[3]), parts[4]
                             if is_char_in_font(char, FONT_PATH) and char in char_to_id:
                                 char_img = img.crop((x1, y1, x2, y2))
-                                yield char, char_img, self.dataset_name
+                                char_id = char_to_id[char]
+                                filename = f"{self.dataset_name}_{char_id}_{txt_file}_{x1}_{y1}.png"
+                                yield char_id, char_img, self.dataset_name, filename
             except Exception as e:
                 print(f"Error processing file {txt_file}: {str(e)}")
 

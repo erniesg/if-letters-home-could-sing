@@ -1,18 +1,22 @@
 import os
 from PIL import Image
 from tqdm import tqdm
-from preproc.config import PUZZLE_PIECES_DIR
+from preproc.config import PUZZLE_PIECES_DIR, PROCESSED_DIR
 
 class PuzzlePiecesPicker:
     def __init__(self):
         self.dataset_dir = os.path.join(PUZZLE_PIECES_DIR, 'Dataset')
-        self.folder_ids = [f for f in os.listdir(self.dataset_dir) if os.path.isdir(os.path.join(self.dataset_dir, f))]
+        self.output_dir = os.path.join(PROCESSED_DIR, 'PuzzlePiecesPicker')
+        self.progress_dir = os.path.join(PROCESSED_DIR, 'progress')
         self.dataset_name = 'PuzzlePiecesPicker'
+        self.folder_ids = [f for f in os.listdir(self.dataset_dir) if os.path.isdir(os.path.join(self.dataset_dir, f))]
 
     def get_full_dataset(self):
         return self.folder_ids
 
     def process(self, samples):
+        os.makedirs(self.output_dir, exist_ok=True)
+        os.makedirs(self.progress_dir, exist_ok=True)
         total_folders = len(samples)
         total_images = sum(len([f for f in os.listdir(os.path.join(self.dataset_dir, folder_id))
                                 if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
@@ -30,7 +34,8 @@ class PuzzlePiecesPicker:
                         img_path = os.path.join(folder_path, img_file)
                         try:
                             with Image.open(img_path) as img:
-                                yield folder_id, img.copy(), self.dataset_name, img_file
+                                filename = f"{self.dataset_name}_{folder_id}_{img_file}"
+                                yield folder_id, img.copy(), self.dataset_name, filename
                         except Exception as e:
                             print(f"Error processing image {img_path}: {e}")
                         image_pbar.update(1)

@@ -38,8 +38,10 @@ def validate_output_structure(output_dir, char_to_id, id_to_char):
     for char_id in os.listdir(output_dir):
         if char_id not in id_to_char:
             return False
-        char = id_to_char[char_id]
-        if char not in char_to_id or char_to_id[char] != char_id:
+        char_dir = os.path.join(output_dir, char_id)
+        if not os.path.isdir(char_dir):
+            return False
+        if not any(file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')) for file in os.listdir(char_dir)):
             return False
     return True
 
@@ -47,9 +49,26 @@ def count_extracted_images(output_dir):
     char_counts = {}
     for char_id in os.listdir(output_dir):
         char_dir = os.path.join(output_dir, char_id)
+        if not os.path.isdir(char_dir):
+            continue
         char_counts[char_id] = {}
         for img_file in os.listdir(char_dir):
-            if img_file.endswith('.png'):
+            if img_file.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp', '.tiff')):
                 dataset_name = img_file.split('_')[0]
                 char_counts[char_id][dataset_name] = char_counts[char_id].get(dataset_name, 0) + 1
     return char_counts
+
+def decode_label(raw_label):
+    encodings = ['gbk', 'gb18030', 'utf-8', 'ascii']
+    for encoding in encodings:
+        try:
+            return raw_label.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return f"unknown_{raw_label.hex()}"
+
+def get_unicode_repr(label):
+    return 'U+' + ''.join([f'{ord(c):04X}' for c in label])
+
+def sanitize_filename(label):
+    return ''.join(c if c.isalnum() else '_' for c in label)
