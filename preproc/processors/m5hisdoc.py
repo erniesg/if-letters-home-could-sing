@@ -13,11 +13,8 @@ class M5HisDocProcessor:
     def get_full_dataset(self):
         return [f for f in os.listdir(self.label_char_dir) if f.endswith('.txt')]
 
-    def process(self, char_to_id, sample_percentage=1.0):
-        full_dataset = self.get_full_dataset()
-        sampled_files = sample_dataset(full_dataset, sample_percentage)
-
-        for txt_file in sampled_files:
+    def process(self, char_to_id, samples):
+        for txt_file in samples:
             img_file = txt_file.replace('.txt', '.jpg')
             img_path = os.path.join(self.images_dir, img_file)
             label_path = os.path.join(self.label_char_dir, txt_file)
@@ -41,5 +38,5 @@ class M5HisDocProcessor:
 def get_full_dataset():
     return M5HisDocProcessor().get_full_dataset()
 
-def process(char_to_id, sample_percentage=1.0):
-    return M5HisDocProcessor().process(char_to_id, sample_percentage)
+def process(char_to_id, samples):
+    return M5HisDocProcessor().process(char_to_id, samples)

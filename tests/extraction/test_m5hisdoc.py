@@ -6,6 +6,8 @@ from preproc.processors.m5hisdoc import M5HisDocProcessor
 from preproc.config import DATA_DIR, PROCESSED_DIR, M5HISDOC_DIR, FONT_PATH
 from preproc.utils import sample_dataset, load_char_mappings, validate_extraction, validate_output_structure, count_extracted_images
 from preproc.reporting import generate_summary_stats
+from preproc.dataset import DatasetHandler
+from preproc.tracker import ProgressTracker
 
 class TestM5HisDocProcessor(unittest.TestCase):
     @classmethod
@@ -137,6 +139,69 @@ class TestM5HisDocProcessor(unittest.TestCase):
         # Check the order of most_common and least_common
         self.assertEqual([count for _, count in stats['most_common']], [15, 12, 10, 8, 5])
         self.assertEqual([count for _, count in stats['least_common']], [5, 8, 10, 12, 15])
+
+    def test_deterministic_sampling(self):
+        full_dataset = self.processor.get_full_dataset()
+        dataset_handler = DatasetHandler('M5HisDoc', full_dataset)
+        sample1 = dataset_handler.get_deterministic_sample(0.1)
+        sample2 = dataset_handler.get_deterministic_sample(0.1)
+        self.assertEqual(sample1, sample2)
+
+    def test_incremental_sampling(self):
+        full_dataset = self.processor.get_full_dataset()
+        dataset_handler = DatasetHandler('M5HisDoc', full_dataset)
+        sample1 = dataset_handler.get_deterministic_sample(0.1)
+        sample2 = dataset_handler.get_deterministic_sample(0.2)
+        incremental = dataset_handler.get_incremental_sample(0.1, 0.2)
+        self.assertEqual(set(sample2) - set(sample1), set(incremental))
+
+    def test_extraction_with_new_sampling(self):
+        full_dataset = self.processor.get_full_dataset()
+        dataset_handler = DatasetHandler('M5HisDoc', full_dataset)
+        sampled_dataset = dataset_handler.get_deterministic_sample(0.0001)
+
+        for txt_file in sampled_dataset:
+            extracted_chars = list(self.processor.process(self.char_to_id, [txt_file]))
+            self.assertTrue(len(extracted_chars) > 0)
+
+            for char, img, dataset_name in extracted_chars:
+                self.assertIsInstance(char, str)
+                self.assertIsInstance(img, Image.Image)
+                self.assertEqual(dataset_name, 'M5HisDoc')
+                self.assertTrue(img.size[0] > 0 and img.size[1] > 0)
+
+    def test_progress_tracking(self):
+        full_dataset = self.processor.get_full_dataset()
+        print(f"Full dataset size: {len(full_dataset)}")
+
+        # Adjust sampling percentage to ensure we get at least 10 samples
+        sample_percentage = max(0.001, 10 / len(full_dataset))
+        dataset_handler = DatasetHandler('M5HisDoc', full_dataset)
+        samples = dataset_handler.get_deterministic_sample(sample_percentage)
+        print(f"Sample size: {len(samples)}")
+
+        progress_tracker = ProgressTracker('M5HisDoc', self.test_output_dir)
+        progress_tracker.initialize_progress(samples)
+
+        print("Initial progress state:")
+        print(progress_tracker.progress)
+
+        samples_to_complete = min(5, len(samples) - 1)  # Ensure we leave at least one sample unprocessed
+        for sample in samples[:samples_to_complete]:
+            progress_tracker.update_progress(sample, 'Completed')
+            print(f"Updated progress for sample {sample}")
+
+        print("Progress state after updates:")
+        print(progress_tracker.progress)
+
+        unprocessed = progress_tracker.get_unprocessed_samples(samples)
+        print(f"Unprocessed samples: {len(unprocessed)}")
+        print(f"Expected unprocessed: {len(samples) - samples_to_complete}")
+
+        self.assertEqual(len(unprocessed), len(samples) - samples_to_complete)
+
+        # Check if we have enough samples for a meaningful test
+        self.assertGreater(len(samples), samples_to_complete, "Not enough samples to test progress tracking")
 
 if __name__ == '__main__':
     unittest.main()
