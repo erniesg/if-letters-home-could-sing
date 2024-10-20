@@ -57,6 +57,10 @@ class TestCasiaHwdbProcessor(unittest.TestCase):
             self.assertEqual(dataset_name, 'CASIA_HWDB')
             self.assertTrue(img.size[0] > 0 and img.size[1] > 0)
 
+            # Update this part to check the new filename format
+            expected_filename_pattern = r'CASIA_HWDB_\d+_\d+\.png'
+            self.assertRegex(filename, expected_filename_pattern)
+
             unique_chars_in_gnt.add(char_id)
             processed_images += 1
 

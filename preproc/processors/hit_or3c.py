@@ -17,6 +17,7 @@ class HitOr3cProcessor:
         self.chars_not_in_font = set()
         self.font_path = FONT_PATH
         self.logger = logging.getLogger(__name__)
+        self.char_counters = {}
 
     def get_full_dataset(self):
         return sorted([f for f in os.listdir(self.data_dir) if f.endswith('_images')])
@@ -50,13 +51,14 @@ class HitOr3cProcessor:
     def process(self, char_to_id, samples):
         labels = self.read_labels()
         label_index = 0
+        self.char_counters = {}  # Reset counters for each processing run
 
         for image_file in samples:
             images, _ = self.read_images(image_file)
             total_images = len(images)
 
             with tqdm(total=total_images, desc=f"Processing {image_file}") as pbar:
-                for index, image in enumerate(images):
+                for image in images:
                     label = labels[label_index]
                     label_index += 1
 
@@ -64,9 +66,8 @@ class HitOr3cProcessor:
                         char_id = char_to_id[label]
                         if is_char_in_font(label, self.font_path):
                             pil_image = Image.fromarray(image)
-                            unicode_repr = get_unicode_repr(label)
-                            safe_label = sanitize_filename(label)
-                            filename = f"{self.dataset_name}_{safe_label}_{unicode_repr}_{char_id}_{image_file}_{index}.png"
+                            self.char_counters[char_id] = self.char_counters.get(char_id, 0) + 1
+                            filename = f"{self.dataset_name}_{char_id}_{self.char_counters[char_id]}.png"
                             yield char_id, pil_image, self.dataset_name, filename
                         else:
                             self.chars_not_in_font.add(label)

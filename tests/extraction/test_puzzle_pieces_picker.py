@@ -39,6 +39,10 @@ class TestPuzzlePiecesPicker(unittest.TestCase):
             self.assertEqual(dataset_name, 'PuzzlePiecesPicker')
             self.assertTrue(img.size[0] > 0 and img.size[1] > 0)
 
+            # Update this part to check the new filename format
+            expected_filename_pattern = r'PuzzlePiecesPicker_\d+_\d+\.png'
+            self.assertRegex(filename, expected_filename_pattern)
+
             # Save the extracted image
             output_folder = os.path.join(self.test_output_dir, char_id)
             os.makedirs(output_folder, exist_ok=True)

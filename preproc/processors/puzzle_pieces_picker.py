@@ -17,6 +17,7 @@ class PuzzlePiecesPicker:
     def process(self, samples):
         os.makedirs(self.output_dir, exist_ok=True)
         os.makedirs(self.progress_dir, exist_ok=True)
+        char_counters = {}
         total_folders = len(samples)
         total_images = sum(len([f for f in os.listdir(os.path.join(self.dataset_dir, folder_id))
                                 if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
@@ -26,6 +27,7 @@ class PuzzlePiecesPicker:
 
         with tqdm(total=total_folders, desc=f"Processing {self.dataset_name} folders") as folder_pbar:
             for folder_id in samples:
+                char_counters[folder_id] = char_counters.get(folder_id, 0)
                 folder_path = os.path.join(self.dataset_dir, folder_id)
                 images = [f for f in os.listdir(folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
 
@@ -34,7 +36,8 @@ class PuzzlePiecesPicker:
                         img_path = os.path.join(folder_path, img_file)
                         try:
                             with Image.open(img_path) as img:
-                                filename = f"{self.dataset_name}_{folder_id}_{img_file}"
+                                char_counters[folder_id] += 1
+                                filename = f"{self.dataset_name}_{folder_id}_{char_counters[folder_id]}.png"
                                 yield folder_id, img.copy(), self.dataset_name, filename
                         except Exception as e:
                             print(f"Error processing image {img_path}: {e}")

@@ -17,6 +17,7 @@ class M5HisDocProcessor:
     def process(self, char_to_id, samples):
         os.makedirs(self.output_dir, exist_ok=True)
         os.makedirs(self.progress_dir, exist_ok=True)
+        char_counters = {}
         for txt_file in samples:
             img_file = txt_file.replace('.txt', '.jpg')
             img_path = os.path.join(self.images_dir, img_file)
@@ -35,7 +36,8 @@ class M5HisDocProcessor:
                             if is_char_in_font(char, FONT_PATH) and char in char_to_id:
                                 char_img = img.crop((x1, y1, x2, y2))
                                 char_id = char_to_id[char]
-                                filename = f"{self.dataset_name}_{char_id}_{txt_file}_{x1}_{y1}.png"
+                                char_counters[char_id] = char_counters.get(char_id, 0) + 1
+                                filename = f"{self.dataset_name}_{char_id}_{char_counters[char_id]}.png"
                                 yield char_id, char_img, self.dataset_name, filename
             except Exception as e:
                 print(f"Error processing file {txt_file}: {str(e)}")

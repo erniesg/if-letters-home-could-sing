@@ -48,18 +48,21 @@ class TestM5HisDocProcessor(unittest.TestCase):
         full_dataset = self.processor.get_full_dataset()
         sampled_dataset = sample_dataset(full_dataset, 0.0001)
 
-        for txt_file in sampled_dataset:
-            extracted_chars = list(self.processor.process(self.char_to_id, txt_file))
-            self.assertTrue(len(extracted_chars) > 0)
+        for char_id, img, dataset_name, filename in self.processor.process(self.char_to_id, sampled_dataset):
+            self.assertIsInstance(char_id, str)
+            self.assertIsInstance(img, Image.Image)
+            self.assertEqual(dataset_name, 'M5HisDoc')
+            self.assertTrue(img.size[0] > 0 and img.size[1] > 0)
 
-            for char, img, dataset_name in extracted_chars:
-                self.assertIsInstance(char, str)
-                self.assertIsInstance(img, Image.Image)
-                self.assertEqual(dataset_name, 'M5HisDoc')
-                self.assertTrue(img.size[0] > 0 and img.size[1] > 0)
+            # Update this part to check the new filename format
+            expected_filename_pattern = r'M5HisDoc_\d+_\d+\.png'
+            self.assertRegex(filename, expected_filename_pattern)
 
-                # Save the extracted image for manual inspection
-                img.save(os.path.join(self.test_output_dir, f"{dataset_name}_{txt_file}_{char}.png"))
+            # Save the extracted image
+            output_folder = os.path.join(self.test_output_dir, char_id)
+            os.makedirs(output_folder, exist_ok=True)
+            img_path = os.path.join(output_folder, filename)
+            img.save(img_path)
 
     def test_extraction_validation(self):
         full_dataset = self.processor.get_full_dataset()

@@ -18,6 +18,7 @@ class CasiaHwdbProcessor:
             "Gnt1.2Test", "Gnt1.2TrainPart1", "Gnt1.2TrainPart2"
         ]
         self.chars_not_in_mapping = set()
+        self.char_counters = {}
 
     def get_full_dataset(self):
         gnt_files = []
@@ -29,11 +30,11 @@ class CasiaHwdbProcessor:
     def process(self, base_mapping, samples):
         os.makedirs(self.output_dir, exist_ok=True)
         os.makedirs(self.progress_dir, exist_ok=True)
+        self.char_counters = {}  # Reset counters for each processing run
         for gnt_file in samples:
             yield from self._process_gnt_file(gnt_file, base_mapping)
 
     def _process_gnt_file(self, gnt_file, base_mapping):
-        char_counters = {}
         total_images = self._count_images_in_gnt(gnt_file)
 
         with open(gnt_file, "rb") as f, tqdm(total=total_images, desc=f"Processing {os.path.basename(gnt_file)}") as pbar:
@@ -60,8 +61,8 @@ class CasiaHwdbProcessor:
                     image = np.frombuffer(photo_bytes, dtype=np.uint8).reshape(height, width)
                     pil_image = Image.fromarray(image)
 
-                    char_counters[char_id] = char_counters.get(char_id, 0) + 1
-                    filename = f"{self.dataset_name}_{char_id}_{char_counters[char_id]}.png"
+                    self.char_counters[char_id] = self.char_counters.get(char_id, 0) + 1
+                    filename = f"{self.dataset_name}_{char_id}_{self.char_counters[char_id]}.png"
                     save_path = os.path.join(self.output_dir, char_id, filename)
                     os.makedirs(os.path.dirname(save_path), exist_ok=True)
                     pil_image.save(save_path)
