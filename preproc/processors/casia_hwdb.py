@@ -4,7 +4,7 @@ from PIL import Image
 import numpy as np
 from tqdm import tqdm
 from preproc.config import CASIA_HWDB_DIR, PROCESSED_DIR
-from preproc.utils import decode_label, get_unicode_repr
+from preproc.utils import decode_label, get_unicode_repr, save_combined_image
 from preproc.counter import Counter
 from preproc.tracker import ProgressTracker
 
@@ -33,9 +33,11 @@ class CasiaHwdbProcessor:
     def process(self, base_mapping, samples):
         os.makedirs(self.output_dir, exist_ok=True)
         os.makedirs(self.progress_dir, exist_ok=True)
-        self.progress_tracker.initialize_progress(samples)
+        self.progress_tracker.set_total_samples(len(samples))
         for gnt_file in samples:
             yield from self._process_gnt_file(gnt_file, base_mapping)
+            self.progress_tracker.increment_processed()
+            tqdm.write(f"Processed files: {self.progress_tracker.processed_samples}/{self.progress_tracker.total_samples}")
 
     def _process_gnt_file(self, gnt_file, base_mapping):
         total_images = self._count_images_in_gnt(gnt_file)
@@ -105,3 +107,10 @@ def get_full_dataset():
 def process(base_mapping, samples):
     processor = CasiaHwdbProcessor()
     return processor.process(base_mapping, samples)
+
+def process_all(base_mapping, combined_dir):
+    processor = CasiaHwdbProcessor()
+    samples = processor.get_full_dataset()
+    for char_id, image, dataset_name, filename in processor.process(base_mapping, samples):
+        save_combined_image(char_id, image, dataset_name, filename, combined_dir)
+        yield char_id, image, dataset_name, filename

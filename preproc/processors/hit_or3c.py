@@ -5,8 +5,9 @@ from PIL import Image
 from tqdm import tqdm
 import logging
 from preproc.config import HIT_OR3C_DIR, PROCESSED_DIR, FONT_PATH
-from preproc.utils import decode_label, is_char_in_font, get_unicode_repr, sanitize_filename
+from preproc.utils import decode_label, is_char_in_font, get_unicode_repr, sanitize_filename, save_combined_image
 from preproc.counter import Counter
+from preproc.tracker import ProgressTracker
 
 class HitOr3cProcessor:
     def __init__(self):
@@ -20,6 +21,7 @@ class HitOr3cProcessor:
         self.font_path = FONT_PATH
         self.logger = logging.getLogger(__name__)
         self.counter = Counter(self.dataset_name, self.progress_dir)
+        self.progress_tracker = ProgressTracker(self.dataset_name, self.progress_dir)
 
     def get_full_dataset(self):
         return sorted([f for f in os.listdir(self.data_dir) if f.endswith('_images')])
@@ -51,6 +53,7 @@ class HitOr3cProcessor:
             return struct.unpack('<I', f.read(4))[0]
 
     def process(self, char_to_id, samples):
+        self.progress_tracker.set_total_samples(len(samples))
         labels = self.read_labels()
         label_index = 0
 
@@ -75,6 +78,8 @@ class HitOr3cProcessor:
                         self.chars_not_in_mapping.add(label)
 
                     pbar.update(1)
+                    self.progress_tracker.increment_processed()
+                    tqdm.write(f"Processed files: {self.progress_tracker.processed_samples}/{self.progress_tracker.total_samples}")
 
         self.logger.info(f"Processed {label_index} labels")
         if self.chars_not_in_mapping:
@@ -87,3 +92,14 @@ class HitOr3cProcessor:
 
     def get_chars_not_in_font(self):
         return self.chars_not_in_font
+
+    def process_all(char_to_id, combined_dir):
+        processor = HitOr3cProcessor()
+        samples = processor.get_full_dataset()
+        for char_id, image, dataset_name, filename in processor.process(char_to_id, samples):
+            save_combined_image(char_id, image, dataset_name, filename, combined_dir)
+            yield char_id, image, dataset_name, filename
+
+def get_full_dataset():
+    processor = HitOr3cProcessor()
+    return processor.get_full_dataset()

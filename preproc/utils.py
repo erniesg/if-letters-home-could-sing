@@ -1,5 +1,5 @@
 import random
-from PIL import ImageFont
+from PIL import ImageFont, Image
 import json
 import os
 
@@ -72,3 +72,10 @@ def get_unicode_repr(label):
 
 def sanitize_filename(label):
     return ''.join(c if c.isalnum() else '_' for c in label)
+
+def save_combined_image(char_id, image, dataset_name, filename, combined_dir):
+    combined_char_dir = os.path.join(combined_dir, char_id)
+    os.makedirs(combined_char_dir, exist_ok=True)
+    combined_filename = f"{dataset_name}_{filename}"
+    combined_path = os.path.join(combined_char_dir, combined_filename)
+    image.save(combined_path)

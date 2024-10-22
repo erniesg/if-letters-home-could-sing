@@ -8,6 +8,8 @@ class ProgressTracker:
         self.progress_file = os.path.join(self.progress_dir, f'{self.dataset_name}_progress.json')
         self.progress = self.load_progress()
         self.total_images = 0
+        self.total_samples = 0
+        self.processed_samples = 0
 
     def initialize_progress(self, samples):
         for sample in samples:
@@ -37,3 +39,12 @@ class ProgressTracker:
 
     def get_unprocessed_samples(self, samples):
         return [sample for sample in samples if not self.is_sample_processed(sample)]
+
+    def set_total_samples(self, total):
+        self.total_samples = total
+
+    def increment_processed(self):
+        self.processed_samples += 1
+
+    def get_progress(self):
+        return self.processed_samples, self.total_samples

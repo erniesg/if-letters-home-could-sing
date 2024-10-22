@@ -3,6 +3,8 @@ from PIL import Image
 from tqdm import tqdm
 from preproc.config import PUZZLE_PIECES_DIR, PROCESSED_DIR
 from preproc.counter import Counter
+from preproc.tracker import ProgressTracker
+from preproc.utils import save_combined_image
 
 class PuzzlePiecesPicker:
     def __init__(self):
@@ -12,6 +14,7 @@ class PuzzlePiecesPicker:
         self.dataset_name = 'PuzzlePiecesPicker'
         self.folder_ids = [f for f in os.listdir(self.dataset_dir) if os.path.isdir(os.path.join(self.dataset_dir, f))]
         self.counter = Counter(self.dataset_name, self.progress_dir)
+        self.progress_tracker = ProgressTracker(self.dataset_name, self.progress_dir)
 
     def get_full_dataset(self):
         return self.folder_ids
@@ -25,6 +28,8 @@ class PuzzlePiecesPicker:
                            for folder_id in samples)
 
         print(f"Processing {total_folders} folders containing {total_images} images")
+
+        self.progress_tracker.set_total_samples(len(samples))
 
         with tqdm(total=total_folders, desc=f"Processing {self.dataset_name} folders") as folder_pbar:
             for folder_id in samples:
@@ -41,7 +46,15 @@ class PuzzlePiecesPicker:
                         except Exception as e:
                             print(f"Error processing image {img_path}: {e}")
                         image_pbar.update(1)
+                self.progress_tracker.increment_processed()
                 folder_pbar.update(1)
+                folder_pbar.set_postfix(processed=f"{self.progress_tracker.processed_samples}/{self.progress_tracker.total_samples}")
+
+    def process_all(self, combined_dir):
+        samples = self.get_full_dataset()
+        for folder_id, image, dataset_name, filename in self.process(samples):
+            save_combined_image(folder_id, image, dataset_name, filename, combined_dir)
+            yield folder_id, image, dataset_name, filename
 
 def get_full_dataset():
     return PuzzlePiecesPicker().get_full_dataset()

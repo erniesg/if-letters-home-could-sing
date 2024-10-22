@@ -1,8 +1,10 @@
 import os
 from PIL import Image
 from preproc.config import M5HISDOC_DIR, PROCESSED_DIR, FONT_PATH
-from preproc.utils import is_char_in_font
+from preproc.utils import is_char_in_font, save_combined_image
 from preproc.counter import Counter
+from preproc.tracker import ProgressTracker
+from tqdm import tqdm
 
 class M5HisDocProcessor:
     def __init__(self):
@@ -12,6 +14,7 @@ class M5HisDocProcessor:
         self.progress_dir = os.path.join(PROCESSED_DIR, 'progress')
         self.dataset_name = 'M5HisDoc'
         self.counter = Counter(self.dataset_name, self.progress_dir)
+        self.progress_tracker = ProgressTracker(self.dataset_name, self.progress_dir)
 
     def get_full_dataset(self):
         return [f for f in os.listdir(self.label_char_dir) if f.endswith('.txt')]
@@ -19,7 +22,8 @@ class M5HisDocProcessor:
     def process(self, char_to_id, samples):
         os.makedirs(self.output_dir, exist_ok=True)
         os.makedirs(self.progress_dir, exist_ok=True)
-        for txt_file in samples:
+        self.progress_tracker.set_total_samples(len(samples))
+        for txt_file in tqdm(samples, desc=f"Processing {self.dataset_name} samples"):
             img_file = txt_file.replace('.txt', '.jpg')
             img_path = os.path.join(self.images_dir, img_file)
             label_path = os.path.join(self.label_char_dir, txt_file)
@@ -39,6 +43,8 @@ class M5HisDocProcessor:
                                 char_id = char_to_id[char]
                                 filename = self.counter.get_filename(char_id)
                                 yield char_id, char_img, self.dataset_name, filename
+                self.progress_tracker.increment_processed()
+                tqdm.write(f"Processed: {self.progress_tracker.processed_samples}/{self.progress_tracker.total_samples}")
             except Exception as e:
                 print(f"Error processing file {txt_file}: {str(e)}")
 
@@ -47,3 +53,10 @@ def get_full_dataset():
 
 def process(char_to_id, samples):
     return M5HisDocProcessor().process(char_to_id, samples)
+
+def process_all(char_to_id, combined_dir):
+    processor = M5HisDocProcessor()
+    samples = processor.get_full_dataset()
+    for char_id, image, dataset_name, filename in processor.process(char_to_id, samples):
+        save_combined_image(char_id, image, dataset_name, filename, combined_dir)
+        yield char_id, image, dataset_name, filename
