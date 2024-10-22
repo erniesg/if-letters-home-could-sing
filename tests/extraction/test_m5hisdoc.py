@@ -218,5 +218,23 @@ class TestM5HisDocProcessor(unittest.TestCase):
         # Check if we have enough samples for a meaningful test
         self.assertGreater(len(samples), samples_to_complete, "Not enough samples to test progress tracking")
 
+    def test_counter_persistence(self):
+        full_dataset = self.processor.get_full_dataset()
+        dataset_handler = DatasetHandler('M5HisDoc', full_dataset)
+        samples = dataset_handler.get_deterministic_sample(0.01)
+
+        # Process some samples
+        for txt_file in samples[:1]:  # Process only one file
+            list(self.processor.process(self.char_to_id, [txt_file]))  # Consume the generator
+
+        # Create a new processor instance
+        new_processor = M5HisDocProcessor()
+
+        # Process the same file again
+        for _, _, _, filename in new_processor.process(self.char_to_id, [samples[0]]):
+            # Check that the counter continues from where it left off
+            self.assertNotIn('_1.png', filename)
+            break  # We only need to check the first file
+
 if __name__ == '__main__':
     unittest.main()
