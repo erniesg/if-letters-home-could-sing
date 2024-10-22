@@ -6,18 +6,20 @@ from tqdm import tqdm
 import logging
 from preproc.config import HIT_OR3C_DIR, PROCESSED_DIR, FONT_PATH
 from preproc.utils import decode_label, is_char_in_font, get_unicode_repr, sanitize_filename
+from preproc.counter import Counter
 
 class HitOr3cProcessor:
     def __init__(self):
         self.data_dir = HIT_OR3C_DIR
         self.output_dir = os.path.join(PROCESSED_DIR, 'HIT_OR3C')
+        self.progress_dir = os.path.join(PROCESSED_DIR, 'progress')
         self.labels_file = os.path.join(self.data_dir, "labels.txt")
         self.dataset_name = 'HIT_OR3C'
         self.chars_not_in_mapping = set()
         self.chars_not_in_font = set()
         self.font_path = FONT_PATH
         self.logger = logging.getLogger(__name__)
-        self.char_counters = {}
+        self.counter = Counter(self.dataset_name, self.progress_dir)
 
     def get_full_dataset(self):
         return sorted([f for f in os.listdir(self.data_dir) if f.endswith('_images')])
@@ -51,7 +53,6 @@ class HitOr3cProcessor:
     def process(self, char_to_id, samples):
         labels = self.read_labels()
         label_index = 0
-        self.char_counters = {}  # Reset counters for each processing run
 
         for image_file in samples:
             images, _ = self.read_images(image_file)
@@ -66,8 +67,7 @@ class HitOr3cProcessor:
                         char_id = char_to_id[label]
                         if is_char_in_font(label, self.font_path):
                             pil_image = Image.fromarray(image)
-                            self.char_counters[char_id] = self.char_counters.get(char_id, 0) + 1
-                            filename = f"{self.dataset_name}_{char_id}_{self.char_counters[char_id]}.png"
+                            filename = self.counter.get_filename(char_id)
                             yield char_id, pil_image, self.dataset_name, filename
                         else:
                             self.chars_not_in_font.add(label)

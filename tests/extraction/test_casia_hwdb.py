@@ -1,9 +1,10 @@
 import unittest
 import os
 import shutil
+import tempfile
 from PIL import Image
 from preproc.processors.casia_hwdb import CasiaHwdbProcessor
-from preproc.config import PROCESSED_DIR
+from preproc.config import PROCESSED_DIR, CASIA_HWDB_DIR
 from preproc.dataset import DatasetHandler
 from preproc.tracker import ProgressTracker
 from preproc.utils import load_char_mappings, count_extracted_images
@@ -12,9 +13,21 @@ from preproc.reporting import generate_summary_stats, print_summary_stats
 class TestCasiaHwdbProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.processor = CasiaHwdbProcessor()
-        cls.progress_dir = os.path.join(PROCESSED_DIR, 'progress')
+        cls.temp_dir = tempfile.mkdtemp()
+        cls.progress_dir = os.path.join(cls.temp_dir, 'progress')
+        cls.output_dir = os.path.join(cls.temp_dir, 'CASIA_HWDB')
         os.makedirs(cls.progress_dir, exist_ok=True)
+        os.makedirs(cls.output_dir, exist_ok=True)
+
+        cls.processor = CasiaHwdbProcessor()
+        cls.processor.output_dir = cls.output_dir
+        cls.processor.progress_dir = cls.progress_dir
+        # We keep the original dataset_dir
+        cls.processor.dataset_dir = CASIA_HWDB_DIR
+        # Update the progress tracker's directory
+        cls.processor.progress_tracker.progress_dir = cls.progress_dir
+        # Update the counter's directory
+        cls.processor.counter.progress_dir = cls.progress_dir
 
         # Use the unified mapping files
         char_to_id_path = os.path.join(PROCESSED_DIR, 'unified_char_to_id_mapping.json')
@@ -24,10 +37,10 @@ class TestCasiaHwdbProcessor(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        shutil.rmtree(cls.progress_dir)
+        shutil.rmtree(cls.temp_dir)
 
     def setUp(self):
-        self.test_output_dir = os.path.join(PROCESSED_DIR, f'CASIA_HWDB_test_{self.id()}')
+        self.test_output_dir = os.path.join(self.temp_dir, f'CASIA_HWDB_test_{self.id()}')
         os.makedirs(self.test_output_dir, exist_ok=True)
 
     def tearDown(self):

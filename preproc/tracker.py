@@ -2,11 +2,12 @@ import json
 import os
 
 class ProgressTracker:
-    def __init__(self, dataset_name, output_dir):
+    def __init__(self, dataset_name, progress_dir):
         self.dataset_name = dataset_name
-        self.output_dir = output_dir
-        self.progress_file = os.path.join(output_dir, f"{dataset_name}_progress.json")
+        self.progress_dir = progress_dir
+        self.progress_file = os.path.join(self.progress_dir, f'{self.dataset_name}_progress.json')
         self.progress = self.load_progress()
+        self.total_images = 0
 
     def initialize_progress(self, samples):
         for sample in samples:
@@ -21,6 +22,7 @@ class ProgressTracker:
         self.save_progress()
 
     def save_progress(self):
+        os.makedirs(os.path.dirname(self.progress_file), exist_ok=True)
         with open(self.progress_file, 'w') as f:
             json.dump(self.progress, f)
 

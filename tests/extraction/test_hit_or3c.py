@@ -1,6 +1,7 @@
 import unittest
 import os
 import shutil
+import tempfile
 from PIL import Image
 import logging
 from preproc.processors.hit_or3c import HitOr3cProcessor
@@ -13,9 +14,17 @@ from preproc.reporting import generate_summary_stats, print_summary_stats
 class TestHitOr3cProcessor(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.processor = HitOr3cProcessor()
-        cls.progress_dir = os.path.join(PROCESSED_DIR, 'progress')
+        cls.temp_dir = tempfile.mkdtemp()
+        cls.progress_dir = os.path.join(cls.temp_dir, 'progress')
+        cls.output_dir = os.path.join(cls.temp_dir, 'HIT_OR3C')
         os.makedirs(cls.progress_dir, exist_ok=True)
+        os.makedirs(cls.output_dir, exist_ok=True)
+
+        cls.processor = HitOr3cProcessor()
+        cls.processor.output_dir = cls.output_dir
+        cls.processor.progress_dir = cls.progress_dir
+        # Add this line to update the counter's directory
+        cls.processor.counter.progress_dir = cls.progress_dir
 
         char_to_id_path = os.path.join(PROCESSED_DIR, 'unified_char_to_id_mapping.json')
         id_to_char_path = os.path.join(PROCESSED_DIR, 'unified_id_to_char_mapping.json')
@@ -27,8 +36,12 @@ class TestHitOr3cProcessor(unittest.TestCase):
         logging.basicConfig(level=logging.INFO)
         cls.logger = logging.getLogger(__name__)
 
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.temp_dir)
+
     def setUp(self):
-        self.test_output_dir = os.path.join(PROCESSED_DIR, f'HIT_OR3C_test_{self.id()}')
+        self.test_output_dir = os.path.join(self.temp_dir, f'HIT_OR3C_test_{self.id()}')
         os.makedirs(self.test_output_dir, exist_ok=True)
 
     def tearDown(self):
@@ -57,6 +70,10 @@ class TestHitOr3cProcessor(unittest.TestCase):
             self.assertIsInstance(img, Image.Image)
             self.assertEqual(dataset_name, 'HIT_OR3C')
             self.assertTrue(img.size[0] > 0 and img.size[1] > 0)
+
+            # Update this part to check the new filename format
+            expected_filename_pattern = r'HIT_OR3C_\d+_\d+\.png'
+            self.assertRegex(filename, expected_filename_pattern)
 
             unique_chars_in_sample.add(char_id)
             processed_count += 1

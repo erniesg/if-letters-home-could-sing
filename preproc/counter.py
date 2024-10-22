@@ -3,10 +3,10 @@ import json
 from threading import Lock
 
 class Counter:
-    def __init__(self, dataset_name, output_dir):
+    def __init__(self, dataset_name, progress_dir):
         self.dataset_name = dataset_name
-        self.output_dir = output_dir
-        self.counter_file = os.path.join(output_dir, f"{dataset_name}_counters.json")
+        self.progress_dir = progress_dir
+        self.counter_file = os.path.join(self.progress_dir, f'{self.dataset_name}_counters.json')
         self.counters = self.load_counters()
         self.lock = Lock()
 
@@ -17,6 +17,7 @@ class Counter:
         return {}
 
     def save_counters(self):
+        os.makedirs(os.path.dirname(self.counter_file), exist_ok=True)
         with open(self.counter_file, 'w') as f:
             json.dump(self.counters, f)
 
