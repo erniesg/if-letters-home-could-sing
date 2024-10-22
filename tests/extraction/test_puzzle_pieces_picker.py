@@ -106,5 +106,23 @@ class TestPuzzlePiecesPicker(unittest.TestCase):
         self.assertEqual(len(unprocessed), len(samples) - samples_to_complete)
         self.assertGreater(len(samples), samples_to_complete, "Not enough samples to test progress tracking")
 
+    def test_counter_persistence(self):
+        full_dataset = self.processor.get_full_dataset()
+        dataset_handler = DatasetHandler('PuzzlePiecesPicker', full_dataset)
+        samples = dataset_handler.get_deterministic_sample(0.01)
+
+        # Process some samples
+        for folder_id in samples[:1]:  # Process only one folder
+            list(self.processor.process([folder_id]))  # Consume the generator
+
+        # Create a new processor instance
+        new_processor = PuzzlePiecesPicker()
+
+        # Process the same folder again
+        for _, _, _, filename in new_processor.process([samples[0]]):
+            # Check that the counter continues from where it left off
+            self.assertNotIn('_1.png', filename)
+            break  # We only need to check the first file
+
 if __name__ == '__main__':
     unittest.main()

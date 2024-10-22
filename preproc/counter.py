@@ -23,7 +23,7 @@ class Counter:
     def get_next_counter(self, char_id):
         with self.lock:
             self.counters[char_id] = self.counters.get(char_id, 0) + 1
-            self.save_counters()  # Save after each update
+            self.save_counters()  # Add this line
             return self.counters[char_id]
 
     def reset_counters(self):
