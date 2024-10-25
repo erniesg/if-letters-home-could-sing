@@ -4,6 +4,7 @@ import sys
 import os
 import boto3
 from botocore.exceptions import ClientError
+import subprocess  # Add this import
 
 # Add the parent directory to sys.path to allow imports from the src folder
 current_file = Path(__file__).resolve()
@@ -25,6 +26,11 @@ app, image, volume = create_modal_app(modal_config)
 
 @create_function(app, modal_config, image, volume)
 def train(config: RAVEConfig):
+    # Debugging mounts and volumes
+    print("Debugging mounts and volumes:")
+    print(f"Local volume path: {config.modal_config.volume_path}")
+    print(f"S3 mount path: {config.modal_config.s3_mount_path}")
+
     print(f"Starting training with config: {config}")
     print(f"Current working directory: {os.getcwd()}")
     print(f"Contents of current directory: {os.listdir('.')}")
@@ -34,6 +40,24 @@ def train(config: RAVEConfig):
     print(f"AWS_ACCESS_KEY_ID: {'*' * len(os.environ.get('AWS_ACCESS_KEY_ID', ''))}")
     print(f"AWS_SECRET_ACCESS_KEY: {'*' * len(os.environ.get('AWS_SECRET_ACCESS_KEY', ''))}")
     print(f"AWS_SESSION_TOKEN: {'*' * len(os.environ.get('AWS_SESSION_TOKEN', ''))}")
+
+    # Debug RAVE installation
+    print("Debugging RAVE installation:")
+    try:
+        pip_show_output = subprocess.check_output(["pip", "show", "acids-rave"], text=True)
+        print(f"RAVE package information:\n{pip_show_output}")
+    except subprocess.CalledProcessError:
+        print("RAVE package not found via pip")
+
+    print(f"Current PATH: {os.environ.get('PATH')}")
+    print(f"Current PYTHONPATH: {os.environ.get('PYTHONPATH')}")
+
+    # Try to locate the rave command
+    try:
+        rave_path = subprocess.check_output(["which", "rave"], text=True).strip()
+        print(f"RAVE command found at: {rave_path}")
+    except subprocess.CalledProcessError:
+        print("RAVE command not found in PATH")
 
     # Construct the S3 path using the correct config values
     s3_path = f"s3://{config.modal_config.s3_bucket_name}/{config.modal_config.s3_data_path}"
@@ -64,6 +88,17 @@ def train(config: RAVEConfig):
     local_s3_path = Path(f"{config.modal_config.s3_mount_path}")
     data_path = local_s3_path / config.modal_config.s3_data_path
     output_path = local_s3_path / "output" / config.name
+
+    # Check if the local volume and S3 mount paths exist
+    if os.path.exists(config.modal_config.volume_path):
+        print(f"Contents of local volume path: {os.listdir(config.modal_config.volume_path)}")
+    else:
+        print(f"Local volume path does not exist: {config.modal_config.volume_path}")
+
+    if os.path.exists(config.modal_config.s3_mount_path):
+        print(f"Contents of S3 mount path: {os.listdir(config.modal_config.s3_mount_path)}")
+    else:
+        print(f"S3 mount path does not exist: {config.modal_config.s3_mount_path}")
 
     print(f"Local S3 mount path: {local_s3_path}")
     print(f"Data path: {data_path}")

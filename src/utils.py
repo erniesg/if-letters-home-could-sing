@@ -18,53 +18,19 @@ def upload_to_volume(local_path: str, remote_path: str, volume: modal.Volume):
             print(f"Directory {local_path} uploaded to {remote_path}")
 
         print("Batch upload completed")
+        volume.commit()  # Ensure changes are persisted
 
     except Exception as e:
         print(f"Error during upload: {str(e)}")
         raise
 
-    # Count files and get sizes after upload
-    file_count = 0
-    total_size = 0
-    file_types = {}
-
-    for root, _, files in os.walk(local_path):
-        for file in files:
-            file_path = Path(root) / file
-            file_count += 1
-            file_size = file_path.stat().st_size
-            total_size += file_size
-            file_type = file_path.suffix.lower()
-            file_types[file_type] = file_types.get(file_type, 0) + 1
-
-    print(f"Upload completed. Total files uploaded: {file_count}")
-    print(f"Total size uploaded: {total_size / (1024 * 1024):.2f} MB")
-    print("File types summary:")
-    for file_type, count in file_types.items():
-        print(f"  {file_type}: {count} files")
-
-    return file_count, total_size, file_types
-
 def run_command(command):
-    """
-    Run a shell command and print its output in real-time.
-    """
-    process = subprocess.Popen(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        text=True,
-        shell=True
-    )
-
-    for line in iter(process.stdout.readline, ''):
-        print(line, end='')
-
-    process.stdout.close()
-    return_code = process.wait()
-
-    if return_code:
-        raise subprocess.CalledProcessError(return_code, command)
+    try:
+        result = subprocess.run(" ".join(command), shell=True, check=True, capture_output=True, text=True)
+        print(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Command failed with error: {e}")
+        print(f"Error output: {e.stderr}")
 
 def download_from_volume(remote_path: str, local_path: str, volume: modal.Volume):
     local_path = Path(local_path)
