@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 from src.config import ModalConfig
 import os
-import pathlib
+from pathlib import Path
 
 @dataclass
 class RAVEConfig:
@@ -13,13 +13,17 @@ class RAVEConfig:
     channels: int = 1
     lazy: bool = False
     streaming: bool = False
-    val_every: int = 2500
-    max_steps: int = 10
+    val_every: int = 250
+    epochs: int = 2000  # Changed from max_steps to epochs
+    batch_size: int = 8  # Added batch_size
     smoke_test: bool = False
     progress: bool = True
     prior: Optional[str] = None
     additional_args: List[str] = field(default_factory=list)
     modal_config: ModalConfig = field(default_factory=ModalConfig)
+    fidelity: Optional[float] = None
+    latent_size: Optional[int] = None
+    stereo: bool = False
 
     @property
     def modal_dataset(self):

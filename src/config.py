@@ -20,7 +20,7 @@ class ModalConfig:
     ])
     apt_packages: List[str] = field(default_factory=lambda: ["ffmpeg"])
     gpu: str = "any"
-    timeout: int = 3600  # 1 hour in seconds
+    timeout: int = 10800  # 3 hours in seconds
     gcs_secret_name: str = "gcp-secret"
     gcs_bucket_name: str = "if-letters-home-could-sing"
     gcs_data_path: str = "data"  # Add this line

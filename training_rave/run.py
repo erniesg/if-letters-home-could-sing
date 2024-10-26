@@ -5,6 +5,8 @@ import os
 import boto3
 from botocore.exceptions import ClientError
 import subprocess
+import yaml
+from training_rave.rave import get_train_command, get_preprocess_command, get_export_command
 
 # Add the parent directory to sys.path to allow imports from the src folder
 current_file = Path(__file__).resolve()
@@ -90,6 +92,7 @@ def train(config: RAVEConfig):
 
     # Use Modal volume for output
     output_path = Path(config.modal_config.volume_path) / "output" / config.name
+    volume_output_path = f"output/{config.name}"
 
     # Check if the local volume and S3 mount paths exist
     if os.path.exists(config.modal_config.volume_path):
@@ -110,19 +113,85 @@ def train(config: RAVEConfig):
     # Ensure the output directory exists
     output_path.mkdir(parents=True, exist_ok=True)
 
-    # Preprocess data
-    preprocess_command = get_preprocess_command(config, data_path, output_path)
-    print(f"Preprocess command: {' '.join(preprocess_command)}")
-    run_command(preprocess_command)
+    # Check if preprocessed data already exists
+    preprocessed_path = f"{volume_output_path}/preprocessed"
+    metadata_file = f"{preprocessed_path}/metadata.yaml"
 
-    # Debug: List contents of the preprocessed directory
-    preprocessed_path = output_path / "preprocessed"
-    print(f"Contents of preprocessed directory: {list(preprocessed_path.rglob('*'))}")
+    metadata_content = None
+    try:
+        # List contents of the preprocessed directory
+        preprocessed_files = volume.listdir(preprocessed_path)
+        if any(file.name == "metadata.yaml" for file in preprocessed_files):
+            print("Preprocessed data already exists. Reading metadata file.")
+            metadata_content = b"".join(volume.read_file(metadata_file))
+            metadata_content = metadata_content.decode('utf-8')
+            print("Contents of metadata file:")
+            print(metadata_content)
+        else:
+            print("Metadata file not found. Will preprocess data.")
+    except Exception as e:
+        print(f"Error checking preprocessed data: {e}")
+        print("Will preprocess data.")
+
+    if metadata_content is None:
+        # Preprocess data
+        preprocess_command = get_preprocess_command(config, data_path, output_path)
+        print(f"Preprocess command: {' '.join(preprocess_command)}")
+        run_command(preprocess_command)
+
+        # Try to read metadata file again after preprocessing
+        try:
+            metadata_content = b"".join(volume.read_file(metadata_file))
+            metadata_content = metadata_content.decode('utf-8')
+            print("Contents of metadata file after preprocessing:")
+            print(metadata_content)
+        except Exception as e:
+            print(f"Error reading metadata file after preprocessing: {e}")
+
+    # Read metadata to get dataset size
+    dataset_size = 0
+    if metadata_content:
+        try:
+            metadata = yaml.safe_load(metadata_content)
+            dataset_size = metadata.get('length', 0)
+            print(f"Dataset size from metadata: {dataset_size}")
+        except Exception as e:
+            print(f"Error parsing metadata: {e}")
+
+    if dataset_size == 0:
+        print("Using default dataset size")
+        dataset_size = 383 * config.batch_size  # Default to 383 steps per epoch
+
+    # Calculate steps_per_epoch and max_steps
+    steps_per_epoch = max(1, dataset_size // config.batch_size)
+    max_steps = config.epochs * steps_per_epoch
+
+    print(f"Steps per epoch: {steps_per_epoch}")
+    print(f"Calculated max_steps for {config.epochs} epochs: {max_steps}")
+
+    # Set a reasonable val_every
+    val_every = min(5000, max(1, steps_per_epoch // 2))  # Validate twice per epoch, but no more than every 5000 steps
+    print(f"Setting val_every to: {val_every}")
 
     # Train model
-    train_command = get_train_command(config, output_path)
+    train_command = get_train_command(config, output_path, max_steps, val_every)
     print(f"Train command: {' '.join(train_command)}")
     run_command(train_command)
+
+    # Export model variations
+    variations = [
+        {"channels": 1, "streaming": False},
+        {"channels": 1, "streaming": True},
+        {"channels": 2, "streaming": False},
+        {"channels": 2, "streaming": True},
+    ]
+
+    for variation in variations:
+        variation_config = RAVEConfig(**{**config.__dict__, **variation})
+        variation_name = f"{config.name}_ch{variation['channels']}_{'streaming' if variation['streaming'] else 'non_streaming'}"
+        export_command = get_export_command(variation_config, output_path, variation_name)
+        print(f"Export command for {variation_name}: {' '.join(export_command)}")
+        run_command(export_command)
 
     # List contents of the output directory
     print(f"Contents of output directory: {list(output_path.rglob('*'))}")
@@ -130,7 +199,7 @@ def train(config: RAVEConfig):
     # Ensure all changes are committed to the volume
     volume.commit()
 
-    return f"Training completed for config: {config.name}. Results saved to {output_path}"
+    return f"Training and export completed for config: {config.name}. Results saved to {output_path}"
 
 @app.local_entrypoint()
 def main(
@@ -139,9 +208,11 @@ def main(
     channels: int = 1,
     lazy: bool = False,
     streaming: bool = False,
-    max_steps: int = 10,
+    epochs: int = 2000,
+    batch_size: int = 8,
     smoke_test: bool = False,
     progress: bool = True,
+    fidelity: float = 0.999,
 ):
     print(f"Main function called with arguments:")
     print(f"  dataset: {dataset}")
@@ -149,7 +220,8 @@ def main(
     print(f"  channels: {channels}")
     print(f"  lazy: {lazy}")
     print(f"  streaming: {streaming}")
-    print(f"  max_steps: {max_steps}")
+    print(f"  epochs: {epochs}")
+    print(f"  batch_size: {batch_size}")
     print(f"  smoke_test: {smoke_test}")
     print(f"  progress: {progress}")
 
@@ -159,11 +231,12 @@ def main(
         channels=channels,
         lazy=lazy,
         streaming=streaming,
-        val_every=10,
-        max_steps=max_steps,
+        epochs=epochs,
+        batch_size=batch_size,
         smoke_test=smoke_test,
         progress=progress,
-        modal_config=modal_config
+        modal_config=modal_config,
+        fidelity=fidelity
     )
 
     print(f"Created base config: {base_config}")
@@ -173,13 +246,48 @@ def main(
     print(result)
 
     # Download results from Modal volume
-    print("Downloading results")
+    print("Attempting to download results using download_from_volume function")
     local_output_path = Path(f"./output/{base_config.name}")
     volume_results_path = f"output/{base_config.name}"
-    download_from_volume(volume_results_path, str(local_output_path), volume)
-    print(f"Results downloaded to: {local_output_path}")
 
-    print(f"Results path: {local_output_path}")
+    variations = [
+        "ch1_non_streaming",
+        "ch1_streaming",
+        "ch2_non_streaming",
+        "ch2_streaming"
+    ]
+
+    try:
+        # Attempt to download the entire output directory
+        download_from_volume(volume_results_path, str(local_output_path), volume)
+        print(f"Results downloaded to: {local_output_path}")
+
+        # Attempt to specifically download the exported .ts files
+        for variation in variations:
+            exported_model_path = f"{volume_results_path}/exported/{base_config.name}_{variation}.ts"
+            local_model_path = local_output_path / "exported" / f"{base_config.name}_{variation}.ts"
+
+            try:
+                local_model_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(local_model_path, 'wb') as f:
+                    for chunk in volume.read_file(exported_model_path):
+                        f.write(chunk)
+                print(f"Exported model downloaded to: {local_model_path}")
+            except Exception as e:
+                print(f"Error downloading {variation} model: {str(e)}")
+
+    except Exception as e:
+        print(f"Error downloading results: {str(e)}")
+        print("Automatic download failed. Please use the manual download method.")
+
+    # Print command for manual download
+    print("\nTo manually download the results, run the following commands in your terminal:")
+    print(f"modal volume get {modal_config.volume_name} {volume_results_path} {local_output_path}")
+    print(f"\nTo specifically download the exported models, run:")
+    for variation in variations:
+        print(f"modal volume get {modal_config.volume_name} {volume_results_path}/exported/{base_config.name}_{variation}.ts {local_output_path}/exported/{base_config.name}_{variation}.ts")
+
+    print(f"\nResults should be available at: {local_output_path}")
 
 if __name__ == "__main__":
     modal.run(main)

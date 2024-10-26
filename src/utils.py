@@ -37,10 +37,26 @@ def download_from_volume(remote_path: str, local_path: str, volume: modal.Volume
     local_path.mkdir(parents=True, exist_ok=True)
 
     print(f"Downloading from {remote_path} to {local_path}")
-    for file_entry in volume.iterdir(remote_path):
-        local_file_path = local_path / file_entry.name
-        with open(local_file_path, 'wb') as f:
-            for chunk in volume.read_file(file_entry.path):
-                f.write(chunk)
 
+    def download_recursive(current_remote_path):
+        for file_entry in volume.iterdir(current_remote_path):
+            relative_path = Path(file_entry.path).relative_to(remote_path)
+            current_local_path = local_path / relative_path
+
+            if file_entry.is_dir():
+                current_local_path.mkdir(parents=True, exist_ok=True)
+                download_recursive(file_entry.path)
+            else:
+                current_local_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(current_local_path, 'wb') as f:
+                    for chunk in volume.read_file(file_entry.path):
+                        f.write(chunk)
+
+    download_recursive(remote_path)
     print("Download completed.")
+
+def read_file_from_volume(path: str, volume: modal.Volume) -> str:
+    content = b""
+    for chunk in volume.read_file(path):
+        content += chunk
+    return content.decode('utf-8')
