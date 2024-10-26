@@ -21,3 +21,6 @@ frontend/one-million-particles/
 *.ts
 *.wav
 *.ckpt
+output/
+.env*
+node_modules/
