@@ -15,7 +15,7 @@ sys.path.append(str(project_root))
 
 from src.config import ModalConfig
 from src.app import create_modal_app, create_function
-from src.utils import run_command, upload_to_volume, download_from_volume
+from src.utils import run_command, upload_to_volume, download_from_volume, read_file_from_volume, list_files_in_volume
 from training_rave.config import RAVEConfig
 from training_rave.rave import get_train_command, get_preprocess_command
 
@@ -114,17 +114,16 @@ def train(config: RAVEConfig):
     output_path.mkdir(parents=True, exist_ok=True)
 
     # Check if preprocessed data already exists
-    preprocessed_path = f"{volume_output_path}/preprocessed"
+    preprocessed_path = f"output/{config.name}/preprocessed"
     metadata_file = f"{preprocessed_path}/metadata.yaml"
 
     metadata_content = None
     try:
-        # List contents of the preprocessed directory
-        preprocessed_files = volume.listdir(preprocessed_path)
-        if any(file.name == "metadata.yaml" for file in preprocessed_files):
+        # Check if metadata.yaml exists in the volume
+        volume_files = volume.listdir(preprocessed_path)
+        if any(file.path.endswith('metadata.yaml') for file in volume_files):
             print("Preprocessed data already exists. Reading metadata file.")
-            metadata_content = b"".join(volume.read_file(metadata_file))
-            metadata_content = metadata_content.decode('utf-8')
+            metadata_content = read_file_from_volume(metadata_file, volume)
             print("Contents of metadata file:")
             print(metadata_content)
         else:
@@ -141,8 +140,7 @@ def train(config: RAVEConfig):
 
         # Try to read metadata file again after preprocessing
         try:
-            metadata_content = b"".join(volume.read_file(metadata_file))
-            metadata_content = metadata_content.decode('utf-8')
+            metadata_content = read_file_from_volume(metadata_file, volume)
             print("Contents of metadata file after preprocessing:")
             print(metadata_content)
         except Exception as e:
@@ -173,10 +171,55 @@ def train(config: RAVEConfig):
     val_every = min(5000, max(1, steps_per_epoch // 2))  # Validate twice per epoch, but no more than every 5000 steps
     print(f"Setting val_every to: {val_every}")
 
+
+    # Check for existing checkpoints
+    models_path = f"output/{config.name}/models"
+    print(f"Checking for checkpoints in path: {models_path}")
+
+    # ... (previous code remains the same)
+
+    # Specify the exact checkpoint path
+    specific_ckpt_path = "output/rave/models/rave_e18d54798e/version_14/checkpoints/best.ckpt"
+    print(f"Using specified checkpoint: {specific_ckpt_path}")
+
+    try:
+        # Check if the specified checkpoint exists
+        checkpoint_exists = any(file.path == specific_ckpt_path for file in list_files_in_volume("output", volume))
+
+        if checkpoint_exists:
+            print(f"Checkpoint found: {specific_ckpt_path}")
+            latest_checkpoint = specific_ckpt_path
+        else:
+            print(f"Specified checkpoint not found: {specific_ckpt_path}")
+            latest_checkpoint = None
+
+    except Exception as e:
+        print(f"Error checking for specified checkpoint: {e}")
+        print(f"Error type: {type(e)}")
+        print(f"Error args: {e.args}")
+        latest_checkpoint = None
+
     # Train model
     train_command = get_train_command(config, output_path, max_steps, val_every)
+    if latest_checkpoint:
+        train_command.extend(["--ckpt", latest_checkpoint])
+
+    # Additional debugging information before training
+    print(f"Starting training with the following parameters:")
+    print(f"  Max steps: {max_steps}")
+    print(f"  Validation every: {val_every}")
+    print(f"  Batch size: {config.batch_size}")
+    print(f"  Channels: {config.channels}")
+    print(f"  Lazy: {config.lazy}")
+    print(f"  Streaming: {config.streaming}")
+    print(f"  Smoke test: {config.smoke_test}")
+
     print(f"Train command: {' '.join(train_command)}")
     run_command(train_command)
+
+    # Additional debugging information after training
+    print(f"Training completed. Checking output:")
+    print(f"Contents of models directory: {os.listdir(output_path / 'models')}")
 
     # Export model variations
     variations = [
@@ -186,12 +229,17 @@ def train(config: RAVEConfig):
         {"channels": 2, "streaming": True},
     ]
 
+    print(f"Starting model export for {len(variations)} variations")
+
     for variation in variations:
         variation_config = RAVEConfig(**{**config.__dict__, **variation})
         variation_name = f"{config.name}_ch{variation['channels']}_{'streaming' if variation['streaming'] else 'non_streaming'}"
         export_command = get_export_command(variation_config, output_path, variation_name)
         print(f"Export command for {variation_name}: {' '.join(export_command)}")
         run_command(export_command)
+
+    print(f"Export completed. Checking output:")
+    print(f"Contents of exported directory: {os.listdir(output_path / 'exported')}")
 
     # List contents of the output directory
     print(f"Contents of output directory: {list(output_path.rglob('*'))}")

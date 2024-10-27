@@ -19,7 +19,7 @@ class ModalConfig:
         "boto3"  # Add this for GCS support
     ])
     apt_packages: List[str] = field(default_factory=lambda: ["ffmpeg"])
-    gpu: str = "any"
+    gpu: str = "A10G"
     timeout: int = 10800  # 3 hours in seconds
     gcs_secret_name: str = "gcp-secret"
     gcs_bucket_name: str = "if-letters-home-could-sing"

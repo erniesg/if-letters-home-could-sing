@@ -1,7 +1,15 @@
-import os
-from pathlib import Path
-import modal
 import subprocess
+from pathlib import Path
+from typing import List, Any
+import modal
+
+def run_command(command):
+    try:
+        result = subprocess.run(" ".join(command), shell=True, check=True, capture_output=True, text=True)
+        print(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print(f"Command failed with error: {e}")
+        print(f"Error output: {e.stderr}")
 
 def upload_to_volume(local_path: str, remote_path: str, volume: modal.Volume):
     print(f"Starting upload_to_volume function")
@@ -23,14 +31,6 @@ def upload_to_volume(local_path: str, remote_path: str, volume: modal.Volume):
     except Exception as e:
         print(f"Error during upload: {str(e)}")
         raise
-
-def run_command(command):
-    try:
-        result = subprocess.run(" ".join(command), shell=True, check=True, capture_output=True, text=True)
-        print(result.stdout)
-    except subprocess.CalledProcessError as e:
-        print(f"Command failed with error: {e}")
-        print(f"Error output: {e.stderr}")
 
 def download_from_volume(remote_path: str, local_path: str, volume: modal.Volume):
     local_path = Path(local_path)
@@ -60,3 +60,10 @@ def read_file_from_volume(path: str, volume: modal.Volume) -> str:
     for chunk in volume.read_file(path):
         content += chunk
     return content.decode('utf-8')
+
+def list_files_in_volume(path: str, volume: modal.Volume) -> List[Any]:
+    try:
+        return volume.listdir(path, recursive=True)
+    except Exception as e:
+        print(f"Error listing files in {path} from volume: {str(e)}")
+        return []

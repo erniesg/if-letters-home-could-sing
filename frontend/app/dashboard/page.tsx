@@ -1,5 +1,5 @@
 'use client';
-
+import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import HeartRateVisualization from '../../components/HeartRateVisualization';
 
@@ -42,6 +42,12 @@ export default function Dashboard() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-black to-gray-900 text-white p-4">
       <h1 className="text-4xl font-bold mb-8">Your Heart Rate</h1>
       <HeartRateVisualization cycles={cycles} currentHeartRate={heartRate} />
+      <Link
+        href="/realtime-hr"
+        className="mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+      >
+        View Real-time Heart Rate
+      </Link>
     </div>
   );
 }
