@@ -28,6 +28,7 @@ app, image, volume = create_modal_app(modal_config)
 
 @create_function(app, modal_config, image, volume)
 def train(config: RAVEConfig):
+    print("Starting train function")
     # Debugging mounts and volumes
     print("Debugging mounts and volumes:")
     print(f"Local volume path: {config.modal_config.volume_path}")
@@ -92,127 +93,23 @@ def train(config: RAVEConfig):
 
     # Use Modal volume for output
     output_path = Path(config.modal_config.volume_path) / "output" / config.name
-    volume_output_path = f"output/{config.name}"
+    preprocessed_path = output_path / "preprocessed"
+    models_path = output_path / "models"
 
-    # Check if the local volume and S3 mount paths exist
-    if os.path.exists(config.modal_config.volume_path):
-        print(f"Contents of local volume path: {os.listdir(config.modal_config.volume_path)}")
-    else:
-        print(f"Local volume path does not exist: {config.modal_config.volume_path}")
+    # Ensure the output directories exist
+    preprocessed_path.mkdir(parents=True, exist_ok=True)
+    models_path.mkdir(parents=True, exist_ok=True)
 
-    if os.path.exists(config.modal_config.s3_mount_path):
-        print(f"Contents of S3 mount path: {os.listdir(config.modal_config.s3_mount_path)}")
-    else:
-        print(f"S3 mount path does not exist: {config.modal_config.s3_mount_path}")
-
-    print(f"Local S3 mount path: {local_s3_path}")
-    print(f"Data path: {data_path}")
-    print(f"Output path: {output_path}")
-    print(f"Contents of data path: {os.listdir(data_path)}")
-
-    # Ensure the output directory exists
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    # Check if preprocessed data already exists
-    preprocessed_path = f"output/{config.name}/preprocessed"
-    metadata_file = f"{preprocessed_path}/metadata.yaml"
-
-    metadata_content = None
-    try:
-        # Check if metadata.yaml exists in the volume
-        volume_files = volume.listdir(preprocessed_path)
-        if any(file.path.endswith('metadata.yaml') for file in volume_files):
-            print("Preprocessed data already exists. Reading metadata file.")
-            metadata_content = read_file_from_volume(metadata_file, volume)
-            print("Contents of metadata file:")
-            print(metadata_content)
-        else:
-            print("Metadata file not found. Will preprocess data.")
-    except Exception as e:
-        print(f"Error checking preprocessed data: {e}")
-        print("Will preprocess data.")
-
-    if metadata_content is None:
-        # Preprocess data
+    # Preprocess data if not already done
+    if not list(preprocessed_path.glob("*")):
         preprocess_command = get_preprocess_command(config, data_path, output_path)
         print(f"Preprocess command: {' '.join(preprocess_command)}")
         run_command(preprocess_command)
+    else:
+        print("Preprocessed data already exists. Skipping preprocessing step.")
 
-        # Try to read metadata file again after preprocessing
-        try:
-            metadata_content = read_file_from_volume(metadata_file, volume)
-            print("Contents of metadata file after preprocessing:")
-            print(metadata_content)
-        except Exception as e:
-            print(f"Error reading metadata file after preprocessing: {e}")
-
-    # Read metadata to get dataset size
-    dataset_size = 0
-    if metadata_content:
-        try:
-            metadata = yaml.safe_load(metadata_content)
-            dataset_size = metadata.get('length', 0)
-            print(f"Dataset size from metadata: {dataset_size}")
-        except Exception as e:
-            print(f"Error parsing metadata: {e}")
-
-    if dataset_size == 0:
-        print("Using default dataset size")
-        dataset_size = 383 * config.batch_size  # Default to 383 steps per epoch
-
-    # Calculate steps_per_epoch and max_steps
-    steps_per_epoch = max(1, dataset_size // config.batch_size)
-    max_steps = config.epochs * steps_per_epoch
-
-    print(f"Steps per epoch: {steps_per_epoch}")
-    print(f"Calculated max_steps for {config.epochs} epochs: {max_steps}")
-
-    # Set a reasonable val_every
-    val_every = min(5000, max(1, steps_per_epoch // 2))  # Validate twice per epoch, but no more than every 5000 steps
-    print(f"Setting val_every to: {val_every}")
-
-
-    # Check for existing checkpoints
-    models_path = f"output/{config.name}/models"
-    print(f"Checking for checkpoints in path: {models_path}")
-
-    # ... (previous code remains the same)
-
-    # Specify the exact checkpoint path
-    specific_ckpt_path = "output/rave/models/rave_e18d54798e/version_14/checkpoints/best.ckpt"
-    print(f"Using specified checkpoint: {specific_ckpt_path}")
-
-    try:
-        # Check if the specified checkpoint exists
-        checkpoint_exists = any(file.path == specific_ckpt_path for file in list_files_in_volume("output", volume))
-
-        if checkpoint_exists:
-            print(f"Checkpoint found: {specific_ckpt_path}")
-            latest_checkpoint = specific_ckpt_path
-        else:
-            print(f"Specified checkpoint not found: {specific_ckpt_path}")
-            latest_checkpoint = None
-
-    except Exception as e:
-        print(f"Error checking for specified checkpoint: {e}")
-        print(f"Error type: {type(e)}")
-        print(f"Error args: {e.args}")
-        latest_checkpoint = None
-
-    # Train model
-    train_command = get_train_command(config, output_path, max_steps, val_every)
-    if latest_checkpoint:
-        train_command.extend(["--ckpt", latest_checkpoint])
-
-    # Additional debugging information before training
-    print(f"Starting training with the following parameters:")
-    print(f"  Max steps: {max_steps}")
-    print(f"  Validation every: {val_every}")
-    print(f"  Batch size: {config.batch_size}")
-    print(f"  Channels: {config.channels}")
-    print(f"  Lazy: {config.lazy}")
-    print(f"  Streaming: {config.streaming}")
-    print(f"  Smoke test: {config.smoke_test}")
+    # Get the training command (which now includes checkpoint detection)
+    train_command = get_train_command(config, output_path, config.max_steps, config.val_every)
 
     print(f"Train command: {' '.join(train_command)}")
     run_command(train_command)
@@ -261,6 +158,7 @@ def main(
     smoke_test: bool = False,
     progress: bool = True,
     fidelity: float = 0.999,
+    max_steps: int = 800000,
 ):
     print(f"Main function called with arguments:")
     print(f"  dataset: {dataset}")

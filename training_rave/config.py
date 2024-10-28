@@ -24,6 +24,7 @@ class RAVEConfig:
     fidelity: Optional[float] = None
     latent_size: Optional[int] = None
     stereo: bool = False
+    max_steps: int = 6000000  # Add this line
 
     @property
     def modal_dataset(self):

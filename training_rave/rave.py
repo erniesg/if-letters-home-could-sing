@@ -22,8 +22,8 @@ def get_train_command(config: RAVEConfig, output_path: Path, max_steps: int, val
         "--name", config.name,
         "--out_path", str(output_path / "models"),
         "--channels", str(config.channels),
-        "--val_every", str(val_every),
-        "--max_steps", str(max_steps),
+        "--val_every", str(val_every or config.val_every),
+        "--max_steps", str(max_steps or config.max_steps),
         "--batch", str(config.batch_size)
     ]
 
@@ -35,6 +35,14 @@ def get_train_command(config: RAVEConfig, output_path: Path, max_steps: int, val
         cmd.append("--smoke_test")
     if config.progress:
         cmd.append("--progress")
+
+    # Check for existing checkpoints
+    checkpoints_path = output_path / "models" / config.name / "checkpoints"
+    if checkpoints_path.exists():
+        latest_checkpoint = max(checkpoints_path.glob("*.ckpt"), key=os.path.getctime, default=None)
+        if latest_checkpoint:
+            print(f"Found latest checkpoint: {latest_checkpoint}")
+            cmd.extend(["--ckpt", str(latest_checkpoint)])
 
     return cmd
 
