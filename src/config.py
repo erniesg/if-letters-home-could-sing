@@ -19,8 +19,8 @@ class ModalConfig:
         "boto3"  # Add this for GCS support
     ])
     apt_packages: List[str] = field(default_factory=lambda: ["ffmpeg"])
-    gpu: str = "A10G"
-    timeout: int = 18000  # 3 hours in seconds
+    gpu: str = "H100"
+    timeout: int = 57600  # 3 hours in seconds
     gcs_secret_name: str = "gcp-secret"
     gcs_bucket_name: str = "if-letters-home-could-sing"
     gcs_data_path: str = "data"  # Add this line
@@ -28,6 +28,9 @@ class ModalConfig:
     s3_bucket_name: str = "if-letters-home-could-sing"
     s3_data_path: str = "data/hainanese_opera"
     s3_mount_path: str = "/s3-data"  # Add this line
+    cpu_count: Optional[float] = 4.0  # 4 CPU cores
+    memory_size: Optional[int] = 32768  # 32GB RAM
+    disk_size: Optional[int] = 100000  # ~100GB for preprocessing headroom
 
     def __post_init__(self):
         if self.volume_name is None:

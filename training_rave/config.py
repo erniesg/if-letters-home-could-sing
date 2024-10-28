@@ -13,9 +13,7 @@ class RAVEConfig:
     channels: int = 1
     lazy: bool = False
     streaming: bool = False
-    val_every: int = 250
-    epochs: int = 2000  # Changed from max_steps to epochs
-    batch_size: int = 8  # Added batch_size
+    batch_size: int = 8  # Keep batch_size
     smoke_test: bool = False
     progress: bool = True
     prior: Optional[str] = None
@@ -25,6 +23,8 @@ class RAVEConfig:
     latent_size: Optional[int] = None
     stereo: bool = False
     max_steps: int = 6000000  # Add this line
+    val_every: int = 10000  # Validate/checkpoint model every n steps
+    save_every: Optional[int] = 500000  # Save checkpoint every n steps
 
     @property
     def modal_dataset(self):

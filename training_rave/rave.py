@@ -27,6 +27,10 @@ def get_train_command(config: RAVEConfig, output_path: Path, max_steps: int, val
         "--batch", str(config.batch_size)
     ]
 
+    # Add save_every if specified
+    if config.save_every is not None:
+        cmd.extend(["--save_every", str(config.save_every)])
+
     if config.lazy:
         cmd.append("--lazy")
     if config.streaming:

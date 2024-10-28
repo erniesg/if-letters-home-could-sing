@@ -24,3 +24,4 @@ frontend/one-million-particles/
 output/
 .env*
 node_modules/
+public/

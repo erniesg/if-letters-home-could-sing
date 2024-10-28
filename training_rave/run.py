@@ -19,8 +19,14 @@ from src.utils import run_command, upload_to_volume, download_from_volume, read_
 from training_rave.config import RAVEConfig
 from training_rave.rave import get_train_command, get_preprocess_command
 
-# Initialize ModalConfig
-modal_config = ModalConfig(local_src_path=str(project_root / "src"))
+# Initialize ModalConfig with custom resources
+# Initialize ModalConfig with custom resources
+modal_config = ModalConfig(
+    local_src_path=str(project_root / "src"),
+    cpu_count=16.0,
+    memory_size=65536,  # Use 64GB RAM
+    disk_size=None  # Use ~200GB disk
+)
 print(f"Local src path: {modal_config.local_src_path}")
 
 # Create Modal app, image, and volume
@@ -119,18 +125,19 @@ def train(config: RAVEConfig):
     print(f"Contents of models directory: {os.listdir(output_path / 'models')}")
 
     # Export model variations
+    from datetime import datetime
+    runtime = datetime.now().strftime("%Y%m%d_%H%M%S")
+
     variations = [
         {"channels": 1, "streaming": False},
         {"channels": 1, "streaming": True},
-        {"channels": 2, "streaming": False},
-        {"channels": 2, "streaming": True},
     ]
 
     print(f"Starting model export for {len(variations)} variations")
 
     for variation in variations:
         variation_config = RAVEConfig(**{**config.__dict__, **variation})
-        variation_name = f"{config.name}_ch{variation['channels']}_{'streaming' if variation['streaming'] else 'non_streaming'}"
+        variation_name = f"{config.name}_ch{variation['channels']}_{'streaming' if variation['streaming'] else 'non_streaming'}_{runtime}"
         export_command = get_export_command(variation_config, output_path, variation_name)
         print(f"Export command for {variation_name}: {' '.join(export_command)}")
         run_command(export_command)
@@ -153,12 +160,13 @@ def main(
     channels: int = 1,
     lazy: bool = False,
     streaming: bool = False,
-    epochs: int = 2000,
     batch_size: int = 8,
     smoke_test: bool = False,
     progress: bool = True,
     fidelity: float = 0.999,
-    max_steps: int = 800000,
+    max_steps: int = 6000000,
+    save_every: int = 100000,
+    val_every: int = 10000,  # Add validation interval parameter
 ):
     print(f"Main function called with arguments:")
     print(f"  dataset: {dataset}")
@@ -166,10 +174,10 @@ def main(
     print(f"  channels: {channels}")
     print(f"  lazy: {lazy}")
     print(f"  streaming: {streaming}")
-    print(f"  epochs: {epochs}")
     print(f"  batch_size: {batch_size}")
     print(f"  smoke_test: {smoke_test}")
     print(f"  progress: {progress}")
+    print(f"  val_every: {val_every}")
 
     base_config = RAVEConfig(
         local_dataset=dataset,
@@ -177,12 +185,13 @@ def main(
         channels=channels,
         lazy=lazy,
         streaming=streaming,
-        epochs=epochs,
         batch_size=batch_size,
         smoke_test=smoke_test,
         progress=progress,
         modal_config=modal_config,
-        fidelity=fidelity
+        fidelity=fidelity,
+        save_every=save_every,
+        val_every=val_every,  # Add this field
     )
 
     print(f"Created base config: {base_config}")
@@ -197,10 +206,8 @@ def main(
     volume_results_path = f"output/{base_config.name}"
 
     variations = [
-        "ch1_non_streaming",
-        "ch1_streaming",
-        "ch2_non_streaming",
-        "ch2_streaming"
+        f"ch1_non_streaming_{runtime}",
+        f"ch1_streaming_{runtime}"
     ]
 
     try:

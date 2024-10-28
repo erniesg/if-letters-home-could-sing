@@ -20,22 +20,36 @@ def create_function(app: modal.App, config: ModalConfig, image: modal.Image, loc
     )
 
     def wrapper(func):
-        wrapped_func = app.function(
-            image=image,
-            gpu=config.gpu,
-            mounts=mounts,
-            volumes={
+        function_kwargs = {
+            "image": image,
+            "gpu": config.gpu,
+            "mounts": mounts,
+            "volumes": {
                 config.volume_path: local_volume,
-                config.s3_mount_path: s3_mount  # Use the new s3_mount_path here
+                config.s3_mount_path: s3_mount
             },
-            secret=modal.Secret.from_name(config.aws_secret_name),
-            timeout=config.timeout
-        )(func)
+            "secret": modal.Secret.from_name(config.aws_secret_name),
+            "timeout": config.timeout
+        }
 
-        print(f"Created function with GPU: {config.gpu}")
-        print(f"Local volume mounted at: {config.volume_path}")
-        print(f"S3 bucket mounted at: {config.s3_mount_path}")
-        print(f"Function timeout set to: {config.timeout} seconds")
+        # Add optional resource configurations
+        if config.cpu_count is not None:
+            function_kwargs["cpu"] = config.cpu_count
+        if config.memory_size is not None:
+            function_kwargs["memory"] = config.memory_size
+        if config.disk_size is not None:
+            function_kwargs["ephemeral_disk"] = config.disk_size
+
+        wrapped_func = app.function(**function_kwargs)(func)
+
+        print(f"Created function with:")
+        print(f"- GPU: {config.gpu}")
+        print(f"- CPU cores: {config.cpu_count}")
+        print(f"- Memory: {config.memory_size} MB")
+        print(f"- Disk: {config.disk_size} MB")
+        print(f"- Local volume mounted at: {config.volume_path}")
+        print(f"- S3 bucket mounted at: {config.s3_mount_path}")
+        print(f"- Function timeout: {config.timeout} seconds")
 
         return wrapped_func
 
