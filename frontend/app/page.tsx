@@ -18,7 +18,7 @@ export default function Home() {
       revealIframe.style.width = '100%';
       revealIframe.style.height = '100%';
       revealIframe.style.border = 'none';
-      revealIframe.src = 'http://localhost:8000'; // Your reveal server
+      revealIframe.src = 'http://localhost:8000/index.html';  // Explicitly point to index.html
       document.body.appendChild(revealIframe);
 
       // Listen for reveal completion
@@ -51,7 +51,7 @@ export default function Home() {
       scrollIframe.style.width = '100%';
       scrollIframe.style.height = '100%';
       scrollIframe.style.border = 'none';
-      scrollIframe.src = 'http://localhost:1234'; // Parcel default port
+      scrollIframe.src = 'http://localhost:1234/index2.html';  // Explicitly point to index2.html
       document.body.appendChild(scrollIframe);
 
       // Listen for scroll completion

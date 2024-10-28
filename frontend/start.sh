@@ -31,7 +31,7 @@ echo "✅ Reveal server started on port 8000"
 
 # Start scroll server in background
 cd ../scroll
-npx parcel src/index2.html --open &
+npx parcel src/index2.html --no-autoinstall &
 SCROLL_PID=$!
 echo "✅ Scroll server started"
 
