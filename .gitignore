@@ -18,11 +18,11 @@ ref/
 remarkable_raw_data.txt
 .DS_Store
 frontend/one-million-particles/
-*.ts
 *.wav
 *.ckpt
 output/
 .env*
 node_modules/
-public/
+.jpg*
 ref/
+.next
