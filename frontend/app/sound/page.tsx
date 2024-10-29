@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import AudioInitializer from '../../components/AudioInitializer';
 import { letters } from '../../lib/constants/letters'; // Import letters
-
+import HeartRateVisualizer from '../../components/HeartRateVisualizer';
 interface DebugInfo {
   currentBar: number;
   barsInSection: number;
@@ -97,6 +97,29 @@ export default function OperaTestPage() {
     }
   }, [isAudioInitialized, currentSection, letter]);
 
+  // Add section display helper
+  const getSectionDisplay = (section: 'entrance' | 'emotional' | 'exit') => {
+    const displays = {
+      entrance: 'Opening',
+      emotional: 'Main Section',
+      exit: 'Closing'
+    };
+    return displays[section];
+  };
+
+  // Add this section to the JSX where you want to display the section info
+  const sectionDisplay = (
+    <div className="mb-4 text-center">
+      <div className="text-sm font-medium text-gray-400">Current Section</div>
+      <div className="text-xl font-bold text-white">
+        {getSectionDisplay(currentSection)}
+      </div>
+      <div className="text-sm text-gray-500">
+        Bar {debugInfo.currentBar + 1} of {debugInfo.barsInSection}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col items-center min-h-screen bg-gradient-to-b from-black to-gray-900 text-white">
       <h1 className="text-4xl font-bold mb-8 p-4">Opera Pattern Test</h1>
@@ -107,8 +130,12 @@ export default function OperaTestPage() {
           onInitialized={setIsAudioInitialized}
         />
       ) : (
-        // Add max-width constraint to the main container
         <div className="flex flex-col items-center w-full max-w-5xl px-4">
+
+          <HeartRateVisualizer
+            heartRate={heartRate}
+            letter={letter}
+          />
           <div className="mb-8 space-y-4 w-64">
             <div className="flex items-center justify-between w-64">
               <div className="text-sm font-medium">
@@ -139,9 +166,9 @@ export default function OperaTestPage() {
             )}
 
             <div className="flex items-center justify-between w-64">
-              <div className="text-sm font-medium">
+              {/* <div className="text-sm font-medium">
                 Heart Rate: {heartRate} BPM
-              </div>
+              </div> */}
               <button
                 onClick={() => setIsManualControl(!isManualControl)}
                 className={`px-3 py-1 rounded text-sm ${

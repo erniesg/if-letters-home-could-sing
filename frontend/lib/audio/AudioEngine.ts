@@ -29,6 +29,7 @@ export interface PlaySoundOptions {
 class AudioEngine {
   private audioContext: AudioContext;
   private analyser: AnalyserNode;
+  private masterGain: GainNode;
   private sampleMetadata: Map<string, AudioEngineMetadata[]> = new Map();
   private instruments: Map<string, InstrumentConfig>;
   private isInitialized: boolean = false;
@@ -36,6 +37,10 @@ class AudioEngine {
   constructor() {
     this.audioContext = new AudioContext();
     this.analyser = this.audioContext.createAnalyser();
+    this.masterGain = this.audioContext.createGain();
+    this.masterGain.connect(this.audioContext.destination);
+    this.masterGain.gain.value = 0;
+
     this.instruments = new Map([
       ['bangu', { harmonics: [1, 2, 3], freq: 220, type: 'sine' }],
       ['daluo', { harmonics: [1, 1.5, 2], freq: 110, type: 'sine' }],
@@ -156,7 +161,7 @@ class AudioEngine {
       source.playbackRate.value = pitchVariation;
 
       source.connect(gain);
-      gain.connect(this.analyser);
+      gain.connect(this.masterGain);
       gain.connect(this.audioContext.destination);
 
       source.start(this.audioContext.currentTime);
@@ -258,6 +263,23 @@ class AudioEngine {
     } catch (error) {
       console.error('Error discovering samples:', error);
     }
+  }
+
+  public setVolume(value: number) {
+    if (this.masterGain) {
+      this.masterGain.gain.setTargetAtTime(value, this.audioContext.currentTime, 0.1);
+    }
+  }
+
+  public fadeIn(duration: number = 2) {
+    const now = this.audioContext.currentTime;
+    this.masterGain.gain.setValueAtTime(0, now);
+    this.masterGain.gain.linearRampToValueAtTime(1, now + duration);
+  }
+
+  public fadeOut(duration: number = 2) {
+    const now = this.audioContext.currentTime;
+    this.masterGain.gain.linearRampToValueAtTime(0, now + duration);
   }
 }
 

@@ -104,8 +104,12 @@ export function useAudioEngine(
   useEffect(() => {
     if (!isFullyInitialized || !engineRef.current || !generatorRef.current) return;
 
+    // Fade in when starting
+    engineRef.current.fadeIn(2);
+
     const factor = manualFactor !== undefined ? manualFactor : 0.5;
     const tempo = mapHeartRateToTempo(heartRate, factor);
+    console.log(`Tempo: ${tempo}bpm | Heart Rate: ${heartRate}bpm | Factor: ${factor}`);
     setDebug(prev => ({
       ...prev,
       tempo,
@@ -170,8 +174,13 @@ export function useAudioEngine(
     }, stepDuration * 1000);
 
     return () => {
-      clearInterval(interval);
-      setDebug(prev => ({ ...prev, isPlaying: false }));
+      if (engineRef.current) {
+        engineRef.current.fadeOut(1);
+        setTimeout(() => {
+          clearInterval(interval);
+          setDebug(prev => ({ ...prev, isPlaying: false }));
+        }, 1000);
+      }
     };
   }, [heartRate, letter, isFullyInitialized, manualFactor]);
 
