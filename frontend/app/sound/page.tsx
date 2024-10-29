@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
+import AudioInitializer from '../../components/AudioInitializer';
 
 interface DebugInfo {
   currentBar: number;
@@ -48,23 +49,27 @@ export default function OperaTestPage() {
 
   const instruments: InstrumentKey[] = ['bangu', 'daluo', 'xiaoluo', 'nanbo'];
 
+  const handleHeartRateUpdate = (newRate: number) => {
+    console.log('Heart Rate Updated:', newRate);
+    setHeartRate(newRate);
+  };
+
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-black to-gray-900 text-white p-4">
       <h1 className="text-4xl font-bold mb-8">Opera Pattern Test</h1>
 
       {!isAudioInitialized ? (
-        <button
-          onClick={() => setIsAudioInitialized(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-full mb-8"
-        >
-          Initialize Audio
-        </button>
+        <AudioInitializer
+          onHeartRateUpdate={handleHeartRateUpdate}
+          onInitialized={setIsAudioInitialized}
+        />
       ) : (
         <>
           <div className="mb-8">
-            <label className="block text-sm font-medium mb-2">
-              Heart Rate: {heartRate} BPM
-            </label>
+            <div className="text-sm font-medium mb-2">
+              Current Heart Rate: {heartRate} BPM
+            </div>
+            {/* Keep manual control as fallback */}
             <input
               type="range"
               min="60"
