@@ -49,6 +49,9 @@ export function useAudioEngine(
     nanbo: false
   });
 
+  // Add initialization check state
+  const [isFullyInitialized, setIsFullyInitialized] = useState(false);
+
   // Initialize audio engine
   useEffect(() => {
     if (isInitialized && !engineRef.current) {
@@ -57,6 +60,7 @@ export function useAudioEngine(
           engineRef.current = new AudioEngine();
           generatorRef.current = new PatternGenerator();
 
+          // Wait for both systems to be fully ready
           await Promise.all([
             new Promise<void>((resolve) => {
               const checkEngine = () => {
@@ -80,7 +84,7 @@ export function useAudioEngine(
             })
           ]);
 
-          setDebug(prev => ({ ...prev, tempo: 0, isPlaying: false }));
+          setIsFullyInitialized(true);
         } catch (error) {
           console.error('Failed to initialize audio:', error);
         }
@@ -98,7 +102,7 @@ export function useAudioEngine(
 
   // Handle pattern generation and playback
   useEffect(() => {
-    if (!engineRef.current || !generatorRef.current) return;
+    if (!isFullyInitialized || !engineRef.current || !generatorRef.current) return;
 
     const factor = manualFactor !== undefined ? manualFactor : 0.5;
     const tempo = mapHeartRateToTempo(heartRate, factor);
@@ -169,7 +173,7 @@ export function useAudioEngine(
       clearInterval(interval);
       setDebug(prev => ({ ...prev, isPlaying: false }));
     };
-  }, [heartRate, letter, engineRef.current, generatorRef.current, currentSection, manualFactor]);
+  }, [heartRate, letter, isFullyInitialized, manualFactor]);
 
   return {
     section: currentSection,

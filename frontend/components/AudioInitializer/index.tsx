@@ -4,6 +4,8 @@ import { useState, useCallback } from 'react';
 import { connectToBLEDevice, disconnectFromBLEDevice, handleHeartRateMeasurement } from '../../lib/ble';
 import { HeartRateAnalyzer } from '../../lib/heartRate/utils';
 import { AudioInitializerProps, InitializerStatus } from './types';
+import AudioEngine from '../../lib/audio/AudioEngine';
+import { PatternGenerator } from '../../lib/audio/patterns'; // Fixed import path
 
 export default function AudioInitializer({ onHeartRateUpdate, onInitialized }: AudioInitializerProps) {
   const [device, setDevice] = useState<BluetoothDevice | null>(null);
@@ -41,20 +43,34 @@ export default function AudioInitializer({ onHeartRateUpdate, onInitialized }: A
 
       // Initialize Audio
       setStatus(prev => ({ ...prev, audio: 'loading' }));
-      const audioContext = new AudioContext();
-      await audioContext.resume();
 
-      // Wait for samples to load
-      await new Promise(resolve => {
-        const checkSamplesLoaded = () => {
-          if (audioContext.state === 'running') {
-            resolve();
-          } else {
-            setTimeout(checkSamplesLoaded, 100);
-          }
-        };
-        checkSamplesLoaded();
-      });
+      // Create temporary AudioEngine to check sample loading
+      const tempEngine = new AudioEngine();
+      const tempGenerator = new PatternGenerator();
+
+      // Wait for both systems to be ready
+      await Promise.all([
+        new Promise<void>((resolve) => {
+          const checkEngine = () => {
+            if (tempEngine.isReady()) {
+              resolve();
+            } else {
+              setTimeout(checkEngine, 100);
+            }
+          };
+          checkEngine();
+        }),
+        new Promise<void>((resolve) => {
+          const checkGenerator = () => {
+            if (tempGenerator.isReady()) {
+              resolve();
+            } else {
+              setTimeout(checkGenerator, 100);
+            }
+          };
+          checkGenerator();
+        })
+      ]);
 
       setStatus(prev => ({ ...prev, audio: 'ready' }));
       onInitialized(true);
