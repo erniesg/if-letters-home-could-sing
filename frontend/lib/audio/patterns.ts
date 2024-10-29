@@ -90,7 +90,9 @@ export class PatternGenerator {
   private isInitialized: boolean = false;
   private currentSection: 'entrance' | 'emotional' | 'exit' = 'entrance';
   private sectionProgress: number = 0;
-  private sectionDuration: number = 4;
+  private stepsPerBar: number = 16;
+  private barsPerSection: number = 4;
+  private totalSteps: number = this.stepsPerBar * this.barsPerSection;
 
   public isReady(): boolean {
     return this.isInitialized && Object.keys(this.sampleCache).length > 0;
@@ -98,6 +100,10 @@ export class PatternGenerator {
 
   public getCurrentSection(): 'entrance' | 'emotional' | 'exit' {
     return this.currentSection;
+  }
+
+  public getCurrentBar(): number {
+    return Math.floor(this.sectionProgress / this.stepsPerBar);
   }
 
   private analyzeLetterContent(letter: number): LetterMetrics {
@@ -162,10 +168,10 @@ export class PatternGenerator {
     const heartRateInfluence = (heartRate - 60) / 60; // Normalize to 0-1 range
 
     // Progress through sections
-    this.sectionProgress++;
+    this.sectionProgress = (this.sectionProgress + 1) % this.totalSteps;
 
-    if (this.sectionProgress >= this.sectionDuration) {
-      this.sectionProgress = 0;
+    // Change section when we complete all bars
+    if (this.sectionProgress === 0) {
       this.currentSection = this.getNextSection();
     }
 

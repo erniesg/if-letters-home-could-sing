@@ -30,7 +30,8 @@ interface AudioEngineState {
 export function useAudioEngine(
   heartRate: number,
   letter: 1 | 2,
-  isInitialized: boolean
+  isInitialized: boolean,
+  manualFactor?: number
 ): AudioEngineState {
   const engineRef = useRef<AudioEngine | null>(null);
   const generatorRef = useRef<PatternGenerator | null>(null);
@@ -99,7 +100,8 @@ export function useAudioEngine(
   useEffect(() => {
     if (!engineRef.current || !generatorRef.current) return;
 
-    const tempo = mapHeartRateToTempo(heartRate, 0.5);
+    const factor = manualFactor !== undefined ? manualFactor : 0.5;
+    const tempo = mapHeartRateToTempo(heartRate, factor);
     setDebug(prev => ({
       ...prev,
       tempo,
@@ -164,7 +166,7 @@ export function useAudioEngine(
       clearInterval(interval);
       setDebug(prev => ({ ...prev, isPlaying: false }));
     };
-  }, [heartRate, letter, engineRef.current, generatorRef.current, currentSection]);
+  }, [heartRate, letter, engineRef.current, generatorRef.current, currentSection, manualFactor]);
 
   return {
     section: currentSection,

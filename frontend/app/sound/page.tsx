@@ -23,10 +23,13 @@ interface AudioEngineState {
 type InstrumentKey = keyof Pick<DebugInfo, 'bangu' | 'daluo' | 'xiaoluo' | 'nanbo'>;
 
 export default function OperaTestPage() {
+  // Group all state declarations at the top
   const [isAudioInitialized, setIsAudioInitialized] = useState(false);
   const [heartRate, setHeartRate] = useState(80);
   const [letter, setLetter] = useState<1 | 2>(1);
   const [currentSection, setCurrentSection] = useState<'entrance' | 'emotional' | 'exit'>('entrance');
+  const [isManualFactorControl, setIsManualFactorControl] = useState(false);
+  const [manualFactor, setManualFactor] = useState(1);
   const [debugInfo, setDebugInfo] = useState<DebugInfo>({
     currentBar: 0,
     barsInSection: 0,
@@ -38,7 +41,12 @@ export default function OperaTestPage() {
     nanbo: false
   });
 
-  const engineState = useAudioEngine(heartRate, letter, isAudioInitialized);
+  const engineState = useAudioEngine(
+    heartRate,
+    letter,
+    isAudioInitialized,
+    isManualFactorControl ? manualFactor : undefined
+  );
 
   useEffect(() => {
     if (isAudioInitialized) {
@@ -49,9 +57,14 @@ export default function OperaTestPage() {
 
   const instruments: InstrumentKey[] = ['bangu', 'daluo', 'xiaoluo', 'nanbo'];
 
+  const [isManualControl, setIsManualControl] = useState(false);
+  const [manualHeartRate, setManualHeartRate] = useState(80);
+
   const handleHeartRateUpdate = (newRate: number) => {
     console.log('Heart Rate Updated:', newRate);
-    setHeartRate(newRate);
+    if (!isManualControl) {
+      setHeartRate(newRate);
+    }
   };
 
   return (
@@ -65,18 +78,65 @@ export default function OperaTestPage() {
         />
       ) : (
         <>
-          <div className="mb-8">
-            <div className="text-sm font-medium mb-2">
-              Current Heart Rate: {heartRate} BPM
+          <div className="mb-8 space-y-4">
+            <div className="flex items-center justify-between w-64">
+              <div className="text-sm font-medium">
+                Factor: {isManualFactorControl ? manualFactor.toFixed(2) : 'Auto'}
+              </div>
+              <button
+                onClick={() => setIsManualFactorControl(!isManualFactorControl)}
+                className={`px-3 py-1 rounded text-sm ${
+                  isManualFactorControl
+                    ? 'bg-yellow-600 hover:bg-yellow-700'
+                    : 'bg-gray-600 hover:bg-gray-700'
+                }`}
+              >
+                {isManualFactorControl ? 'Manual Factor' : 'Auto Factor'}
+              </button>
             </div>
-            {/* Keep manual control as fallback */}
+
+            {isManualFactorControl && (
+              <input
+                type="range"
+                min="0"
+                max="2"
+                step="0.1"
+                value={manualFactor}
+                onChange={(e) => setManualFactor(Number(e.target.value))}
+                className="w-64"
+              />
+            )}
+
+            <div className="flex items-center justify-between w-64">
+              <div className="text-sm font-medium">
+                Heart Rate: {heartRate} BPM
+              </div>
+              <button
+                onClick={() => setIsManualControl(!isManualControl)}
+                className={`px-3 py-1 rounded text-sm ${
+                  isManualControl
+                    ? 'bg-yellow-600 hover:bg-yellow-700'
+                    : 'bg-gray-600 hover:bg-gray-700'
+                }`}
+              >
+                {isManualControl ? 'Manual Control' : 'BLE Sync'}
+              </button>
+            </div>
+
             <input
               type="range"
               min="60"
               max="120"
-              value={heartRate}
-              onChange={(e) => setHeartRate(Number(e.target.value))}
+              value={isManualControl ? manualHeartRate : heartRate}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setManualHeartRate(value);
+                if (isManualControl) {
+                  setHeartRate(value);
+                }
+              }}
               className="w-64"
+              disabled={!isManualControl}
             />
           </div>
 
@@ -89,7 +149,8 @@ export default function OperaTestPage() {
 
           <div className="text-lg space-y-2 mb-8">
             <div>Current Section: {currentSection}</div>
-            <div>Current Bar: {debugInfo.currentBar} / {debugInfo.barsInSection}</div>
+            <div>Current Bar: {Math.floor(debugInfo.currentBar / 16)} / {4}</div>
+            <div>Step: {debugInfo.currentBar % 16} / 16</div>
             <div>Tempo: {debugInfo.tempo} BPM</div>
             <div>Status: {debugInfo.isPlaying ? 'Playing' : 'Stopped'}</div>
           </div>
