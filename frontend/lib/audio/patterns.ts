@@ -25,44 +25,44 @@ export interface PatternContext {
 export const basePatterns = {
   entrance: {
     distress: {
-      bangu:   [1,0,1,0, 1,0,0,1, 1,0,1,0, 1,0,0,0],
-      daluo:   [1,0,0,0, 0,0,0,1, 1,0,0,0, 0,0,0,0],
-      xiaoluo: [0,1,0,0, 0,1,0,0, 0,1,0,0, 0,1,0,0],
-      nanbo:   [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,0,0,0]
+      bangu:   [1,0,1,1, 0,1,0,1, 1,1,0,1, 0,1,1,0],
+      daluo:   [1,0,0,0, 0,0,1,0, 1,0,0,0, 0,1,0,0],
+      xiaoluo: [0,1,0,1, 1,0,1,0, 0,1,0,1, 1,0,0,1],
+      nanbo:   [1,0,0,1, 0,0,1,0, 0,0,1,0, 0,1,0,1]
     },
     worry: {
-      bangu:   [1,0,1,0, 0,1,0,0, 1,0,1,0, 0,1,0,0],
-      daluo:   [1,0,0,0, 0,0,1,0, 1,0,0,0, 0,0,0,0],
-      xiaoluo: [0,0,1,0, 0,1,0,0, 0,0,1,0, 0,1,0,0],
-      nanbo:   [0,1,0,0, 0,0,1,0, 0,1,0,0, 0,0,1,0]
+      bangu:   [1,0,1,0, 1,1,0,0, 1,0,1,0, 0,1,1,0],
+      daluo:   [1,0,0,0, 0,1,0,0, 1,0,0,0, 0,0,1,0],
+      xiaoluo: [0,1,0,1, 0,0,1,0, 0,1,0,1, 0,1,0,0],
+      nanbo:   [0,0,1,0, 1,0,0,1, 0,0,1,0, 1,0,0,0]
     }
   },
   emotional: {
     distress: {
-      bangu:   [1,1,0,1, 1,1,0,1, 1,1,0,1, 1,1,1,1],
-      daluo:   [1,0,0,1, 1,0,0,1, 1,0,0,1, 1,0,1,1],
-      xiaoluo: [0,1,1,1, 0,1,1,0, 0,1,1,1, 0,1,1,1],
-      nanbo:   [1,0,1,1, 0,1,1,0, 1,0,1,1, 0,1,1,1]
+      bangu:   [1,1,0,1, 1,0,1,1, 1,1,1,0, 1,1,0,1],
+      daluo:   [1,0,0,1, 0,1,0,1, 1,0,1,0, 0,1,1,1],
+      xiaoluo: [0,1,1,0, 1,1,0,1, 0,1,1,0, 1,0,1,1],
+      nanbo:   [1,0,1,1, 0,1,1,0, 1,1,0,1, 0,1,1,1]
     },
     worry: {
-      bangu:   [1,0,1,1, 1,0,1,0, 1,1,1,0, 1,0,1,1],
-      daluo:   [1,0,1,0, 0,0,1,0, 1,0,1,0, 0,0,1,1],
-      xiaoluo: [0,1,0,1, 1,1,0,0, 0,1,0,1, 1,1,0,1],
-      nanbo:   [1,0,1,0, 0,1,0,1, 1,0,1,0, 0,1,1,1]
+      bangu:   [1,0,1,1, 0,1,1,0, 1,1,0,1, 0,1,1,0],
+      daluo:   [1,0,0,1, 1,0,0,1, 1,0,1,0, 0,1,0,1],
+      xiaoluo: [0,1,1,0, 0,1,1,0, 0,1,0,1, 1,0,1,0],
+      nanbo:   [1,0,1,0, 1,0,1,0, 0,1,1,0, 1,0,1,1]
     }
   },
   exit: {
     distress: {
-      bangu:   [1,1,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
-      daluo:   [1,0,0,0, 0,0,0,1, 0,0,0,0, 0,0,0,1],
-      xiaoluo: [0,1,0,0, 0,0,1,0, 0,0,0,0, 0,0,0,0],
-      nanbo:   [0,0,1,0, 0,0,0,1, 0,0,0,0, 0,0,0,0]
+      bangu:   [1,1,0,1, 1,0,0,1, 1,0,0,1, 0,0,1,0],
+      daluo:   [1,0,0,1, 0,0,1,0, 1,0,0,0, 0,1,0,0],
+      xiaoluo: [0,1,1,0, 0,1,0,0, 0,1,0,0, 0,0,0,1],
+      nanbo:   [1,0,1,0, 0,1,0,0, 0,0,1,0, 0,0,0,0]
     },
     worry: {
-      bangu:   [1,0,1,0, 1,0,0,0, 1,0,0,0, 0,0,0,0],
-      daluo:   [1,0,0,0, 0,0,0,1, 0,0,0,0, 0,0,0,0],
-      xiaoluo: [0,0,1,0, 0,0,0,0, 0,0,1,0, 0,0,0,0],
-      nanbo:   [0,1,0,0, 0,0,0,1, 0,0,0,0, 0,0,0,0]
+      bangu:   [1,0,1,0, 1,0,0,1, 1,0,0,0, 0,0,0,1],
+      daluo:   [1,0,0,1, 0,0,1,0, 0,0,0,1, 0,0,0,0],
+      xiaoluo: [0,1,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,0],
+      nanbo:   [0,0,1,0, 0,0,0,1, 0,0,0,0, 0,0,0,1]
     }
   }
 };
@@ -154,23 +154,42 @@ export class PatternGenerator {
     basePattern: number[]
   ): number[] {
     if (!Array.isArray(basePattern)) {
-      console.error('Invalid base pattern:', basePattern);
-      return new Array(16).fill(0); // Return safe default
+      return new Array(16).fill(0);
     }
 
     const pattern = [...basePattern];
     const variationProbability = intensity * heartRateInfluence;
 
+    // Add Hainanese opera-specific variations
     return pattern.map((hit, i) => {
-      if (role === 'rhythmic' && Math.random() < variationProbability) {
-        return hit ? 0 : 1;
+      // Traditional accent patterns on beats 1 and 3
+      const isMainBeat = i % 8 === 0;
+      const isSecondaryBeat = i % 8 === 4;
+
+      if (role === 'rhythmic') {
+        // Bangu variations based on intensity
+        if (isMainBeat && Math.random() < intensity) {
+          return 1; // Ensure strong beats
+        }
+        if (Math.random() < variationProbability * 0.3) {
+          return hit ? 0 : 1; // Subtle variations
+        }
       }
-      if (role === 'accent' && i % 4 === 0 && Math.random() < intensity) {
-        return 1;
+
+      if (role === 'accent') {
+        // Daluo emphasizes structural points
+        if ((isMainBeat || isSecondaryBeat) && Math.random() < intensity) {
+          return 1;
+        }
       }
-      if (role === 'ornamental' && Math.random() < variationProbability * 0.5) {
-        return Math.random() < 0.3 ? 1 : 0;
+
+      if (role === 'ornamental') {
+        // Xiaoluo adds flourishes between main beats
+        if (!isMainBeat && !isSecondaryBeat && Math.random() < variationProbability * 0.4) {
+          return Math.random() < intensity ? 1 : 0;
+        }
       }
+
       return hit;
     });
   }

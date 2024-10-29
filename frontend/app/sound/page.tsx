@@ -78,24 +78,30 @@ export default function OperaTestPage() {
   const [imageOpacity, setImageOpacity] = useState(0);
 
   useEffect(() => {
-    if (isAudioInitialized && currentSection === 'entrance') {
-      // Start fade in during entrance section
-      const fadeInDuration = letters[letter].content.musicalMapping.sectionDurations.entrance;
+    if (isAudioInitialized) {
+      // Faster fade in (2 seconds instead of full section duration)
+      const fadeInDuration = 2000;
       const startTime = Date.now();
 
       const fadeInterval = setInterval(() => {
         const elapsed = Date.now() - startTime;
         const progress = Math.min(elapsed / fadeInDuration, 1);
-        setImageOpacity(progress);
+
+        // Keep full opacity after entrance section
+        if (currentSection !== 'entrance') {
+          setImageOpacity(1);
+        } else {
+          setImageOpacity(progress);
+        }
 
         if (progress >= 1) {
           clearInterval(fadeInterval);
         }
-      }, 16); // 60fps update
+      }, 16);
 
       return () => clearInterval(fadeInterval);
     }
-  }, [isAudioInitialized, currentSection, letter]);
+  }, [isAudioInitialized, currentSection]);
 
   // Add section display helper
   const getSectionDisplay = (section: 'entrance' | 'emotional' | 'exit') => {
