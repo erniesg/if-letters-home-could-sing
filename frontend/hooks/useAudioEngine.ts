@@ -40,7 +40,7 @@ export function useAudioEngine(
   const [currentSection, setCurrentSection] = useState<'entrance' | 'emotional' | 'exit'>('entrance');
   const [debug, setDebug] = useState<DebugInfo>({
     currentBar: 0,
-    barsInSection: 16,
+    barsInSection: 8,
     tempo: 0,
     isPlaying: false,
     bangu: false,
@@ -120,7 +120,7 @@ export function useAudioEngine(
     const interval = setInterval(() => {
       if (!patternRef.current || !engineRef.current || !generatorRef.current) return;
 
-      const currentBar = Math.floor(stepRef.current / 4);
+      const currentBar = Math.floor(stepRef.current / 8);
       const instrumentStates = {} as Record<string, boolean>;
 
       Object.entries(patternRef.current).forEach(([instrument, pattern]) => {
@@ -147,7 +147,7 @@ export function useAudioEngine(
         ...instrumentStates
       }));
 
-      stepRef.current = (stepRef.current + 1) % 16;
+      stepRef.current = (stepRef.current + 1) % 8;
 
       if (stepRef.current === 0) {
         try {
@@ -160,6 +160,9 @@ export function useAudioEngine(
           console.error('Failed to update pattern:', error);
         }
       }
+
+      console.log('Step:', stepRef.current);
+      console.log('Current Bar:', currentBar);
     }, stepDuration * 1000);
 
     return () => {

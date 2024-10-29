@@ -19,16 +19,28 @@ html, body {
   width: 100%;
   margin: 0;
   padding: 0;
-  overflow: hidden;
 }
 
 body {
   display: flex;
   flex-direction: column;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 #__next {
   flex: 1;
   display: flex;
   flex-direction: column;
+}
+
+.fade-in {
+  opacity: 0;
+  animation: fadeIn 2s forwards;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
 }

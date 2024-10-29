@@ -44,6 +44,18 @@ export default function AudioInitializer({ onHeartRateUpdate, onInitialized }: A
       const audioContext = new AudioContext();
       await audioContext.resume();
 
+      // Wait for samples to load
+      await new Promise(resolve => {
+        const checkSamplesLoaded = () => {
+          if (audioContext.state === 'running') {
+            resolve();
+          } else {
+            setTimeout(checkSamplesLoaded, 100);
+          }
+        };
+        checkSamplesLoaded();
+      });
+
       setStatus(prev => ({ ...prev, audio: 'ready' }));
       onInitialized(true);
 
@@ -68,6 +80,10 @@ export default function AudioInitializer({ onHeartRateUpdate, onInitialized }: A
         >
           Initialize System
         </button>
+      )}
+
+      {status.audio === 'loading' && (
+        <div className="text-center text-yellow-500">Loading audio samples...</div>
       )}
     </div>
   );

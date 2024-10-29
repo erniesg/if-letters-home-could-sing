@@ -90,9 +90,21 @@ export class PatternGenerator {
   private isInitialized: boolean = false;
   private currentSection: 'entrance' | 'emotional' | 'exit' = 'entrance';
   private sectionProgress: number = 0;
-  private stepsPerBar: number = 16;
-  private barsPerSection: number = 4;
+  private stepsPerBar: number = 8;
+  private barsPerSection: number = 2;
   private totalSteps: number = this.stepsPerBar * this.barsPerSection;
+
+  private maxSectionCounts = {
+    entrance: 1,  // 1 repetition of entrance
+    emotional: 2, // 2 repetitions of emotional
+    exit: 1      // 1 repetition of exit
+  };
+
+  private sectionRepetitions = {
+    entrance: 0,
+    emotional: 0,
+    exit: 0
+  };
 
   public isReady(): boolean {
     return this.isInitialized && Object.keys(this.sampleCache).length > 0;
@@ -179,6 +191,9 @@ export class PatternGenerator {
     const emotion = metrics.dominantEmotion === 'reassurance' ? 'worry' : metrics.dominantEmotion;
     const patterns = basePatterns[this.currentSection]?.[emotion] || basePatterns.entrance.worry;
 
+    console.log('Section Progress:', this.sectionProgress);
+    console.log('Current Section:', this.currentSection);
+    console.log('Current Bar:', this.getCurrentBar());
     return {
       bangu: this.generateInstrumentPattern(
         metrics.emotionalIntensity,
@@ -236,9 +251,21 @@ export class PatternGenerator {
   }
 
   private getNextSection(): 'entrance' | 'emotional' | 'exit' {
-    if (this.currentSection === 'entrance') return 'emotional';
-    if (this.currentSection === 'emotional') return 'exit';
-    return 'entrance';
+    // Increment repetition count for current section
+    this.sectionRepetitions[this.currentSection]++;
+
+    // Check if current section should advance based on repetition count
+    if (this.sectionRepetitions[this.currentSection] >= this.maxSectionCounts[this.currentSection]) {
+      if (this.currentSection === 'entrance') {
+        this.currentSection = 'emotional';
+      } else if (this.currentSection === 'emotional') {
+        this.currentSection = 'exit';
+      }
+      // Reset section progress when changing sections
+      this.sectionProgress = 0;
+    }
+
+    return this.currentSection;
   }
 
   private selectSample(

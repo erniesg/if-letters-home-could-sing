@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAudioEngine } from '../../hooks/useAudioEngine';
 import AudioInitializer from '../../components/AudioInitializer';
+import { letters } from '../../lib/constants/letters'; // Import letters
 
 interface DebugInfo {
   currentBar: number;
@@ -41,6 +42,8 @@ export default function OperaTestPage() {
     nanbo: false
   });
 
+  const [showLetter, setShowLetter] = useState(false); // New state for showing the letter
+
   const engineState = useAudioEngine(
     heartRate,
     letter,
@@ -52,6 +55,11 @@ export default function OperaTestPage() {
     if (isAudioInitialized) {
       setCurrentSection(engineState.section);
       setDebugInfo(engineState.debug);
+
+      // Check if the entrance section is finished
+      if (engineState.section === 'emotional' && !showLetter) {
+        setShowLetter(true);
+      }
     }
   }, [engineState, isAudioInitialized]);
 
@@ -67,9 +75,31 @@ export default function OperaTestPage() {
     }
   };
 
+  const [imageOpacity, setImageOpacity] = useState(0);
+
+  useEffect(() => {
+    if (isAudioInitialized && currentSection === 'entrance') {
+      // Start fade in during entrance section
+      const fadeInDuration = letters[letter].content.musicalMapping.sectionDurations.entrance;
+      const startTime = Date.now();
+
+      const fadeInterval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / fadeInDuration, 1);
+        setImageOpacity(progress);
+
+        if (progress >= 1) {
+          clearInterval(fadeInterval);
+        }
+      }, 16); // 60fps update
+
+      return () => clearInterval(fadeInterval);
+    }
+  }, [isAudioInitialized, currentSection, letter]);
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-black to-gray-900 text-white p-4">
-      <h1 className="text-4xl font-bold mb-8">Opera Pattern Test</h1>
+    <div className="flex flex-col items-center min-h-screen bg-gradient-to-b from-black to-gray-900 text-white">
+      <h1 className="text-4xl font-bold mb-8 p-4">Opera Pattern Test</h1>
 
       {!isAudioInitialized ? (
         <AudioInitializer
@@ -77,8 +107,9 @@ export default function OperaTestPage() {
           onInitialized={setIsAudioInitialized}
         />
       ) : (
-        <>
-          <div className="mb-8 space-y-4">
+        // Add max-width constraint to the main container
+        <div className="flex flex-col items-center w-full max-w-5xl px-4">
+          <div className="mb-8 space-y-4 w-64">
             <div className="flex items-center justify-between w-64">
               <div className="text-sm font-medium">
                 Factor: {isManualFactorControl ? manualFactor.toFixed(2) : 'Auto'}
@@ -147,25 +178,27 @@ export default function OperaTestPage() {
             Switch to Letter {letter === 1 ? '2' : '1'}
           </button>
 
-          <div className="text-lg space-y-2 mb-8">
-            <div>Current Section: {currentSection}</div>
-            <div>Current Bar: {Math.floor(debugInfo.currentBar / 16)} / {4}</div>
-            <div>Step: {debugInfo.currentBar % 16} / 16</div>
-            <div>Tempo: {debugInfo.tempo} BPM</div>
-            <div>Status: {debugInfo.isPlaying ? 'Playing' : 'Stopped'}</div>
-          </div>
-
-          <div className="grid grid-cols-4 gap-4 text-center">
-            {instruments.map(instrument => (
-              <div
-                key={instrument}
-                className={`p-2 rounded ${debugInfo[instrument] ? 'bg-blue-500' : 'bg-gray-700'}`}
-              >
-                {instrument}
-              </div>
-            ))}
-          </div>
-        </>
+          {/* Image container with absolute max dimensions */}
+          {showLetter && (
+            <div
+              className="relative flex items-center justify-center w-[200px] h-[200px]"
+              style={{
+                opacity: imageOpacity,
+                transition: 'opacity 0.1s linear'
+              }}
+            >
+              <img
+                src={letters[letter].path}
+                alt={`Letter ${letter}`}
+                style={{
+                  width: '30%',  // Force width to match container
+                  height: '30%', // Force height to match container
+                  objectFit: 'contain'  // Maintain aspect ratio within bounds
+                }}
+              />
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
