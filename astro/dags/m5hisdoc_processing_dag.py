@@ -299,12 +299,19 @@ def process_batch(**context):
         
         for img_path, label_path in manifest['image_label_pairs']:
             try:
-                # Read image
-                img_data = s3.read_key(bucket_name=bucket, key=img_path)
+                # Read image as binary data
+                img_data = s3.get_key(
+                    key=img_path,
+                    bucket_name=bucket
+                ).get()['Body'].read()
+                
                 image = Image.open(io.BytesIO(img_data))
                 
                 # Read label
-                label_data = s3.read_key(bucket_name=bucket, key=label_path)
+                label_data = s3.read_key(
+                    key=label_path,
+                    bucket_name=bucket
+                ).decode('utf-8')  # Only decode the text labels
                 labels = label_data.strip().split('\n')
                 
                 # Process each character in label

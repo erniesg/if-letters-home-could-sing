@@ -156,6 +156,7 @@ def process_dataset(**context):
 def test_s3_access(**context):
     """Test task to verify S3 access and list contents"""
     s3 = S3Hook(aws_conn_id='aws_default')
+    config = context['task_instance'].xcom_pull(key='config')
     bucket = config['s3']['base_path'].split('//')[1].split('/')[0]
     
     print(f"\nTesting S3 access to bucket: {bucket}")

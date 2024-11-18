@@ -57,32 +57,32 @@ class HitOr3cProcessor:
     def get_full_dataset(self):
         """List all HIT-OR3C image files from S3"""
         try:
-            # List all files (not folders) ending with _images
+            # List all files in the directory
             files = self.s3.list_keys(
                 bucket_name=self.bucket,
-                prefix=self.base_path
+                prefix=f"{self.base_path}/character"  # Add /character to path
             )
             
             # Filter for *_images files
             image_files = [
                 f for f in files 
-                if f.endswith('_images')  # Changed from endswith('_images/')
+                if f.endswith('_images')  # Binary image files
             ]
             
             if not image_files:
-                self.logger.warning(f"No *_images files found in s3://{self.bucket}/{self.base_path}")
+                self.logger.warning(f"No *_images files found in s3://{self.bucket}/{self.base_path}/character")
                 # Debug: List what's actually there
                 all_files = self.s3.list_keys(
                     bucket_name=self.bucket,
-                    prefix=self.base_path
+                    prefix=f"{self.base_path}/character"
                 )
-                self.logger.info(f"Available files in {self.base_path}:")
+                self.logger.info(f"Available files in {self.base_path}/character:")
                 for f in all_files:
                     self.logger.info(f"  - {f}")
                 return []
             
             self.logger.info(f"Found {len(image_files)} image files")
-            return image_files
+            return sorted(image_files)  # Sort to ensure consistent processing order
             
         except Exception as e:
             self.logger.error(f"Error listing dataset: {str(e)}")
@@ -93,7 +93,7 @@ class HitOr3cProcessor:
         try:
             # Read raw bytes without decoding
             content = self.s3.get_key(
-                key=f"{self.base_path}/labels.txt",
+                key=f"{self.base_path}/character/labels.txt",  # Add /character to path
                 bucket_name=self.bucket
             ).get()['Body'].read()
             
@@ -118,18 +118,18 @@ class HitOr3cProcessor:
 
     def read_images(self, file_path):
         """Read and validate images from HIT-OR3C binary format"""
-        full_path = f"{self.base_path}/{file_path}"
         try:
-            data = self.s3.read_key(
-                key=full_path,
+            # Read binary data from S3
+            data = self.s3.get_key(
+                key=file_path,
                 bucket_name=self.bucket
-            )
+            ).get()['Body'].read()
 
             with io.BytesIO(data) as f:
                 try:
                     # Read and validate header
                     total_char_number = struct.unpack('<I', f.read(4))[0]
-                    if total_char_number <= 0 or total_char_number > 100000:  # Reasonable max limit
+                    if total_char_number <= 0 or total_char_number > 100000:
                         raise ValueError(f"Invalid character count: {total_char_number}")
 
                     height = struct.unpack('B', f.read(1))[0]
@@ -138,7 +138,7 @@ class HitOr3cProcessor:
                         raise ValueError(f"Invalid dimensions: {width}x{height}")
 
                     # Calculate expected file size
-                    expected_size = 6 + (width * height * total_char_number)  # header + image data
+                    expected_size = 6 + (width * height * total_char_number)
                     if len(data) != expected_size:
                         raise ValueError(f"File size mismatch: expected {expected_size}, got {len(data)}")
 
@@ -147,19 +147,20 @@ class HitOr3cProcessor:
                         try:
                             pixel_data = f.read(width * height)
                             if len(pixel_data) != width * height:
-                                self.logger.warning(f"Incomplete pixel data for image {i} in {file_path}")
+                                self.logger.warning(f"Incomplete pixel data for image {i}")
                                 continue
 
+                            # Convert to numpy array and reshape
                             pix_gray = np.frombuffer(pixel_data, dtype=np.uint8).reshape(height, width)
-
-                            # Basic image validation
-                            if not np.any(pix_gray):  # Check if image is all zeros
-                                self.logger.warning(f"Empty image detected at index {i} in {file_path}")
+                            
+                            # Basic validation
+                            if not np.any(pix_gray):
+                                self.logger.warning(f"Empty image detected at index {i}")
                                 continue
 
                             images.append(pix_gray)
                         except Exception as e:
-                            self.logger.warning(f"Error reading image {i} in {file_path}: {str(e)}")
+                            self.logger.warning(f"Error reading image {i}: {str(e)}")
                             continue
 
                     if not images:

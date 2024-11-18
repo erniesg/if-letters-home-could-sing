@@ -25,80 +25,56 @@ def process_dataset(**context):
     print("PUZZLE PIECES DATASET VERIFICATION")
     print("="*50)
     
-    # 1. Verify base path
-    source_prefix = f"{config['s3']['unzipped_dir']}/{dataset_config['folder']}"
+    # 1. Verify base path - construct the correct path
+    source_prefix = f"{config['s3']['unzipped_dir']}/puzzle-pieces-picker/Dataset/"
     print(f"\n1. Checking source path: s3://{bucket}/{source_prefix}")
     
-    # 2. Quick sample of folders
-    print("\n2. Sampling ID folders...")
+    # Debug: Print the actual config values
+    print("\nConfig values:")
+    print(f"Base path: {config['s3']['base_path']}")
+    print(f"Unzipped dir: {config['s3']['unzipped_dir']}")
+    print(f"Dataset folder: {dataset_config['folder']}")
+    
+    # 2. List all contents to verify structure
+    print("\n2. Listing directory structure...")
     try:
-        char_folders = list(s3.list_prefixes(bucket_name=bucket, prefix=source_prefix))
-        total_folders = len(char_folders)
+        # First, list the root unzipped directory
+        root_contents = s3.list_keys(bucket_name=bucket, prefix=config['s3']['unzipped_dir'])
+        print("\nRoot unzipped directory contents:")
+        for item in root_contents:
+            print(f"  - {item}")
+            
+        # Then list the puzzle pieces directory
+        dataset_contents = s3.list_keys(bucket_name=bucket, prefix=source_prefix)
+        print(f"\nDataset directory contents:")
+        for item in dataset_contents:
+            print(f"  - {item}")
+            
+        # Extract character folders
+        char_folders = set()
+        for obj in dataset_contents:
+            relative_path = obj.replace(source_prefix, '')
+            if '/' in relative_path:  # Has subdirectory
+                char_id = relative_path.split('/')[0]
+                char_folders.add(char_id)
         
-        if total_folders > 0:
-            print(f"\nFound {total_folders} total ID folders")
-            print("\nSample of first 5 folders:")
-            for folder in char_folders[:5]:
-                print(f"  - {folder}")
-                # Sample contents of each folder
-                files = list(s3.list_keys(bucket_name=bucket, prefix=folder))[:3]
-                print(f"    First 3 files:")
-                for f in files:
-                    print(f"      {f}")
-        else:
-            print("No ID folders found!")
+        char_folders = sorted(list(char_folders))
+        print(f"\nFound {len(char_folders)} character folders:")
+        for folder in char_folders[:5]:  # Show first 5 folders
+            print(f"  - {folder}")
+            # List some contents of this folder
+            folder_contents = [
+                k for k in dataset_contents 
+                if k.startswith(f"{source_prefix}{folder}/")
+            ][:3]
+            for item in folder_contents:
+                print(f"    - {item}")
+                
+        if not char_folders:
+            print("\nERROR: No character folders found!")
             return []
             
-        # 3. Quick validation of random folders
-        print("\n3. Validating random folders...")
-        import random
-        sample_folders = random.sample(char_folders, min(3, len(char_folders)))
-        for folder in sample_folders:
-            folder_id = folder.rstrip('/').split('/')[-1]
-            files = list(s3.list_keys(bucket_name=bucket, prefix=folder))
-            print(f"\nFolder {folder_id}:")
-            print(f"  - Total files: {len(files)}")
-            print(f"  - File types: {set(os.path.splitext(f)[1] for f in files)}")
-            
-        # 4. Proceed with processing?
-        print("\n" + "="*50)
-        print(f"SUMMARY:")
-        print(f"- Total folders: {total_folders}")
-        print(f"- Estimated total files: {total_folders * len(files)} (based on sample)")
-        print("="*50)
-        
-        proceed = context['dag_run'].conf.get('force_proceed', False)
-        if not proceed:
-            user_input = input("\nProceed with processing? (y/n): ")
-            if user_input.lower() != 'y':
-                print("Aborting processing...")
-                return []
-        
-        # 5. Continue with original processing
-        print("\nProceeding with full dataset processing...")
-        
-        # Rest of your existing processing code...
-        stats = {
-            'total_folders': len(char_folders),
-            'total_files': 0,
-            'processed_files': 0,
-            'folder_errors': defaultdict(list),
-            'file_types': defaultdict(int),
-            'char_frequencies': defaultdict(int)
-        }
-        
-        if context['dag_run'].conf.get('test_mode', False):
-            char_folders = char_folders[:3]
-            print(f"Test mode: Processing {len(char_folders)} folders")
-
-        results = []
-        
-        with tqdm(total=len(char_folders), desc="Processing ID folders") as folder_pbar:
-            for char_folder in char_folders:
-                char_id = char_folder.rstrip('/').split('/')[-1]
-                print(f"\nProcessing folder {char_id}...")
-                
-                # ... rest of your processing code ...
+        # Continue with processing...
 
     except Exception as e:
         print(f"Error during dataset verification: {str(e)}")
