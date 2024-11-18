@@ -1,0 +1,16 @@
+preproc:
+  s3:
+    base_path: "s3://if-letters-home-could-sing"
+    data_dir: "data"
+    output_dir: "unified"
+  temp_dir: "/tmp/processing"
+  datasets:
+    hit_or3c:
+      file: "character.rar"
+      requires_password: false
+    m5hisdoc:
+      file: "M5HisDoc.zip"
+      requires_password: true
+    puzzle_pieces:
+      file: "puzzle-pieces-picker.zip"
+      requires_password: false

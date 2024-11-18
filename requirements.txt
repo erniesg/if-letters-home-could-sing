@@ -2,3 +2,6 @@ paramiko
 libevdev
 screeninfo
 remarkable-mouse
+pillow
+python-dotenv
+tqdm
