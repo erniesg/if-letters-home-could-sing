@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.models import Variable
 import yaml
 import os
-from tqdm import tqdm
+import json
 from collections import defaultdict
+from tqdm import tqdm
 
 # Get absolute path to config
 DAG_FOLDER = os.path.dirname(os.path.abspath(__file__))
@@ -15,76 +15,62 @@ config_path = os.path.join(DAG_FOLDER, 'config', 'preproc.yaml')
 with open(config_path, 'r') as f:
     config = yaml.safe_load(f)['preproc']
 
-# DAG configuration
-default_args = {
-    'owner': 'airflow',
-    'depends_on_past': False,
-    'email_on_failure': False,
-    'email_on_retry': False,
-    'retries': 1,
-    'retry_delay': timedelta(minutes=5),
-}
-
 def process_dataset(**context):
     from airflow.hooks.S3_hook import S3Hook
 
     s3 = S3Hook(aws_conn_id='aws_default')
     bucket = config['s3']['base_path'].split('/')[2]
-    source_prefix = f"{config['s3']['unzipped_dir']}/puzzle_pieces/Dataset"
+    dataset_config = config['datasets']['puzzle_pieces']
+    
+    # Correct source path using config
+    source_prefix = f"{config['s3']['unzipped_dir']}/{dataset_config['folder']}"
     dest_prefix = f"{config['s3']['output_dir']}"
     test_mode = context['dag_run'].conf.get('test_mode', False)
 
     # Initialize stats
     stats = {
-        'total_characters': 0,
+        'total_folders': 0,
         'total_files': 0,
         'processed_files': 0,
-        'folder_errors': defaultdict(list),  # Track errors by folder
+        'folder_errors': defaultdict(list),
         'file_types': defaultdict(int),
-        'char_frequencies': {},
-        'frequency_stats': {
-            'mean': 0,
-            'std_dev': 0,
-            'max_char': {'id': None, 'char': None, 'count': 0},
-            'min_char': {'id': None, 'char': None, 'count': float('inf')}
-        }
+        'char_frequencies': defaultdict(int)
     }
 
-    # List and count all character ID folders with progress
-    print("\nListing character folders...")
+    # List and count all ID folders
+    print("\nListing ID folders...")
     char_folders = list(s3.list_prefixes(bucket_name=bucket, prefix=f"{source_prefix}/"))
     stats['total_folders'] = len(char_folders)
+    
     if test_mode:
         char_folders = char_folders[:3]
         print(f"Test mode: Processing {len(char_folders)} folders")
 
     results = []
-    # Load character mappings
-    char_mappings_key = f"{config['s3']['data_dir']}/unified_id_to_char_mapping.json"
-    char_mappings = json.loads(s3.read_key(char_mappings_key, bucket))
 
-    # Track character frequencies
-    char_frequencies = defaultdict(int)
-
-    with tqdm(total=len(char_folders), desc="Processing character folders", position=0) as folder_pbar:
+    with tqdm(total=len(char_folders), desc="Processing ID folders", position=0) as folder_pbar:
         for char_folder in char_folders:
             char_id = os.path.basename(os.path.normpath(char_folder))
-            char = char_mappings.get(char_id, char_id)
-
-            # List files in folder
+            
             try:
-                files = s3.list_keys(bucket_name=bucket, prefix=char_folder)
-                files = [f for f in files if any(f.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg'])]
+                # List image files in folder
+                files = [
+                    f for f in s3.list_keys(bucket_name=bucket, prefix=char_folder)
+                    if any(f.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg'])
+                ]
+                
                 stats['total_files'] += len(files)
-                char_frequencies[char_id] = len(files)
+                stats['char_frequencies'][char_id] = len(files)
 
-                with tqdm(total=len(files), desc=f"Character {char} ({char_id})", position=1, leave=False) as file_pbar:
+                with tqdm(total=len(files), desc=f"ID {char_id}", position=1, leave=False) as file_pbar:
                     for idx, source_key in enumerate(files, 1):
                         try:
                             ext = os.path.splitext(source_key)[1].lower()
                             stats['file_types'][ext] += 1
 
+                            # Use naming convention from processor
                             dest_key = f"{dest_prefix}/{char_id}/puzzle_pieces_{char_id}_{idx}.png"
+                            
                             s3.copy_object(
                                 source_bucket=bucket,
                                 source_key=source_key,
@@ -93,8 +79,6 @@ def process_dataset(**context):
                             )
 
                             stats['processed_files'] += 1
-                            stats['char_stats'][char_id]['files'] += 1
-
                             results.append({
                                 'char_id': char_id,
                                 'status': 'success',
@@ -110,7 +94,7 @@ def process_dataset(**context):
                         file_pbar.update(1)
 
             except Exception as e:
-                error_msg = f"Failed to process entire folder: {str(e)}"
+                error_msg = f"Failed to process folder: {str(e)}"
                 stats['folder_errors'][char_id].append(error_msg)
                 print(f"\nError in folder {char_id}: {error_msg}")
 
@@ -120,20 +104,19 @@ def process_dataset(**context):
             )
 
     # Calculate frequency statistics
-    frequencies = list(char_frequencies.values())
-    stats['char_frequencies'] = dict(char_frequencies)
-    stats['frequency_stats']['mean'] = sum(frequencies) / len(frequencies)
-    stats['frequency_stats']['std_dev'] = (
-        sum((x - stats['frequency_stats']['mean']) ** 2 for x in frequencies) / len(frequencies)
-    ) ** 0.5
-
-    # Find min and max characters
-    for char_id, freq in char_frequencies.items():
-        char = char_mappings.get(char_id, char_id)
-        if freq > stats['frequency_stats']['max_char']['count']:
-            stats['frequency_stats']['max_char'] = {'id': char_id, 'char': char, 'count': freq}
-        if freq < stats['frequency_stats']['min_char']['count']:
-            stats['frequency_stats']['min_char'] = {'id': char_id, 'char': char, 'count': freq}
+    frequencies = list(stats['char_frequencies'].values())
+    if frequencies:
+        stats['frequency_stats'] = {
+            'mean': sum(frequencies) / len(frequencies),
+            'std_dev': (
+                sum((x - (sum(frequencies) / len(frequencies))) ** 2 for x in frequencies) 
+                / len(frequencies)
+            ) ** 0.5,
+            'max_char': {'id': max(stats['char_frequencies'].items(), key=lambda x: x[1])[0], 
+                        'count': max(frequencies)},
+            'min_char': {'id': min(stats['char_frequencies'].items(), key=lambda x: x[1])[0], 
+                        'count': min(frequencies)}
+        }
 
     # Cleanup in test mode
     if test_mode:
@@ -143,7 +126,7 @@ def process_dataset(**context):
                 s3.delete_objects(bucket=bucket, keys=[result['destination']])
             except Exception as e:
                 print(f"Error cleaning up {result['destination']}: {str(e)}")
-    # Store detailed stats
+
     context['task_instance'].xcom_push(key='processing_stats', value=stats)
     return results
 
@@ -189,7 +172,14 @@ def generate_report(**context):
 # Create DAG
 dag = DAG(
     'puzzle_pieces_processing',
-    default_args=default_args,
+    default_args={
+        'owner': 'airflow',
+        'depends_on_past': False,
+        'email_on_failure': False,
+        'email_on_retry': False,
+        'retries': 1,
+        'retry_delay': timedelta(minutes=5),
+    },
     description='Process Puzzle Pieces dataset',
     schedule_interval=None,
     start_date=datetime(2024, 1, 1),
@@ -197,7 +187,6 @@ dag = DAG(
     tags=['preprocessing', 'puzzle_pieces'],
 )
 
-# Define tasks
 process_task = PythonOperator(
     task_id='process_dataset',
     python_callable=process_dataset,
@@ -212,5 +201,4 @@ report_task = PythonOperator(
     dag=dag,
 )
 
-# Set task dependencies
 process_task >> report_task

@@ -6,11 +6,14 @@ preproc:
     unzipped_dir: "unzipped"
   datasets:
     hit_or3c:
+      folder: "character"
       file: "character.rar"
       requires_password: false
     m5hisdoc:
+      folder: "M5HisDoc"
       file: "M5HisDoc.zip"
       requires_password: true
     puzzle_pieces:
+      folder: "puzzle-pieces-picker/Dataset"
       file: "puzzle-pieces-picker.zip"
       requires_password: false
