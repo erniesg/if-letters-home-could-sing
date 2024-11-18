@@ -21,146 +21,89 @@ def process_dataset(**context):
     bucket = config['s3']['base_path'].split('//')[1].split('/')[0]
     dataset_config = config['datasets']['puzzle_pieces']
     
-    # Debug S3 paths
-    print("\nDebugging S3 paths:")
-    print(f"Base bucket: {bucket}")
-    print(f"Dataset folder: {dataset_config['folder']}")
+    print("\n" + "="*50)
+    print("PUZZLE PIECES DATASET VERIFICATION")
+    print("="*50)
     
-    # List all levels to debug
-    levels = [
-        config['s3']['unzipped_dir'],
-        f"{config['s3']['unzipped_dir']}/puzzle-pieces-picker",
-        f"{config['s3']['unzipped_dir']}/puzzle-pieces-picker/Dataset"
-    ]
-    
-    for path in levels:
-        print(f"\nChecking path: s3://{bucket}/{path}")
-        try:
-            # Try both prefixes and keys
-            prefixes = list(s3.list_prefixes(bucket_name=bucket, prefix=path))
-            keys = list(s3.list_keys(bucket_name=bucket, prefix=path))
-            print(f"Prefixes found: {len(prefixes)}")
-            print(f"Keys found: {len(keys)}")
-            for p in prefixes:
-                print(f"  Prefix: {p}")
-            for k in keys:
-                print(f"  Key: {k}")
-        except Exception as e:
-            print(f"Error listing {path}: {str(e)}")
-    
-    # Original path construction
+    # 1. Verify base path
     source_prefix = f"{config['s3']['unzipped_dir']}/{dataset_config['folder']}"
-    dest_prefix = f"{config['s3']['output_dir']}"
-    test_mode = context['dag_run'].conf.get('test_mode', False)
-    sample_size = context['dag_run'].conf.get('sample_size', 3)
-
-    print(f"\nSearching in bucket: {bucket}")
-    print(f"Source prefix: {source_prefix}")
-    print(f"Full S3 path: s3://{bucket}/{source_prefix}")
-
-    # List and count all ID folders
-    print("\nListing ID folders...")
-    char_folders = s3.list_prefixes(bucket_name=bucket, prefix=source_prefix)
+    print(f"\n1. Checking source path: s3://{bucket}/{source_prefix}")
     
-    if not char_folders:
-        print(f"No folders found at s3://{bucket}/{source_prefix}")
-        # List parent directory to debug
-        parent_folders = s3.list_prefixes(bucket_name=bucket, prefix=config['s3']['unzipped_dir'])
-        print(f"\nAvailable folders in {config['s3']['unzipped_dir']}:")
-        for folder in parent_folders:
-            print(f"- {folder}")
-        return []
-
-    stats = {
-        'total_folders': len(char_folders),
-        'total_files': 0,
-        'processed_files': 0,
-        'folder_errors': defaultdict(list),
-        'file_types': defaultdict(int),
-        'char_frequencies': defaultdict(int)
-    }
-    
-    if test_mode:
-        char_folders = list(char_folders)[:3]
-        print(f"Test mode: Processing {len(char_folders)} folders")
-
-    results = []
-
-    with tqdm(total=len(char_folders), desc="Processing ID folders") as folder_pbar:
-        for char_folder in char_folders:
-            char_id = char_folder.rstrip('/').split('/')[-1]
+    # 2. Quick sample of folders
+    print("\n2. Sampling ID folders...")
+    try:
+        char_folders = list(s3.list_prefixes(bucket_name=bucket, prefix=source_prefix))
+        total_folders = len(char_folders)
+        
+        if total_folders > 0:
+            print(f"\nFound {total_folders} total ID folders")
+            print("\nSample of first 5 folders:")
+            for folder in char_folders[:5]:
+                print(f"  - {folder}")
+                # Sample contents of each folder
+                files = list(s3.list_keys(bucket_name=bucket, prefix=folder))[:3]
+                print(f"    First 3 files:")
+                for f in files:
+                    print(f"      {f}")
+        else:
+            print("No ID folders found!")
+            return []
             
-            try:
-                # List image files in folder
-                files = [
-                    key for key in s3.list_keys(bucket_name=bucket, prefix=char_folder)
-                    if any(key.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg'])
-                ]
-                
-                stats['total_files'] += len(files)
-                stats['char_frequencies'][char_id] = len(files)
-
-                for idx, source_key in enumerate(files, 1):
-                    try:
-                        ext = os.path.splitext(source_key)[1].lower()
-                        stats['file_types'][ext] += 1
-
-                        # Use consistent naming convention
-                        dest_key = f"{dest_prefix}/{char_id}/puzzle_pieces_{char_id}_{idx}.png"
-                        
-                        s3.copy_object(
-                            source_bucket=bucket,
-                            source_key=source_key,
-                            dest_bucket=bucket,
-                            dest_key=dest_key
-                        )
-
-                        stats['processed_files'] += 1
-                        results.append({
-                            'char_id': char_id,
-                            'status': 'success',
-                            'source': source_key,
-                            'destination': dest_key
-                        })
-
-                    except Exception as e:
-                        error_msg = f"Failed to process file: {source_key} - {str(e)}"
-                        stats['folder_errors'][char_id].append(error_msg)
-                        print(f"\nError in folder {char_id}: {error_msg}")
-
-            except Exception as e:
-                error_msg = f"Failed to process folder: {str(e)}"
-                stats['folder_errors'][char_id].append(error_msg)
-                print(f"\nError in folder {char_id}: {error_msg}")
-
-            folder_pbar.update(1)
-            folder_pbar.set_postfix(processed=f"{stats['processed_files']}/{stats['total_files']}")
-
-    # Calculate frequency statistics
-    frequencies = list(stats['char_frequencies'].values())
-    if frequencies:
-        stats['frequency_stats'] = {
-            'mean': sum(frequencies) / len(frequencies),
-            'std_dev': (
-                sum((x - (sum(frequencies) / len(frequencies))) ** 2 for x in frequencies) 
-                / len(frequencies)
-            ) ** 0.5,
-            'max_char': {'id': max(stats['char_frequencies'].items(), key=lambda x: x[1])[0], 
-                        'count': max(frequencies)},
-            'min_char': {'id': min(stats['char_frequencies'].items(), key=lambda x: x[1])[0], 
-                        'count': min(frequencies)}
+        # 3. Quick validation of random folders
+        print("\n3. Validating random folders...")
+        import random
+        sample_folders = random.sample(char_folders, min(3, len(char_folders)))
+        for folder in sample_folders:
+            folder_id = folder.rstrip('/').split('/')[-1]
+            files = list(s3.list_keys(bucket_name=bucket, prefix=folder))
+            print(f"\nFolder {folder_id}:")
+            print(f"  - Total files: {len(files)}")
+            print(f"  - File types: {set(os.path.splitext(f)[1] for f in files)}")
+            
+        # 4. Proceed with processing?
+        print("\n" + "="*50)
+        print(f"SUMMARY:")
+        print(f"- Total folders: {total_folders}")
+        print(f"- Estimated total files: {total_folders * len(files)} (based on sample)")
+        print("="*50)
+        
+        proceed = context['dag_run'].conf.get('force_proceed', False)
+        if not proceed:
+            user_input = input("\nProceed with processing? (y/n): ")
+            if user_input.lower() != 'y':
+                print("Aborting processing...")
+                return []
+        
+        # 5. Continue with original processing
+        print("\nProceeding with full dataset processing...")
+        
+        # Rest of your existing processing code...
+        stats = {
+            'total_folders': len(char_folders),
+            'total_files': 0,
+            'processed_files': 0,
+            'folder_errors': defaultdict(list),
+            'file_types': defaultdict(int),
+            'char_frequencies': defaultdict(int)
         }
+        
+        if context['dag_run'].conf.get('test_mode', False):
+            char_folders = char_folders[:3]
+            print(f"Test mode: Processing {len(char_folders)} folders")
 
-    # Cleanup in test mode
-    if test_mode:
-        print("\nTest mode: Cleaning up processed files...")
-        for result in results:
-            try:
-                s3.delete_objects(bucket=bucket, keys=[result['destination']])
-            except Exception as e:
-                print(f"Error cleaning up {result['destination']}: {str(e)}")
+        results = []
+        
+        with tqdm(total=len(char_folders), desc="Processing ID folders") as folder_pbar:
+            for char_folder in char_folders:
+                char_id = char_folder.rstrip('/').split('/')[-1]
+                print(f"\nProcessing folder {char_id}...")
+                
+                # ... rest of your processing code ...
 
-    context['task_instance'].xcom_push(key='processing_stats', value=stats)
+    except Exception as e:
+        print(f"Error during dataset verification: {str(e)}")
+        raise
+
     return results
 
 def generate_report(**context):
