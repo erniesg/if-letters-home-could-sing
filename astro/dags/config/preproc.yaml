@@ -4,6 +4,7 @@ preproc:
     data_dir: "data"
     output_dir: "unified"
     unzipped_dir: "unzipped"
+    font: "BabelStoneHan.ttf" # Font at bucket root
   datasets:
     hit_or3c:
       folder: "character"

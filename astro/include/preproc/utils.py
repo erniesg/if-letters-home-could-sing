@@ -2,10 +2,16 @@ import random
 from PIL import ImageFont, Image
 import json
 import os
+import io
+import logging
 
-def is_char_in_font(char, font_path):
+def is_char_in_font(char, font_file):
     try:
-        font = ImageFont.truetype(font_path, size=12)
+        if isinstance(font_file, str):
+            font = ImageFont.truetype(font_file, size=12)
+        else:
+            # Handle BytesIO font file
+            font = ImageFont.truetype(font_file, size=12)
         font.getmask(char)
         return True
     except:
@@ -79,3 +85,41 @@ def save_combined_image(char_id, image, dataset_name, filename, combined_dir):
     combined_filename = f"{dataset_name}_{filename}"
     combined_path = os.path.join(combined_char_dir, combined_filename)
     image.save(combined_path)
+
+def save_image_to_s3(s3_hook, image, bucket, key, format='PNG', quality=95):
+    """
+    Save a PIL Image to S3 with proper error handling and compression
+
+    Args:
+        s3_hook: Initialized S3Hook
+        image: PIL Image object
+        bucket: S3 bucket name
+        key: S3 key (path) where image should be saved
+        format: Image format to save as
+        quality: JPEG quality (0-100) if saving as JPEG
+
+    Returns:
+        bool: True if save was successful, False otherwise
+    """
+    try:
+        img_byte_arr = io.BytesIO()
+        if format.upper() == 'JPEG':
+            # Convert to RGB if saving as JPEG
+            if image.mode in ('RGBA', 'P'):
+                image = image.convert('RGB')
+            image.save(img_byte_arr, format=format, quality=quality, optimize=True)
+        else:
+            image.save(img_byte_arr, format=format, optimize=True)
+
+        img_byte_arr = img_byte_arr.getvalue()
+
+        s3_hook.load_bytes(
+            bytes_data=img_byte_arr,
+            key=key,
+            bucket_name=bucket,
+            replace=True
+        )
+        return True
+    except Exception as e:
+        logging.error(f"Failed to save image to S3 {bucket}/{key}: {str(e)}")
+        return False

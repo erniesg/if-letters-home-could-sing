@@ -142,7 +142,8 @@ def generate_report(**context):
     print(f"Total character folders: {stats['total_folders']}")
     print(f"Total files: {stats['total_files']}")
     print(f"Successfully processed: {stats['processed_files']}")
-    print(f"Total errors: {len(stats['errors'])}")
+    
+    print(f"Total folders with errors: {len([k for k, v in stats['folder_errors'].items() if v])}")
 
     print("\nFile types processed:")
     for ext, count in stats['file_types'].items():
@@ -153,17 +154,16 @@ def generate_report(**context):
     print(f"Average samples per character: {stats['frequency_stats']['mean']:.2f}")
     print(f"Standard deviation: {stats['frequency_stats']['std_dev']:.2f}")
     print(f"\nMost frequent character:")
-    print(f"  {stats['frequency_stats']['max_char']['char']} (ID: {stats['frequency_stats']['max_char']['id']}): {stats['frequency_stats']['max_char']['count']} samples")
+    print(f"  ID: {stats['frequency_stats']['max_char']['id']}: {stats['frequency_stats']['max_char']['count']} samples")
     print(f"\nLeast frequent character:")
-    print(f"  {stats['frequency_stats']['min_char']['char']} (ID: {stats['frequency_stats']['min_char']['id']}): {stats['frequency_stats']['min_char']['count']} samples")
+    print(f"  ID: {stats['frequency_stats']['min_char']['id']}: {stats['frequency_stats']['min_char']['count']} samples")
 
     # Report folders with errors
     folders_with_errors = [k for k, v in stats['folder_errors'].items() if v]
     if folders_with_errors:
         print(f"\nFolders with errors ({len(folders_with_errors)}):")
         for folder_id in sorted(folders_with_errors):
-            char = char_mappings.get(folder_id, folder_id)
-            print(f"\nCharacter {char} (ID: {folder_id}):")
+            print(f"\nID: {folder_id}:")
             for error in stats['folder_errors'][folder_id]:
                 print(f"  - {error}")
 

@@ -1,134 +1,123 @@
+import logging
+from preproc.utils import save_image_to_s3
 from airflow import DAG
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.operators.python import PythonOperator
 from datetime import datetime
 import yaml
-import os
 from preproc.processors.hit_or3c import HitOr3cProcessor
-from preproc.utils import load_char_mappings
+from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 import json
+from PIL import Image
+import io
 
-# Load config
-with open('dags/config/preproc.yaml', 'r') as f:
-    config = yaml.safe_load(f)['preproc']
+def load_config(**context):
+    import os
+    DAG_FOLDER = os.path.dirname(os.path.abspath(__file__))
+    def load_config(**context):
+        import os
+        DAG_FOLDER = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(DAG_FOLDER, 'config', 'preproc.yaml')
 
-S3_BASE_PATH = config['s3']['base_path']
-DATASET_NAME = 'hit_or3c'
-DATASET_CONFIG = config['datasets'][DATASET_NAME]
-DATASET_FOLDER = DATASET_CONFIG['folder']
+        with open(config_path, 'r') as f:
+            config = yaml.safe_load(f)['preproc']
+        context['task_instance'].xcom_push(key='config', value=config)
 
-def get_s3_path(*parts):
-    return '/'.join([p.strip('/') for p in parts])
-
-def load_unified_mappings(**context):
+def load_mappings(**context):
     s3 = S3Hook()
-    bucket_name = S3_BASE_PATH.split('/')[-1]
+    config = context['task_instance'].xcom_pull(key='config')
+    bucket = config['s3']['base_path'].split('/')[-1]
 
-    char_to_id = s3.read_key(
+    char_to_id = json.loads(s3.read_key(
         key='unified_char_to_id_mapping.json',
-        bucket_name=bucket_name
-    )
-    id_to_char = s3.read_key(
-        key='unified_id_to_char_mapping.json',
-        bucket_name=bucket_name
-    )
-
-    char_to_id = json.loads(char_to_id)
-    id_to_char = json.loads(id_to_char)
-
+        bucket_name=bucket
+    ))
     context['task_instance'].xcom_push(key='char_to_id', value=char_to_id)
-    context['task_instance'].xcom_push(key='id_to_char', value=id_to_char)
 
 def process_dataset(**context):
-    s3 = S3Hook()
-    bucket_name = S3_BASE_PATH.split('/')[-1]
+    config = context['task_instance'].xcom_pull(key='config')
     char_to_id = context['task_instance'].xcom_pull(key='char_to_id')
+    test_mode = context['dag_run'].conf.get('test_mode', False)
 
-    # Input path in S3
-    input_base_path = get_s3_path(config['s3']['unzipped_dir'], DATASET_FOLDER)
-
-    processor = HitOr3cProcessor()
+    processor = HitOr3cProcessor(config)
     samples = processor.get_full_dataset()
 
+    s3 = S3Hook()
+    bucket = config['s3']['base_path'].split('/')[-1]
+
     stats = {
-        'processed_chars': 0,
+        'processed': 0,
         'errors': [],
         'chars_not_in_mapping': set(),
-        'chars_not_in_font': set()
+        'chars_not_in_font': set(),
+        'processing_errors': {}
     }
 
-    for result in processor.process(char_to_id, samples):
+    def save_checkpoint():
+        checkpoint = {
+            'processed_date': datetime.now().isoformat(),
+            'total_processed': stats['processed'],
+            'errors': stats['errors'],
+            'chars_not_in_mapping': list(stats['chars_not_in_mapping']),
+            'processing_errors': stats['processing_errors']
+        }
+
+        s3.load_string(
+            string_data=json.dumps(checkpoint, indent=2, ensure_ascii=False),
+            key=f"checkpoints/HIT_OR3C_checkpoint_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+            bucket_name=bucket
+        )
+
+    checkpoint_interval = 1000  # Save checkpoint every 1000 images
+
+    # Process and save images
+    for result in processor.process(char_to_id, samples, test_mode):
         if len(result) == 4:
             char_id, image, dataset_name, filename = result
 
-            # Save to unified structure
-            output_key = get_s3_path(
-                config['s3']['output_dir'],
-                char_id,
-                filename
-            )
+            # Save to unified structure with proper path construction
+            output_key = f"{config['s3']['output_dir']}/{char_id}/{dataset_name}_{filename}"
 
-            # Save image to bytes
-            import io
-            img_byte_arr = io.BytesIO()
-            image.save(img_byte_arr, format='PNG')
-            img_byte_arr = img_byte_arr.getvalue()
+            if save_image_to_s3(s3, image, bucket, output_key):
+                stats['processed'] += 1
+            else:
+                error_msg = f"Failed to save image {char_id}/{filename}"
+                stats['errors'].append(error_msg)
+                logging.error(error_msg)
+                continue
 
-            s3.load_bytes(
-                bytes_data=img_byte_arr,
-                key=output_key,
-                bucket_name=bucket_name,
-                replace=True
-            )
-
-            stats['processed_chars'] += 1
-        else:
-            char, _ = result
-            stats['chars_not_in_mapping'].add(char)
-
-    stats['chars_not_in_mapping'] = list(stats['chars_not_in_mapping'])
-    stats['chars_not_in_font'] = list(processor.get_chars_not_in_font())
-
-    context['task_instance'].xcom_push(key='processing_stats', value=stats)
-
-def save_report(**context):
-    s3 = S3Hook()
-    bucket_name = S3_BASE_PATH.split('/')[-1]
-    stats = context['task_instance'].xcom_pull(key='processing_stats')
-    id_to_char = context['task_instance'].xcom_pull(key='id_to_char')
-
+    # Save processing report
     report = {
-        'dataset': DATASET_NAME,
-        'folder': DATASET_FOLDER,
         'processed_date': datetime.now().isoformat(),
-        'total_processed': stats['processed_chars'],
-        'chars_not_in_mapping': stats['chars_not_in_mapping'],
-        'chars_not_in_font': stats['chars_not_in_font']
+        'total_processed': stats['processed'],
+        'errors': stats['errors'],
+        'chars_not_in_mapping': list(stats['chars_not_in_mapping']),
+        'processing_errors': stats['processing_errors']
     }
-
-    report_key = get_s3_path(
-        'reports',
-        f"{DATASET_NAME}_processing_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-    )
 
     s3.load_string(
         string_data=json.dumps(report, indent=2, ensure_ascii=False),
-        key=report_key,
-        bucket_name=bucket_name,
-        replace=True
+        key=f"reports/HIT_OR3C_processing_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+        bucket_name=bucket
     )
 
+    return report
+
 with DAG(
-    dag_id=f'{DATASET_NAME}_preprocessing',
+    'hit_or3c_preprocessing',
     schedule_interval=None,
     start_date=datetime(2024, 1, 1),
     catchup=False,
     tags=['preprocessing']
 ) as dag:
 
-    load_mappings = PythonOperator(
-        task_id='load_unified_mappings',
-        python_callable=load_unified_mappings
+    load_config_task = PythonOperator(
+        task_id='load_config',
+        python_callable=load_config
+    )
+
+    load_mappings_task = PythonOperator(
+        task_id='load_mappings',
+        python_callable=load_mappings
     )
 
     process_dataset_task = PythonOperator(
@@ -136,9 +125,4 @@ with DAG(
         python_callable=process_dataset
     )
 
-    save_report_task = PythonOperator(
-        task_id='save_report',
-        python_callable=save_report
-    )
-
-    load_mappings >> process_dataset_task >> save_report_task
+    load_config_task >> load_mappings_task >> process_dataset_task
