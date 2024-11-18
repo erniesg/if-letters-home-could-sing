@@ -6,8 +6,12 @@ from operators.extraction_operators import S3DownloadOperator, UnzipOperator
 import yaml
 import os
 
+# Get absolute path to config
+DAG_FOLDER = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(DAG_FOLDER, 'config', 'preproc.yaml')
+
 # Load config
-with open('config/preproc.yaml', 'r') as f:
+with open(config_path, 'r') as f:
     config = yaml.safe_load(f)['preproc']
 
 # DAG configuration
