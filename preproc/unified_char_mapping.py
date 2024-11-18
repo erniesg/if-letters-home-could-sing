@@ -3,8 +3,16 @@
 import json
 import os
 import unicodedata
+import logging
+import os
+import sys
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 from preproc.utils import is_char_in_font
-from preproc.config import FONT_PATH, PUZZLE_PIECES_DIR, M5HISDOC_DIR, DATA_DIR, PROCESSED_DIR
+from preproc.config import (
+    FONT_PATH, PUZZLE_PIECES_DIR, M5HISDOC_DIR, HIT_OR3C_DIR,
+    CASIA_HWDB_DIR, DATA_DIR, PROCESSED_DIR, DATASET_CONFIG
+)
 
 def get_gb2312_80_level1_set():
     gb2312_80_level1 = set()
@@ -14,17 +22,34 @@ def get_gb2312_80_level1_set():
             gb2312_80_level1.add(char)
     return gb2312_80_level1
 
+def verify_dataset_paths():
+    """Verify that enabled dataset paths exist"""
+    for dataset, config in DATASET_CONFIG.items():
+        if config['enabled']:
+            if not os.path.exists(config['path']):
+                logging.warning(f"Dataset {dataset} is enabled but path {config['path']} does not exist")
+                return False
+    return True
+
 class UnifiedCharMapping:
     def __init__(self):
         self.char_to_id = {}
         self.id_to_char = {}
         self.next_id = 0
+        self.output_dir = PROCESSED_DIR
+
+        # Initialize new_chars based on config keys
+        self.new_chars = {}
+        for dataset in DATASET_CONFIG:
+            self.new_chars[dataset] = set()
+        # Add GB2312-80 separately as it's a character standard
+        self.new_chars['GB2312-80'] = set()
+        
+        # Load baseline mapping from Puzzle Pieces
         self.load_puzzle_pieces_mapping()
-        self.new_chars = {
-            'M5HisDoc': set(),
-            'GB2312-80': set()
-        }
-        self.output_dir = PROCESSED_DIR  # Use PROCESSED_DIR from config
+
+        # Load baseline mapping from Puzzle Pieces
+        self.load_puzzle_pieces_mapping()
 
     def load_puzzle_pieces_mapping(self):
         with open(os.path.join(PUZZLE_PIECES_DIR, 'Chinese_to_ID.json'), 'r', encoding='utf-8') as f:
@@ -47,11 +72,25 @@ class UnifiedCharMapping:
         return False
 
     def process_m5hisdoc(self):
+        """Process M5HisDoc dataset characters"""
+        if not os.path.exists(M5HISDOC_DIR):
+            logging.warning(f"M5HisDoc directory not found at {M5HISDOC_DIR}")
+            return
+
         char_dict_path = os.path.join(M5HISDOC_DIR, 'char_dict.txt')
-        with open(char_dict_path, 'r', encoding='utf-8') as f:
-            m5hisdoc_chars = set(f.read().strip())  # Ensure uniqueness
-        for char in m5hisdoc_chars:
-            self.add_character(char, 'M5HisDoc')
+        if not os.path.exists(char_dict_path):
+            logging.warning(f"char_dict.txt not found at {char_dict_path}")
+            return
+
+        try:
+            with open(char_dict_path, 'r', encoding='utf-8') as f:
+                m5hisdoc_chars = set(f.read().strip().split())  # Split into individual characters
+            logging.info(f"Found {len(m5hisdoc_chars)} unique characters in M5HisDoc")
+            for char in m5hisdoc_chars:
+                self.add_character(char, 'm5hisdoc')  # Must match key in DATASET_CONFIG
+        except Exception as e:
+            logging.error(f"Error processing M5HisDoc characters: {str(e)}")
+            raise
 
     def process_gb2312_80(self):
         gb2312_80_set = get_gb2312_80_level1_set()
@@ -83,10 +122,41 @@ class UnifiedCharMapping:
 
 def create_unified_mapping():
     mapping = UnifiedCharMapping()
-    mapping.process_m5hisdoc()
-    mapping.process_gb2312_80()
+
+    # Process M5HisDoc if enabled
+    if DATASET_CONFIG['m5hisdoc']['enabled']:
+        mapping.process_m5hisdoc()
+
+    # Process GB2312-80 if any dataset needs it
+    if any(DATASET_CONFIG[d]['enabled'] and DATASET_CONFIG[d].get('use_gb2312')
+           for d in ['hit_or3c', 'casia_hwdb']):
+        mapping.process_gb2312_80()
+
     mapping.save_mapping()
     mapping.print_summary()
+    return mapping
+
+def _read_label_file(file_path, encoding='utf-8'):
+    """Helper to read label files in different formats"""
+    ext = os.path.splitext(file_path)[1]
+    if ext == '.json':
+        with open(file_path, 'r', encoding=encoding) as f:
+            return set(json.load(f).keys())
+    else:
+        with open(file_path, 'r', encoding=encoding) as f:
+            return set(f.read().strip())
 
 if __name__ == "__main__":
-    create_unified_mapping()
+    logging.basicConfig(level=logging.INFO)
+
+    if not verify_dataset_paths():
+        logging.error("Some enabled dataset paths are missing. Please check your configuration.")
+        exit(1)
+
+    try:
+        logging.info("Starting unified character mapping creation...")
+        mapping = create_unified_mapping()
+        logging.info("Character mapping creation completed successfully!")
+    except Exception as e:
+        logging.error(f"Error creating unified mapping: {str(e)}")
+        exit(1)
