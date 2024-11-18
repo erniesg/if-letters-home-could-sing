@@ -10,6 +10,8 @@ import math
 from collections import defaultdict
 from PIL import Image
 import io
+from airflow.models import TaskInstance
+from preproc.utils import save_image_to_s3  # Add this line
 
 def load_config(**context):
     DAG_FOLDER = Path(__file__).parent
@@ -270,6 +272,7 @@ def process_batch(**context):
     s3 = S3Hook()
     config = context['task_instance'].xcom_pull(key='config')
     batch_manifests = context['task_instance'].xcom_pull(key='batch_manifests')
+    bucket = config['s3']['base_path'].split('//')[1].split('/')[0]
     batch_id = context['task_instance'].task_id.split('_')[-1]
     manifest_key = batch_manifests[int(batch_id)]
     
@@ -343,25 +346,18 @@ def process_batch(**context):
         logging.error(f"Failed to process batch {batch_id}: {str(e)}")
         raise
 
-def create_batch_tasks(dag):
+def create_batch_tasks(dag, num_batches=10):
     """Create processing tasks for each batch"""
     batch_tasks = []
     
-    def create_batch_task(batch_id):
-        return PythonOperator(
-            task_id=f'process_batch_{batch_id}',
+    for i in range(num_batches):
+        task = PythonOperator(
+            task_id=f'process_batch_{i}',
             python_callable=process_batch,
             provide_context=True,
             dag=dag
         )
-    
-    # Create tasks based on prepare_batches output
-    ti = TaskInstance(dag.get_task('prepare_batches'), execution_date=datetime.now())
-    batch_manifests = ti.xcom_pull(key='batch_manifests')
-    
-    if batch_manifests:
-        for i in range(len(batch_manifests)):
-            batch_tasks.append(create_batch_task(i))
+        batch_tasks.append(task)
     
     return batch_tasks
 
@@ -392,7 +388,7 @@ prepare_batches_task = PythonOperator(
     dag=dag
 )
 
-# Create batch processing tasks
+# Create batch processing tasks with a default number
 batch_tasks = create_batch_tasks(dag)
 
 aggregate_stats_task = PythonOperator(
