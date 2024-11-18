@@ -7,7 +7,7 @@ RUN apt-get update && \
 
 # Copy preproc package to container
 COPY include/preproc /usr/local/airflow/preproc
-
+ENV AIRFLOW__WEBSERVER__SHOW_TRIGGER_FORM_IF_NO_PARAMS=True
 # Add to PYTHONPATH
 ENV PYTHONPATH="${PYTHONPATH}:/usr/local/airflow"
 

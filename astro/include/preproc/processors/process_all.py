@@ -3,7 +3,7 @@ import json
 from tqdm import tqdm
 from collections import defaultdict
 from preproc.config import PROCESSED_DIR
-from preproc.processors import puzzle_pieces_picker, m5hisdoc, casia_hwdb, hit_or3c
+from preproc.processors import m5hisdoc, casia_hwdb, hit_or3c
 from preproc.utils import save_combined_image
 from preproc.reporting import generate_summary_stats, print_summary_stats
 

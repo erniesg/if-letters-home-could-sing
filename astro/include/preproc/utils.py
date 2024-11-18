@@ -6,15 +6,21 @@ import io
 import logging
 
 def is_char_in_font(char, font_file):
+    """Validate if a character exists in font"""
     try:
-        if isinstance(font_file, str):
+        if isinstance(font_file, (str, bytes)):
+            font = ImageFont.truetype(font_file, size=12)
+        elif isinstance(font_file, io.BytesIO):
+            font_file.seek(0)  # Reset buffer position
             font = ImageFont.truetype(font_file, size=12)
         else:
-            # Handle BytesIO font file
-            font = ImageFont.truetype(font_file, size=12)
+            raise ValueError(f"Unsupported font file type: {type(font_file)}")
+            
+        # Test character
         font.getmask(char)
         return True
-    except:
+    except Exception as e:
+        logging.debug(f"Character '{char}' not in font: {str(e)}")
         return False
 
 def sample_dataset(full_dataset, sample_percentage):
@@ -64,14 +70,15 @@ def count_extracted_images(output_dir):
                 char_counts[char_id][dataset_name] = char_counts[char_id].get(dataset_name, 0) + 1
     return char_counts
 
-def decode_label(raw_label):
-    encodings = ['gbk', 'gb18030', 'utf-8', 'ascii']
-    for encoding in encodings:
-        try:
-            return raw_label.decode(encoding)
-        except UnicodeDecodeError:
-            continue
-    return f"unknown_{raw_label.hex()}"
+def decode_label(raw_bytes):
+    """Decode binary label data to Unicode character"""
+    try:
+        # Convert two bytes to integer using big-endian
+        char_code = int.from_bytes(raw_bytes, byteorder='big')
+        # Convert to Unicode character
+        return chr(char_code)
+    except Exception as e:
+        raise ValueError(f"Failed to decode label bytes {raw_bytes.hex()}: {str(e)}")
 
 def get_unicode_repr(label):
     return 'U+' + ''.join([f'{ord(c):04X}' for c in label])
@@ -87,29 +94,31 @@ def save_combined_image(char_id, image, dataset_name, filename, combined_dir):
     image.save(combined_path)
 
 def save_image_to_s3(s3_hook, image, bucket, key, format='PNG', quality=95):
-    """
-    Save a PIL Image to S3 with proper error handling and compression
-
-    Args:
-        s3_hook: Initialized S3Hook
-        image: PIL Image object
-        bucket: S3 bucket name
-        key: S3 key (path) where image should be saved
-        format: Image format to save as
-        quality: JPEG quality (0-100) if saving as JPEG
-
-    Returns:
-        bool: True if save was successful, False otherwise
-    """
+    """Save a PIL Image to S3 with proper error handling and mode conversion"""
     try:
+        if not isinstance(image, Image.Image):
+            raise ValueError("Input must be a PIL Image object")
+
         img_byte_arr = io.BytesIO()
-        if format.upper() == 'JPEG':
-            # Convert to RGB if saving as JPEG
-            if image.mode in ('RGBA', 'P'):
+        
+        # Handle different image modes
+        if image.mode == 'L':  # Grayscale
+            if format.upper() == 'JPEG':
+                # Convert grayscale to RGB for JPEG
                 image = image.convert('RGB')
-            image.save(img_byte_arr, format=format, quality=quality, optimize=True)
-        else:
-            image.save(img_byte_arr, format=format, optimize=True)
+        elif image.mode in ('RGBA', 'P'):
+            if format.upper() == 'JPEG':
+                image = image.convert('RGB')
+            elif format.upper() == 'PNG':
+                image = image.convert('RGBA')
+        
+        # Save with optimizations
+        image.save(
+            img_byte_arr, 
+            format=format,
+            optimize=True,
+            quality=quality if format.upper() == 'JPEG' else None
+        )
 
         img_byte_arr = img_byte_arr.getvalue()
 
@@ -119,6 +128,7 @@ def save_image_to_s3(s3_hook, image, bucket, key, format='PNG', quality=95):
             bucket_name=bucket,
             replace=True
         )
+        logging.info(f"Successfully saved image to {bucket}/{key}")
         return True
     except Exception as e:
         logging.error(f"Failed to save image to S3 {bucket}/{key}: {str(e)}")
