@@ -5,3 +5,4 @@ remarkable-mouse
 pillow
 python-dotenv
 tqdm
+rarfile
