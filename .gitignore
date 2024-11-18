@@ -26,3 +26,4 @@ node_modules/
 .jpg*
 ref/
 .next
+.python-version
