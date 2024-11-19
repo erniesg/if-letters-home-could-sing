@@ -10,6 +10,7 @@ import json
 import boto3
 from botocore.exceptions import ClientError
 import subprocess
+import modal
 
 # Add project root to path for imports
 project_root = Path("/usr/local/airflow")
@@ -18,7 +19,7 @@ sys.path.append(str(project_root))
 from training_rave.config import RAVEConfig
 from training_rave.rave import get_train_command, get_preprocess_command, get_export_command
 from src.config import ModalConfig
-from src.app import create_modal_app
+from src.app import create_modal_app, create_function
 from src.utils import run_command
 
 default_args = {
@@ -158,68 +159,62 @@ def rave_training_dag():
             modal_config = ModalConfig(**configs["modal_config"])
             rave_config = RAVEConfig(**configs["rave_config"], modal_config=modal_config)
             
-            # Create Modal app and volume
+            # Create Modal app, image, and volume
             app, image, volume = create_modal_app(modal_config)
             
-            # Debug paths and mounts
-            print("Debugging mounts and volumes:")
-            print(f"Local volume path: {modal_config.volume_path}")
-            print(f"S3 mount path: {modal_config.s3_mount_path}")
-            print(f"Current working directory: {os.getcwd()}")
-            print(f"Contents of current directory: {os.listdir('.')}")
+            # Create the training function with Modal decorator
+            @create_function(app, modal_config, image, volume)
+            def train_remote(config: RAVEConfig):
+                print("Starting train function")
+                # Debug paths and mounts
+                print(f"Local volume path: {config.modal_config.volume_path}")
+                print(f"S3 mount path: {config.modal_config.s3_mount_path}")
+                
+                # Try to locate the rave command
+                try:
+                    rave_path = subprocess.check_output(["which", "rave"], text=True).strip()
+                    print(f"RAVE command found at: {rave_path}")
+                except subprocess.CalledProcessError:
+                    print("RAVE command not found in PATH")
+                
+                # Set up paths
+                local_s3_path = Path(config.modal_config.s3_mount_path)
+                data_path = local_s3_path / config.modal_config.s3_data_path
+                output_path = Path(config.modal_config.volume_path) / "output" / config.name
+                
+                # Run preprocessing if needed
+                if not list((output_path / "preprocessed").glob("*")):
+                    preprocess_command = get_preprocess_command(config, data_path, output_path)
+                    print(f"Preprocess command: {' '.join(preprocess_command)}")
+                    run_command(preprocess_command)
+                
+                # Train model
+                train_command = get_train_command(config, output_path, config.max_steps, config.val_every)
+                print(f"Train command: {' '.join(train_command)}")
+                run_command(train_command)
+                
+                # Export variations
+                runtime = datetime.now().strftime("%Y%m%d_%H%M%S")
+                for streaming in [False, True]:
+                    variation_config = RAVEConfig(**{**config.__dict__, "streaming": streaming})
+                    variation_name = f"{config.name}_ch1_{'streaming' if streaming else 'non_streaming'}_{runtime}"
+                    export_command = get_export_command(variation_config, output_path, variation_name)
+                    print(f"Export command: {' '.join(export_command)}")
+                    run_command(export_command)
+                
+                volume.commit()
+                return {
+                    "status": "success",
+                    "output_path": str(output_path),
+                    "runtime": runtime
+                }
             
-            # Debug RAVE installation
-            print("Debugging RAVE installation:")
-            try:
-                pip_show_output = subprocess.check_output(["pip", "show", "acids-rave"], text=True)
-                print(f"RAVE package information:\n{pip_show_output}")
-            except subprocess.CalledProcessError:
-                print("RAVE package not found via pip")
+            # Execute the remote training
+            result = train_remote.remote(rave_config)
+            print(f"Training result: {result}")
             
-            try:
-                rave_path = subprocess.check_output(["which", "rave"], text=True).strip()
-                print(f"RAVE command found at: {rave_path}")
-            except subprocess.CalledProcessError:
-                print("RAVE command not found in PATH")
+            return result
             
-            # Set up paths for commands
-            local_s3_path = Path(modal_config.s3_mount_path)
-            data_path = local_s3_path / modal_config.s3_data_path
-            output_path = Path(modal_config.volume_path) / "output" / rave_config.name
-            
-            # Run preprocessing if needed
-            preprocess_command = get_preprocess_command(rave_config, data_path, output_path)
-            print(f"Preprocess command: {' '.join(preprocess_command)}")
-            run_command(preprocess_command)
-            
-            # Train model
-            train_command = get_train_command(rave_config, output_path, rave_config.max_steps, rave_config.val_every)
-            print(f"Train command: {' '.join(train_command)}")
-            run_command(train_command)
-            
-            # Export variations
-            runtime = datetime.now().strftime("%Y%m%d_%H%M%S")
-            for streaming in [False, True]:
-                variation_config = RAVEConfig(**{
-                    **rave_config.__dict__,
-                    "streaming": streaming
-                })
-                variation_name = f"{rave_config.name}_ch1_{'streaming' if streaming else 'non_streaming'}_{runtime}"
-                export_command = get_export_command(variation_config, output_path, variation_name)
-                print(f"Export command for {variation_name}: {' '.join(export_command)}")
-                run_command(export_command)
-            
-            # Debug final state
-            print("\nFinal state:")
-            print(f"Contents of volume path: {list(Path(modal_config.volume_path).glob('**/*'))}")
-            print(f"Contents of S3 mount: {list(local_s3_path.glob('**/*'))}")
-            
-            volume.commit()
-            return {
-                "status": "success",
-                "output_path": str(output_path),
-                "runtime": runtime
-            }
         except Exception as e:
             context['task_instance'].xcom_push(
                 key='error',
