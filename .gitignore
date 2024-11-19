@@ -27,3 +27,4 @@ node_modules/
 ref/
 .next
 .python-version
+models/
