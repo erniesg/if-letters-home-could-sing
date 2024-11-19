@@ -20,6 +20,7 @@ from training_rave.config import RAVEConfig
 from training_rave.rave import get_train_command, get_preprocess_command
 
 # Initialize ModalConfig with custom resources
+# Initialize ModalConfig with custom resources
 modal_config = ModalConfig(
     local_src_path=str(project_root / "src"),
     cpu_count=16.0,
@@ -31,25 +32,8 @@ print(f"Local src path: {modal_config.local_src_path}")
 # Create Modal app, image, and volume
 app, image, volume = create_modal_app(modal_config)
 
-# Create AWS secret object properly
-aws_secret = modal.Secret.from_name(modal_config.aws_secret_name)
-
-# Create S3 mount with the secret object
-s3_mount = modal.CloudBucketMount(
-    modal_config.s3_bucket_name,
-    secret=aws_secret  # Pass the secret object, not the name
-)
-
-@create_function(
-    app, 
-    modal_config, 
-    image, 
-    volume,
-    mounts={modal_config.s3_mount_path: s3_mount},
-    secrets=[aws_secret]  # Pass the secret object, not the name
-)
+@create_function(app, modal_config, image, volume)
 def train(config: RAVEConfig):
-    """Main training function that will be deployed"""
     print("Starting train function")
     # Debugging mounts and volumes
     print("Debugging mounts and volumes:")
@@ -167,18 +151,7 @@ def train(config: RAVEConfig):
     # Ensure all changes are committed to the volume
     volume.commit()
 
-    # Store results in shared dict
-    results_dict["latest_training"] = {
-        "status": "success",
-        "output_path": str(output_path),
-        "runtime": runtime
-    }
-    
-    return {
-        "status": "success",
-        "output_path": str(output_path),
-        "runtime": runtime
-    }
+    return f"Training and export completed for config: {config.name}. Results saved to {output_path}"
 
 @app.local_entrypoint()
 def main(
