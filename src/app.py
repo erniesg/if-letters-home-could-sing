@@ -4,56 +4,39 @@ import os
 from .config import ModalConfig
 from modal import Mount, Secret, Volume, CloudBucketMount
 
-def create_function(app: modal.App, config: ModalConfig, image: modal.Image, local_volume: modal.Volume):
-    print(f"Local src path: {config.local_src_path}")
-    print(f"Remote src path: {config.remote_src_path}")
-
-    mounts = [
-        modal.Mount.from_local_dir(config.local_src_path, remote_path=config.remote_src_path)
-    ]
-
-    print(f"Created mount from {config.local_src_path} to {config.remote_src_path}")
-
-    s3_mount = modal.CloudBucketMount(
-        config.s3_bucket_name,
-        secret=modal.Secret.from_name(config.aws_secret_name)
-    )
-
-    def wrapper(func):
+def create_function(app, config, image, volume, mounts=None, secrets=None):
+    """Create a Modal function with the given configuration.
+    
+    Args:
+        app: Modal app instance
+        config: ModalConfig instance
+        image: Modal image instance
+        volume: Modal volume instance
+        mounts: Optional dict of mounts to add
+        secrets: Optional list of secrets to add
+    """
+    def decorator(f):
+        # Initialize function kwargs
         function_kwargs = {
             "image": image,
             "gpu": config.gpu,
-            "mounts": mounts,
-            "volumes": {
-                config.volume_path: local_volume,
-                config.s3_mount_path: s3_mount
-            },
-            "secrets": [modal.Secret.from_name(config.aws_secret_name)],
+            "cpu": config.cpu_count,
+            "memory": config.memory_size,
+            "volumes": {config.volume_path: volume},
             "timeout": config.timeout
         }
-
-        # Add optional resource configurations
-        if config.cpu_count is not None:
-            function_kwargs["cpu"] = config.cpu_count
-        if config.memory_size is not None:
-            function_kwargs["memory"] = config.memory_size
-        if config.disk_size is not None:
-            function_kwargs["ephemeral_disk"] = config.disk_size
-
-        wrapped_func = app.function(**function_kwargs)(func)
-
-        print(f"Created function with:")
-        print(f"- GPU: {config.gpu}")
-        print(f"- CPU cores: {config.cpu_count}")
-        print(f"- Memory: {config.memory_size} MB")
-        print(f"- Disk: {config.disk_size} MB")
-        print(f"- Local volume mounted at: {config.volume_path}")
-        print(f"- S3 bucket mounted at: {config.s3_mount_path}")
-        print(f"- Function timeout: {config.timeout} seconds")
-
-        return wrapped_func
-
-    return wrapper
+        
+        # Add mounts if provided
+        if mounts:
+            function_kwargs["mounts"] = mounts
+            
+        # Add secrets if provided
+        if secrets:
+            function_kwargs["secrets"] = secrets
+            
+        return app.function(**function_kwargs)(f)
+        
+    return decorator
 
 def create_modal_app(config: ModalConfig):
     image = (
