@@ -28,7 +28,7 @@ def create_function(app: modal.App, config: ModalConfig, image: modal.Image, loc
                 config.volume_path: local_volume,
                 config.s3_mount_path: s3_mount
             },
-            "secret": modal.Secret.from_name(config.aws_secret_name),
+            "secrets": [modal.Secret.from_name(config.aws_secret_name)],
             "timeout": config.timeout
         }
 

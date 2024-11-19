@@ -20,7 +20,6 @@ from training_rave.config import RAVEConfig
 from training_rave.rave import get_train_command, get_preprocess_command
 
 # Initialize ModalConfig with custom resources
-# Initialize ModalConfig with custom resources
 modal_config = ModalConfig(
     local_src_path=str(project_root / "src"),
     cpu_count=16.0,

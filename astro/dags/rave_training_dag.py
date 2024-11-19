@@ -109,11 +109,12 @@ def rave_training_dag():
     def initialize_training_config(s3_data: dict, **context):
         """Set up training configuration"""
         try:
-            # Return only the necessary configuration as a dictionary
             modal_config_dict = {
                 "app_name": "rave",
-                "cpu_count": 4.0,
-                "memory_size": 32768,
+                "local_src_path": str(project_root / "src"),
+                "cpu_count": 16.0,
+                "memory_size": 65536,
+                "disk_size": None,
                 "gpu": "T4",
                 "s3_bucket_name": s3_data["bucket"],
                 "s3_data_path": s3_data["path"],
@@ -159,11 +160,36 @@ def rave_training_dag():
             modal_config = ModalConfig(**configs["modal_config"])
             rave_config = RAVEConfig(**configs["rave_config"], modal_config=modal_config)
             
-            # Create Modal app, image, and volume
-            app, image, volume = create_modal_app(modal_config)
+            # Create Modal app and resources
+            app = modal.App("rave")
             
-            # Create the training function with Modal decorator
-            @create_function(app, modal_config, image, volume)
+            # Create image with required packages
+            image = (modal.Image.debian_slim()
+                    .pip_install(*modal_config.pip_packages)
+                    .apt_install(*modal_config.apt_packages))
+            
+            # Create volume using config
+            volume = modal.Volume.from_name(
+                modal_config.volume_name,  # Use config volume_name
+                create_if_missing=True
+            )
+            
+            # Create S3 mount
+            s3_mount = modal.CloudBucketMount(
+                modal_config.s3_bucket_name,
+                secret=modal.Secret.from_name(modal_config.aws_secret_name)
+            )
+            
+            @app.function(
+                image=image,
+                gpu=modal_config.gpu,
+                volumes={
+                    modal_config.volume_path: volume,
+                    modal_config.s3_mount_path: s3_mount
+                },
+                secrets=[modal.Secret.from_name(modal_config.aws_secret_name)],
+                timeout=modal_config.timeout
+            )
             def train_remote(config: RAVEConfig):
                 print("Starting train function")
                 # Debug paths and mounts
