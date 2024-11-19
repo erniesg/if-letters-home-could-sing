@@ -5,3 +5,4 @@ numpy
 tqdm
 PyYAML
 boto3
+modal
