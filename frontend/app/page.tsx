@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
-  const [showReveal, setShowReveal] = useState(true);
+  const [showReveal, setShowReveal] = useState(false);
   const [showScroll, setShowScroll] = useState(false);
   const router = useRouter();
 
