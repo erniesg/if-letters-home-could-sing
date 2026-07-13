@@ -15,4 +15,4 @@ Every incoming-letter fixture must have:
 
 Never include a real accession number, copied signature, actual personal name, museum logo, or a seal that could make the generated artifact look authenticated. The fixture may use invented family names and historically plausible themes.
 
-The first generation prompt is in [`incoming-qiaopi.prompt.md`](incoming-qiaopi.prompt.md). The blank page is programmatic. Page 3 uses the same paper field plus structured annotation overlays, so it does not require a second generative image.
+The first generation prompt is in [`incoming-qiaopi.prompt.md`](incoming-qiaopi.prompt.md). The checked-in incoming fixture and the two deterministic blank huipi stationery profiles are documented in [`fixtures/README.md`](../../fixtures/README.md). Page 3 uses the same reply stationery plus structured annotation overlays, so neither page 2 nor page 3 requires another generative image.

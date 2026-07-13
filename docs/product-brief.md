@@ -19,7 +19,9 @@ The participant's reply is a contemporary **huipi** (回批): the return message
 
 ### Page 2 — Huipi
 
-- The page is visually quiet and immediately writable.
+- The page is a blank piece of huipi stationery: the same warm paper world as page 1, with a faint border, fold memory, and vertical writing guides, but no generated handwriting, signature, stamp, receipt field, or remittance mark.
+- The stationery is deterministic and local rather than AI-generated, so the writing surface is instant, stable, and unmistakably the participant's page.
+- The page is visually quiet and immediately writable; the ink layer remains separate from the stationery layer.
 - The first accepted pen stroke records `first_ink_at` and opens the biometric capture window.
 - Heart-rate connection status is present but unobtrusive: connected, reconnecting, unavailable, or declined.
 - A participant can finish without WHOOP.

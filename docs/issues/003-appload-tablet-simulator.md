@@ -10,7 +10,8 @@ Build a restrained Qt Quick/AppLoad frontend for both tablet aspect ratios, back
 
 - AppLoad manifest, QML frontend, and backend/socket boundary follow the maintained AppLoad example contract.
 - Page 1 renders the fictional incoming fixture plus an accessible provenance disclosure.
-- A forward swipe opens a low-distraction blank huipi canvas; back/forward navigation preserves strokes.
+- A forward swipe opens the matching Chiappa/Ferrari blank huipi stationery fixture with no prefilled handwriting or remittance marks; back/forward navigation preserves strokes.
+- Stationery, participant ink, and later marginalia are three independent layers; tests prove toggling/removing overlays never changes ink.
 - A mock pen source records pressure/time/coordinates and makes the first-stroke event visible to the state core.
 - Submit shows progress, handles deterministic timeout/retry, and renders structured mock annotations on page 3 without changing the ink layer.
 - Layout snapshots exist for Chiappa `2160×1620` and Ferrari `1696×954` in portrait and landscape where supported.

@@ -1,7 +1,10 @@
 import json
+import hashlib
 import re
+import struct
 import subprocess
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 
@@ -44,6 +47,32 @@ class RenderProfileTests(unittest.TestCase):
                 self.assertEqual(height - vertical_delta, native["height"], profile_id)
             else:
                 self.fail(f"unknown transform kind in {profile_id}")
+
+
+class FixtureAssetTests(unittest.TestCase):
+    def test_incoming_fixture_is_pinned_and_portrait(self):
+        path = ROOT / "fixtures" / "generated" / "incoming-qiaopi-001.png"
+        payload = path.read_bytes()
+        self.assertLess(len(payload), 10 * 1024 * 1024)
+        self.assertEqual(
+            hashlib.sha256(payload).hexdigest(),
+            "a94cd86d5b3a7bcd82e93fcf319c080f5d084e110de02780aff43eacbbd8082e",
+        )
+        self.assertEqual(payload[:8], b"\x89PNG\r\n\x1a\n")
+        width, height = struct.unpack(">II", payload[16:24])
+        self.assertEqual((width, height), (1086, 1448))
+
+    def test_blank_huipi_stationery_matches_both_portrait_profiles(self):
+        expected = {
+            "reply-chiappa.svg": "0 0 1620 2160",
+            "reply-ferrari.svg": "0 0 954 1696",
+        }
+        for filename, view_box in expected.items():
+            root = ET.parse(ROOT / "fixtures" / "reply" / filename).getroot()
+            self.assertEqual(root.attrib["viewBox"], view_box)
+            elements = {element.tag.rsplit("}", 1)[-1] for element in root.iter()}
+            self.assertNotIn("text", elements)
+            self.assertNotIn("image", elements)
 
 
 class ExamplePayloadTests(unittest.TestCase):
