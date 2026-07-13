@@ -29,8 +29,8 @@ export default function RealtimeHRPage() {
       characteristic?.addEventListener('characteristicvaluechanged', handleHeartRateChange);
 
       setIsConnected(true);
-    } catch (error) {
-      console.error('Error setting up BLE connection:', error);
+    } catch {
+      setIsConnected(false);
     }
   };
 
