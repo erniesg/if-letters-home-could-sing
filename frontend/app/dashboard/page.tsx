@@ -20,7 +20,6 @@ export default function Dashboard() {
         setCycles(data.cycles);
         setHeartRate(data.heartRate);
       } catch {
-        console.error('Unable to fetch WHOOP data');
         setError('Failed to fetch WHOOP data');
       } finally {
         setLoading(false);

@@ -1,14 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { fetchLastFiveCycles, fetchHeartRateData } from '../../lib/whoopAuth';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
-  try {
-    const cycles = await fetchLastFiveCycles();
-    const heartRate = await fetchHeartRateData();
-
-    return NextResponse.json({ cycles, heartRate });
-  } catch {
-    console.error('Unable to serve WHOOP data');
-    return NextResponse.json({ error: 'Failed to fetch WHOOP data' }, { status: 500 });
-  }
+// Live WHOOP OAuth belongs on the consented gateway and is disabled by default.
+// The tablet/browser must never read a provider token or client secret.
+export async function GET() {
+  return NextResponse.json(
+    { error: 'WHOOP aggregate context is disabled' },
+    { status: 503 }
+  );
 }

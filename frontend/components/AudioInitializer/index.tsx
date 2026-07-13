@@ -74,8 +74,7 @@ export default function AudioInitializer({ onHeartRateUpdate, onInitialized }: A
       setStatus(prev => ({ ...prev, audio: 'ready' }));
       onInitialized(true);
 
-    } catch (error) {
-      console.error('Initialization error:', error);
+    } catch {
       setStatus({ ble: 'error', audio: 'error' });
       onInitialized(false);
     }
