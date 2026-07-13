@@ -8,7 +8,7 @@ const { createHash } = require("node:crypto");
 const allLanes = [
   {
     "id": "python-test",
-    "command": "python3 -m unittest discover -s tests_contract",
+    "command": "python3 -m unittest discover -s tests",
     "required": true
   }
 ];

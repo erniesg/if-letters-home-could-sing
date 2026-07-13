@@ -16,8 +16,8 @@ scripts/agent-evidence --only=lint,type-check
 
 Validation lanes discovered:
 
-- `python-test`: `python3 -m unittest discover -s tests_contract` (required product-contract suite)
-- `legacy-python-test`: `python3 -m unittest discover -s tests` (optional until issue 001 removes private-dataset/environment coupling)
+- `python-test`: `python3 -m unittest discover -s tests` (required product-contract suite)
+- `legacy-python-test`: `python3 -m unittest discover -s legacy_tests` (optional until issue 001 removes private-dataset/environment coupling)
 
 The required lane must be green without network, private corpora, a GPU, a tablet, or provider credentials. Optional legacy failures are reported as caveats and must not be hidden or reframed as product coverage.
 

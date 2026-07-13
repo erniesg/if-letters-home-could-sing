@@ -25,8 +25,8 @@ The earlier research prototype and qiao pi assets remain in place. A Rucksack ha
 Run the portable planning and contract checks with:
 
 ```bash
-python3 -m unittest discover -s tests_contract
+python3 -m unittest discover -s tests
 scripts/agent-evidence
 ```
 
-Legacy ML/data tests depend on private datasets and are not the acceptance suite for this new experience until issue 001 makes that boundary reproducible.
+Legacy ML/data tests live under `legacy_tests/`, depend on private datasets, and are not the acceptance suite for this new experience until issue 001 makes that boundary reproducible.

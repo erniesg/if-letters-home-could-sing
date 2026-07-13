@@ -2,11 +2,11 @@
 version: 1
 commands:
   python-test:
-    command: "python3 -m unittest discover -s tests_contract"
+    command: "python3 -m unittest discover -s tests"
     timeout_seconds: 120
     required: true
   legacy-python-test:
-    command: "python3 -m unittest discover -s tests"
+    command: "python3 -m unittest discover -s legacy_tests"
     timeout_seconds: 900
     required: false
   vm-verify:

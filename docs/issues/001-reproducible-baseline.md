@@ -16,7 +16,7 @@ Turn the current research repository into a clean-checkout workspace that can va
 ## Validation command
 
 ```bash
-python3 -m unittest discover -s tests_contract
+python3 -m unittest discover -s tests
 scripts/agent-evidence
 ```
 
