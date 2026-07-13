@@ -4,6 +4,10 @@
 
 `generated/incoming-qiaopi-001.png` is the first fictional, AI-generated incoming-letter fixture.
 
+Its machine-readable prompt, provenance, fictional status, provider/model record,
+timestamps, dimensions, and checksums are pinned in
+`generated/incoming-qiaopi-001.json`.
+
 - Generated: 2026-07-14
 - Source prompt: `docs/fixtures/incoming-qiaopi.prompt.md`
 - Visual references: the two locally supplied qiao pi photographs, used only for broad material vocabulary
