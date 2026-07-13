@@ -1,5 +1,6 @@
 import json
 import re
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -93,6 +94,25 @@ class IssueLedgerTests(unittest.TestCase):
             dependencies = {int(value) for value in re.findall(r"\d+", match.group(1))}
             self.assertTrue(dependencies.issubset(valid_ids), path.name)
             self.assertTrue(all(value < issue_id for value in dependencies), path.name)
+
+
+class RepositoryIntegrityTests(unittest.TestCase):
+    def test_every_gitlink_has_a_submodule_mapping(self):
+        output = subprocess.run(
+            ["git", "ls-files", "--stage"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+        gitlinks = {
+            line.split("\t", 1)[1]
+            for line in output.splitlines()
+            if line.startswith("160000 ")
+        }
+        modules = (ROOT / ".gitmodules").read_text()
+        mapped_paths = set(re.findall(r"^\s*path\s*=\s*(.+)$", modules, re.MULTILINE))
+        self.assertEqual(gitlinks, mapped_paths)
 
 
 if __name__ == "__main__":
