@@ -7,14 +7,9 @@ const { createHash } = require("node:crypto");
 
 const allLanes = [
   {
-    "id": "contract-test",
+    "id": "python-test",
     "command": "python3 -m unittest discover -s tests_contract",
     "required": true
-  },
-  {
-    "id": "legacy-python-test",
-    "command": "python3 -m unittest discover -s tests",
-    "required": false
   }
 ];
 const invocation = {

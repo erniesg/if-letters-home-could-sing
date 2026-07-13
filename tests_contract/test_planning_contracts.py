@@ -114,6 +114,13 @@ class RepositoryIntegrityTests(unittest.TestCase):
         mapped_paths = set(re.findall(r"^\s*path\s*=\s*(.+)$", modules, re.MULTILINE))
         self.assertEqual(gitlinks, mapped_paths)
 
+    def test_evidence_workflow_accepts_every_declared_lane(self):
+        evidence_script = (ROOT / "scripts" / "agent-evidence").read_text()
+        workflow = (ROOT / ".github" / "workflows" / "agent-evidence.yml").read_text()
+        declared_lanes = set(re.findall(r'^\s*"id": "([^"]+)",$', evidence_script, re.MULTILINE))
+        accepted_lanes = set(re.findall(r'"([a-z0-9-]+)"', workflow))
+        self.assertTrue(declared_lanes.issubset(accepted_lanes))
+
 
 if __name__ == "__main__":
     unittest.main()
