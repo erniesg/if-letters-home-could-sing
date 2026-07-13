@@ -1,0 +1,28 @@
+{
+  "schema_version": "1",
+  "fixture_id": "incoming-qiaopi-001",
+  "fictional": true,
+  "notice": "A fictional letter generated for this encounter",
+  "prompt": "Create a single top-down archival-style image of a fictional mid-1950s Hainan-to-Singapore family remittance letter, composed as a clean 3:4 portrait page for a colour e-ink tablet. Use qiao pi photographs only for broad material vocabulary: thin warm fibrous paper, visible fold memory, faint red rules or grid, restrained blue-grey handwritten Chinese, small practical remittance or receipt marks, and uneven age at the edges. Do not copy their layout, handwriting, names, seals, numbers, stamps, damage, or text. The invented letter should feel intimate and ordinary: acknowledgement that money arrived, reassurance that the family is safe, a brief note about health or schooling, and a hope to visit. It must contain no nationalist slogan, government emblem, museum accession number, real personal name, company logo, legible real address, or claim of authenticity. Do not use wax seals, scrolls, imperial imagery, decorative calligraphy, cinematic props, hands, desk objects, or a museum label. Keep the paper nearly full frame with a small quiet margin, even soft light, high legibility, restrained colour, and enough negative space that a small provenance chip can be overlaid by the app. The result should look like one plausible correspondence sheet, not a collage or presentation mockup. If Chinese lettering cannot be rendered reliably, prefer visually coherent but clearly fictional handwriting texture over malformed large display text.",
+  "provider": "fixture-import",
+  "model": "not-recorded",
+  "timestamps": {
+    "generated_at": "2026-07-14T00:00:00Z",
+    "sidecar_created_at": "2026-07-14T00:00:00Z"
+  },
+  "dimensions": {
+    "width": 1086,
+    "height": 1448
+  },
+  "checksums": {
+    "asset_sha256": "a94cd86d5b3a7bcd82e93fcf319c080f5d084e110de02780aff43eacbbd8082e",
+    "prompt_sha256": "dffdde9f1a5822d04d507d6866c39317bb03b3a39dc37b8022412c7a479d3338",
+    "prompt_file_sha256": "7750b348843c625e864e37b074c0e5769ab1e679c59eb85880adabd166440cc2"
+  },
+  "provenance": {
+    "kind": "fixture",
+    "archival_source": false,
+    "prompt_file": "docs/fixtures/incoming-qiaopi.prompt.md",
+    "source_reference_notes": "Qiao pi photographs informed broad material vocabulary only; no layout, handwriting, names, signatures, seals, numbers, stamps, or text were copied."
+  }
+}
