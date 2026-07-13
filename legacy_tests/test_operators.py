@@ -2,6 +2,7 @@ import os
 import sys
 import pytest
 import boto3
+import zipfile
 from moto import mock_aws
 from datetime import datetime, timedelta
 import time
@@ -19,9 +20,9 @@ MOCK_SETTINGS = {
         'test-dataset': {
             'source': {
                 'type': 'file',
-                'path': '/Users/erniesg/Documents/archive_pw.zip'
+                'path': ''
             },
-            'unzip_password': 'testPW',
+            'unzip_password': 'synthetic-fixture',
             'overwrite': False
         }
     },
@@ -32,6 +33,14 @@ MOCK_SETTINGS = {
         'region': config['aws']['region']
     }
 }
+
+@pytest.fixture(scope="function")
+def synthetic_archive(tmp_path):
+    archive_path = tmp_path / "legacy-operator-fixture.zip"
+    with zipfile.ZipFile(archive_path, "w") as archive:
+        archive.writestr("fixture/README.txt", "Synthetic legacy operator fixture.\n")
+    MOCK_SETTINGS['datasets']['test-dataset']['source']['path'] = str(archive_path)
+    return archive_path
 
 @pytest.fixture(scope="function")
 def aws_credentials():
@@ -66,7 +75,7 @@ def s3_bucket(s3):
     yield MOCK_SETTINGS['s3']['bucket_name']
 
 @mock_aws
-def test_download_and_unzip_operator(s3_bucket, dynamodb):
+def test_download_and_unzip_operator(s3_bucket, dynamodb, synthetic_archive):
     dataset_name = 'test-dataset'
     dataset_config = MOCK_SETTINGS['datasets'][dataset_name]
     s3_key = f"{MOCK_SETTINGS['s3']['data_prefix']}/{dataset_name}.zip"

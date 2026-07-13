@@ -109,7 +109,6 @@ export function useAudioEngine(
 
     const factor = manualFactor !== undefined ? manualFactor : 0.5;
     const tempo = mapHeartRateToTempo(heartRate, factor);
-    console.log(`Tempo: ${tempo}bpm | Heart Rate: ${heartRate}bpm | Factor: ${factor}`);
     setDebug(prev => ({
       ...prev,
       tempo,

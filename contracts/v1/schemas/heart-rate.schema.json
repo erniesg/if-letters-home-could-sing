@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://if-letters-home-could-sing.invalid/contracts/v1/heart-rate.schema.json",
+  "title": "Consent-scoped heart-rate capture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "consent", "source", "samples", "gaps"],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "consent": {"enum": ["granted", "declined", "unavailable"]},
+    "source": {"enum": ["mock", "ble-relay", "whoop-aggregate", "none"]},
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["captured_at", "received_at", "bpm", "quality"],
+        "properties": {
+          "captured_at": {"type": "string", "format": "date-time"},
+          "received_at": {"type": "string", "format": "date-time"},
+          "bpm": {"type": "integer", "minimum": 1, "maximum": 250},
+          "rr_interval_ms": {"type": "number", "exclusiveMinimum": 0},
+          "quality": {"enum": ["good", "degraded", "reconnecting"]}
+        }
+      }
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["started_at", "ended_at", "reason"],
+        "properties": {
+          "started_at": {"type": "string", "format": "date-time"},
+          "ended_at": {"type": "string", "format": "date-time"},
+          "reason": {"enum": ["disconnected", "unavailable", "declined"]}
+        }
+      }
+    }
+  }
+}

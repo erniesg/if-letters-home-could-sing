@@ -11,19 +11,16 @@ export default function Dashboard() {
 
   useEffect(() => {
     async function fetchWhoopData() {
-      console.log('Fetching WHOOP data...');
       try {
         const response = await fetch('/api');
-        console.log('API response status:', response.status);
         if (!response.ok) {
           throw new Error('Failed to fetch WHOOP data');
         }
         const data = await response.json();
-        console.log('Received data:', data);
         setCycles(data.cycles);
         setHeartRate(data.heartRate);
-      } catch (err) {
-        console.error('Error fetching WHOOP data:', err);
+      } catch {
+        console.error('Unable to fetch WHOOP data');
         setError('Failed to fetch WHOOP data');
       } finally {
         setLoading(false);
@@ -32,8 +29,6 @@ export default function Dashboard() {
 
     fetchWhoopData();
   }, []);
-
-  console.log('Rendering Dashboard. Cycles:', cycles, 'Heart Rate:', heartRate);
 
   if (loading) return <div>Loading...</div>;
   if (error) return <div>{error}</div>;

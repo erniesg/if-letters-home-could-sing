@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://if-letters-home-could-sing.invalid/contracts/v1/review.schema.json",
+  "title": "Reversible marginalia overlay",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "review_id", "session_id", "reviewer", "summary", "annotations"],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "review_id": {"type": "string", "minLength": 1},
+    "session_id": {"type": "string", "minLength": 1},
+    "reviewer": {"type": "string", "minLength": 1},
+    "summary": {"type": "string", "minLength": 1},
+    "annotations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "anchor", "message", "confidence"],
+        "properties": {
+          "id": {"type": "string", "minLength": 1},
+          "kind": {"enum": ["correction", "uncertain-reading", "tone", "reflection"]},
+          "anchor": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["page", "x", "y", "width", "height"],
+            "properties": {
+              "page": {"const": 2},
+              "x": {"type": "number", "minimum": 0, "maximum": 1},
+              "y": {"type": "number", "minimum": 0, "maximum": 1},
+              "width": {"type": "number", "minimum": 0, "maximum": 1},
+              "height": {"type": "number", "minimum": 0, "maximum": 1}
+            }
+          },
+          "message": {"type": "string", "minLength": 1},
+          "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+        }
+      }
+    }
+  }
+}

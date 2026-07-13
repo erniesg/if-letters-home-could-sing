@@ -1,0 +1,100 @@
+[
+  {
+    "name": "invalid session timestamp",
+    "contract": "session",
+    "error": "created_at.*RFC 3339",
+    "payload": {
+      "schema_version": "1",
+      "session_id": "fixture-session-0001",
+      "state": "incoming",
+      "letter_provenance": {
+        "schema_version": "1",
+        "letter_fixture_id": "fictional-hainan-1954-001",
+        "kind": "fixture",
+        "fictional": true,
+        "notice": "A fictional letter generated for this encounter"
+      },
+      "created_at": "not-a-timestamp",
+      "first_ink_at": null,
+      "submitted_at": null,
+      "review_id": null,
+      "error_code": null,
+      "strokes": [],
+      "heart_rate": {
+        "schema_version": "1",
+        "consent": "declined",
+        "source": "none",
+        "samples": [],
+        "gaps": []
+      },
+      "retention_deadline": "2026-07-21T00:00:00Z",
+      "deletion_status": "active"
+    }
+  },
+  {
+    "name": "out-of-page review anchor",
+    "contract": "review",
+    "error": "anchor extends beyond page",
+    "payload": {
+      "schema_version": "1",
+      "review_id": "fixture-review-0001",
+      "session_id": "fixture-session-0001",
+      "reviewer": "fixture",
+      "summary": "A reversible reading.",
+      "annotations": [
+        {
+          "id": "annotation-1",
+          "kind": "reflection",
+          "anchor": {"page": 2, "x": 0.95, "y": 0.2, "width": 0.1, "height": 0.1},
+          "message": "What might you add?",
+          "confidence": 1.0
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown experience state",
+    "contract": "session",
+    "error": "state.*must be one of",
+    "payload": {
+      "schema_version": "1",
+      "session_id": "fixture-session-0001",
+      "state": "scored",
+      "letter_provenance": {
+        "schema_version": "1",
+        "letter_fixture_id": "fictional-hainan-1954-001",
+        "kind": "fixture",
+        "fictional": true,
+        "notice": "A fictional letter generated for this encounter"
+      },
+      "created_at": "2026-07-14T00:00:00Z",
+      "first_ink_at": null,
+      "submitted_at": null,
+      "review_id": null,
+      "error_code": null,
+      "strokes": [],
+      "heart_rate": {
+        "schema_version": "1",
+        "consent": "declined",
+        "source": "none",
+        "samples": [],
+        "gaps": []
+      },
+      "retention_deadline": "2026-07-21T00:00:00Z",
+      "deletion_status": "active"
+    }
+  },
+  {
+    "name": "generated letter claiming an accession",
+    "contract": "letter-provenance",
+    "error": "accession_number.*not allowed",
+    "payload": {
+      "schema_version": "1",
+      "letter_fixture_id": "fictional-hainan-1954-001",
+      "kind": "generated",
+      "fictional": true,
+      "notice": "A fictional letter generated for this encounter",
+      "accession_number": "museum-123"
+    }
+  }
+]

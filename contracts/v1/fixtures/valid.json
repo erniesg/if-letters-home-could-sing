@@ -1,0 +1,98 @@
+{
+  "letter-provenance": {
+    "schema_version": "1",
+    "letter_fixture_id": "fictional-hainan-1954-001",
+    "kind": "fixture",
+    "fictional": true,
+    "notice": "A fictional letter generated for this encounter"
+  },
+  "stroke": {
+    "schema_version": "1",
+    "stroke_id": "stroke-1",
+    "accepted_at": "2026-07-14T00:00:12Z",
+    "points": [
+      {"x": 0.2, "y": 0.3, "pressure": 0.5},
+      {"x": 0.3, "y": 0.4, "pressure": 0.6}
+    ]
+  },
+  "heart-rate": {
+    "schema_version": "1",
+    "consent": "granted",
+    "source": "mock",
+    "samples": [
+      {
+        "captured_at": "2026-07-14T00:00:12Z",
+        "received_at": "2026-07-14T00:00:12.080Z",
+        "bpm": 78,
+        "quality": "good"
+      }
+    ],
+    "gaps": [
+      {
+        "started_at": "2026-07-14T00:00:30Z",
+        "ended_at": "2026-07-14T00:00:35Z",
+        "reason": "disconnected"
+      }
+    ]
+  },
+  "review": {
+    "schema_version": "1",
+    "review_id": "fixture-review-0001",
+    "session_id": "fixture-session-0001",
+    "reviewer": "fixture",
+    "summary": "Your reply acknowledges the family's care and answers the invitation directly.",
+    "annotations": [
+      {
+        "id": "annotation-1",
+        "kind": "uncertain-reading",
+        "anchor": {"page": 2, "x": 0.61, "y": 0.42, "width": 0.08, "height": 0.04},
+        "message": "This character is difficult to read; did you mean 家?",
+        "confidence": 0.54
+      }
+    ]
+  },
+  "session": {
+    "schema_version": "1",
+    "session_id": "fixture-session-0001",
+    "state": "marginalia",
+    "letter_provenance": {
+      "schema_version": "1",
+      "letter_fixture_id": "fictional-hainan-1954-001",
+      "kind": "fixture",
+      "fictional": true,
+      "notice": "A fictional letter generated for this encounter"
+    },
+    "created_at": "2026-07-14T00:00:00Z",
+    "first_ink_at": "2026-07-14T00:00:12Z",
+    "submitted_at": "2026-07-14T00:01:02Z",
+    "review_id": "fixture-review-0001",
+    "error_code": null,
+    "strokes": [
+      {
+        "schema_version": "1",
+        "stroke_id": "stroke-1",
+        "accepted_at": "2026-07-14T00:00:12Z",
+        "points": [
+          {"x": 0.2, "y": 0.3, "pressure": 0.5},
+          {"x": 0.3, "y": 0.4, "pressure": 0.6}
+        ]
+      }
+    ],
+    "heart_rate": {
+      "schema_version": "1",
+      "consent": "granted",
+      "source": "mock",
+      "samples": [
+        {
+          "captured_at": "2026-07-14T00:00:12Z",
+          "received_at": "2026-07-14T00:00:12.080Z",
+          "bpm": 78,
+          "quality": "good"
+        }
+      ],
+      "gaps": []
+    },
+    "retention_deadline": "2026-07-21T00:01:02Z",
+    "deletion_status": "active"
+  }
+}

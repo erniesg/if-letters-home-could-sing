@@ -1,22 +1,22 @@
 const WHOOP_API_HOSTNAME = process.env.WHOOP_API_HOSTNAME || 'https://api.prod.whoop.com';
-const ACCESS_TOKEN = process.env.WHOOP_ACCESS_TOKEN || '';
 
-console.log('WHOOP_API_HOSTNAME:', WHOOP_API_HOSTNAME);
-console.log('ACCESS_TOKEN (first 10 chars):', ACCESS_TOKEN.substring(0, 10) + '...');
-
-if (!ACCESS_TOKEN) {
-  console.error('ACCESS_TOKEN is missing');
-  throw new Error('Missing required environment variable');
+function getWhoopAccessToken(): string | null {
+  return process.env.WHOOP_ACCESS_TOKEN || null;
 }
 
 export async function fetchLastFiveCycles(): Promise<any[]> {
-  console.log('Fetching last five cycles...');
+  const accessToken = getWhoopAccessToken();
+  if (!accessToken) {
+    console.error('WHOOP access is not configured');
+    return [];
+  }
+
   try {
     const response = await fetch(
       `${WHOOP_API_HOSTNAME}/developer/v1/cycle?limit=5`,
       {
         headers: {
-          Authorization: `Bearer ${ACCESS_TOKEN}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       }
     );
@@ -27,22 +27,26 @@ export async function fetchLastFiveCycles(): Promise<any[]> {
     }
 
     const data = await response.json();
-    console.log('Fetched cycles data:', JSON.stringify(data, null, 2));
     return data.records;
-  } catch (error) {
-    console.error('Error fetching cycle data:', error);
+  } catch {
+    console.error('Unable to fetch cycle data');
     return [];
   }
 }
 
 export async function fetchHeartRateData(): Promise<number> {
-  console.log('Fetching heart rate data...');
+  const accessToken = getWhoopAccessToken();
+  if (!accessToken) {
+    console.error('WHOOP access is not configured');
+    return 0;
+  }
+
   try {
     const response = await fetch(
       `${WHOOP_API_HOSTNAME}/developer/v1/cycle/recovery`,
       {
         headers: {
-          Authorization: `Bearer ${ACCESS_TOKEN}`,
+          Authorization: `Bearer ${accessToken}`,
         },
       }
     );
@@ -53,10 +57,9 @@ export async function fetchHeartRateData(): Promise<number> {
     }
 
     const data = await response.json();
-    console.log('Fetched heart rate data:', JSON.stringify(data, null, 2));
     return data.resting_heart_rate;
-  } catch (error) {
-    console.error('Error fetching heart rate data:', error);
+  } catch {
+    console.error('Unable to fetch heart rate data');
     return 0;
   }
 }

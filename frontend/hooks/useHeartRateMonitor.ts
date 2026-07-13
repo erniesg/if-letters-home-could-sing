@@ -10,12 +10,6 @@ export function useHeartRateMonitor(isEnabled: boolean) {
     setCurrentRate(rate);
     analyzer.addReading(rate);
     setMovingAverage(analyzer.getMovingAverage());
-
-    console.log('Heart Rate Update:', {
-      current: rate,
-      movingAverage: analyzer.getMovingAverage(),
-      timestamp: Date.now()
-    });
   };
 
   return {

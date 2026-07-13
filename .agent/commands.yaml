@@ -6,7 +6,7 @@ commands:
     timeout_seconds: 120
     required: true
   legacy-python-test:
-    command: "python3 -m unittest discover -s legacy_tests"
+    command: "scripts/legacy-tests"
     timeout_seconds: 900
     required: false
   vm-verify:
