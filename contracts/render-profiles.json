@@ -1,0 +1,21 @@
+{
+  "schema_version": "1",
+  "profiles": {
+    "chiappa_3.28.0.162": {
+      "device": "reMarkable Paper Pro",
+      "codename": "Chiappa",
+      "os_version": "3.28.0.162",
+      "native_landscape": {"width": 2160, "height": 1620},
+      "generation": {"width": 2160, "height": 1616},
+      "transform": {"kind": "pad", "top": 2, "right": 0, "bottom": 2, "left": 0}
+    },
+    "ferrari_3.28.0.162": {
+      "device": "reMarkable Paper Pro Move",
+      "codename": "Ferrari",
+      "os_version": "3.28.0.162",
+      "native_landscape": {"width": 1696, "height": 954},
+      "generation": {"width": 1696, "height": 960},
+      "transform": {"kind": "crop", "top": 3, "right": 0, "bottom": 3, "left": 0}
+    }
+  }
+}

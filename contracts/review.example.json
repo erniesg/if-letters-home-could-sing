@@ -1,0 +1,23 @@
+{
+  "schema_version": "1",
+  "review_id": "fixture-review-0001",
+  "session_id": "fixture-session-0001",
+  "reviewer": "fixture",
+  "summary": "Your reply acknowledges the family's care and answers the invitation directly.",
+  "annotations": [
+    {
+      "id": "annotation-1",
+      "kind": "uncertain-reading",
+      "anchor": {"page": 2, "x": 0.61, "y": 0.42, "width": 0.08, "height": 0.04},
+      "message": "This character is difficult to read; did you mean 家?",
+      "confidence": 0.54
+    },
+    {
+      "id": "annotation-2",
+      "kind": "reflection",
+      "anchor": {"page": 2, "x": 0.12, "y": 0.78, "width": 0.62, "height": 0.08},
+      "message": "What would you want the reader to know about the distance between you?",
+      "confidence": 1.0
+    }
+  ]
+}
