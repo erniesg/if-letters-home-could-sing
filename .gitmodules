@@ -1,0 +1,6 @@
+[submodule "frontend/public/reveal"]
+	path = frontend/public/reveal
+	url = https://github.com/codrops/Scroll3DGrid.git
+[submodule "frontend/public/scroll"]
+	path = frontend/public/scroll
+	url = https://github.com/codrops/OnScrollTypographyAnimations.git

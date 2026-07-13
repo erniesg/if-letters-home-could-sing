@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1620" height="2160" viewBox="0 0 1620 2160">
+  <rect width="1620" height="2160" fill="#f1e8d5"/>
+  <rect x="0" y="0" width="1620" height="52" fill="#3f352a" opacity="0.06"/>
+  <rect x="0" y="2108" width="1620" height="52" fill="#3f352a" opacity="0.05"/>
+  <rect x="0" y="0" width="38" height="2160" fill="#3f352a" opacity="0.045"/>
+  <rect x="1582" y="0" width="38" height="2160" fill="#3f352a" opacity="0.04"/>
+  <path d="M810 0V2160 M0 1080H1620" stroke="#796d5e" stroke-width="3" opacity="0.10"/>
+  <rect x="112" y="138" width="1396" height="1884" fill="none" stroke="#b65f56" stroke-width="4" opacity="0.62"/>
+  <path d="M219 138V2022 M326 138V2022 M433 138V2022 M540 138V2022 M647 138V2022 M754 138V2022 M861 138V2022 M968 138V2022 M1075 138V2022 M1182 138V2022 M1289 138V2022 M1396 138V2022" stroke="#bd6c62" stroke-width="2" opacity="0.28"/>
+  <path d="M112 326H1508 M112 1836H1508" stroke="#bd6c62" stroke-width="2" opacity="0.22"/>
+</svg>
