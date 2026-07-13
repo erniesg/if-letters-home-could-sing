@@ -12,7 +12,6 @@ export class HeartRateAnalyzer {
     if (this.window.length > this.windowSize) {
       this.window.shift();
     }
-    console.log('Heart Rate Window:', this.window);
   }
 
   getMovingAverage(): number {

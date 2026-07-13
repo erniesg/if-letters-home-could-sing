@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools==75.8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "if-letters-home-could-sing-experience"
+version = "0.1.0"
+description = "Portable contracts for the reMarkable correspondence experience"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = []
+
+[project.optional-dependencies]
+dev = []
+
+[tool.setuptools]
+packages = []
+py-modules = []

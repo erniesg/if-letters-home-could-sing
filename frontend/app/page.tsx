@@ -22,7 +22,7 @@ export default function Home() {
       document.body.appendChild(revealIframe);
 
       // Listen for reveal completion
-      const handleRevealMessage = (event) => {
+      const handleRevealMessage = (event: MessageEvent) => {
         if (event.data === 'revealComplete') {
           console.log('🔄 Reveal complete, switching to Scroll Typography');
           document.body.removeChild(revealIframe);
@@ -55,7 +55,7 @@ export default function Home() {
       document.body.appendChild(scrollIframe);
 
       // Listen for scroll completion
-      const handleScrollMessage = (event) => {
+      const handleScrollMessage = (event: MessageEvent) => {
         if (event.data === 'scrollComplete') {
           console.log('🔄 Scroll Typography complete, redirecting to Sound page');
           document.body.removeChild(scrollIframe);

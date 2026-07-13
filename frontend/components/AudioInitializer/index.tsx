@@ -20,7 +20,6 @@ export default function AudioInitializer({ onHeartRateUpdate, onInitialized }: A
     if (newHeartRate !== null) {
       heartRateAnalyzer.addReading(newHeartRate);
       const avgRate = heartRateAnalyzer.getMovingAverage();
-      console.log('Heart Rate Update:', { new: newHeartRate, avg: avgRate });
       onHeartRateUpdate(avgRate);
     }
   }, [heartRateAnalyzer, onHeartRateUpdate]);

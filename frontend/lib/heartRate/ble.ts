@@ -17,12 +17,9 @@ export async function connectToBLEDevice() {
       optionalServices: ['device_information']
     });
 
-    console.log('Device selected:', {
-      name: device.name,
-      id: device.id,
-      connected: device.gatt?.connected
-    });
-
+    if (!device.gatt) {
+      throw new Error('Bluetooth GATT is unavailable');
+    }
     const server = await device.gatt.connect();
     console.log('Connected to GATT server');
 
@@ -40,7 +37,7 @@ export async function connectToBLEDevice() {
     console.log('BLE device connection setup complete');
     return device;
   } catch (error) {
-    console.error('Error connecting to BLE device:', error);
+    console.error('Unable to connect to BLE device');
     throw error;
   }
 }
@@ -55,31 +52,6 @@ function handleHeartRateMeasurement(event: Event) {
       heartRate = value.getUint16(1, true);
     } else {
       heartRate = value.getUint8(1);
-    }
-
-    console.log('Received heart rate data:');
-    console.log('  Flags:', flags.toString(2).padStart(8, '0'));
-    console.log('  Heart Rate:', heartRate);
-
-    // Log additional data if available
-    let index = rate16Bits ? 3 : 2;
-    if (flags & 0x4) {
-      const contactStatus = value.getUint8(index);
-      console.log('  Sensor Contact Status:', contactStatus ? 'Detected' : 'Not Detected');
-      index++;
-    }
-    if (flags & 0x8) {
-      const energyExpended = value.getUint16(index, true);
-      console.log('  Energy Expended:', energyExpended);
-      index += 2;
-    }
-    if (flags & 0x10) {
-      const rrIntervals = [];
-      while (index < value.byteLength) {
-        rrIntervals.push(value.getUint16(index, true));
-        index += 2;
-      }
-      console.log('  RR Intervals:', rrIntervals);
     }
 
     return heartRate;

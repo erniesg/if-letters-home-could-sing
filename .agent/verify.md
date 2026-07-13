@@ -17,9 +17,9 @@ scripts/agent-evidence --only=lint,type-check
 Validation lanes discovered:
 
 - `python-test`: `python3 -m unittest discover -s tests` (required product-contract suite)
-- `legacy-python-test`: `python3 -m unittest discover -s legacy_tests` (optional until issue 001 removes private-dataset/environment coupling)
+- `legacy-python-test`: `scripts/legacy-tests` (optional historical research suite)
 
-The required lane must be green without network, private corpora, a GPU, a tablet, or provider credentials. Optional legacy failures are reported as caveats and must not be hidden or reframed as product coverage.
+The required lane must be green without network, private corpora, a GPU, a tablet, or provider credentials. The optional legacy command preflights its historical modules, private datasets, generated mappings, and font before running `pytest`; unavailable setup exits with code `2` and is not product-suite coverage or failure. Install the pinned public subset with `python3 -m pip install -r requirements-legacy.txt`, but do not copy missing private inputs or unrecovered research modules into the repository.
 
 Deploy contract:
 
