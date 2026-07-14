@@ -263,27 +263,41 @@ def _number(value: float) -> str:
 _FIXTURE_REVIEWS = {
     "standard": {
         "status": "reviewed",
-        "summary": "This reading notices your direct response and the care carried in your wording.",
+        "summary": "A warm reply with a clear respectful tone. Two small word-order and character choices may need attention.",
         "annotations": [
             {
                 "id": "annotation-correction",
                 "kind": "correction",
                 "anchor": {"page": 2, "x": 0.18, "y": 0.24, "width": 0.12, "height": 0.06},
-                "message": "Consider using 您 here to keep the respectful address consistent.",
+                "message": "Use 您 here so the respectful address stays consistent.",
                 "confidence": 0.93,
             },
             {
                 "id": "annotation-uncertain",
                 "kind": "uncertain-reading",
                 "anchor": {"page": 2, "x": 0.61, "y": 0.42, "width": 0.08, "height": 0.04},
-                "message": "This character is difficult to read; did you mean 家?",
+                "message": "I am not certain this character is 家; is that what you intended?",
                 "confidence": 0.54,
+            },
+            {
+                "id": "annotation-grammar",
+                "kind": "correction",
+                "anchor": {"page": 2, "x": 0.48, "y": 0.51, "width": 0.20, "height": 0.06},
+                "message": "Place 也 before 很想念您 so the sentence reads more naturally.",
+                "confidence": 0.91,
+            },
+            {
+                "id": "annotation-tone",
+                "kind": "tone",
+                "anchor": {"page": 2, "x": 0.24, "y": 0.68, "width": 0.25, "height": 0.06},
+                "message": "请勿挂念 keeps this reassurance warm rather than abrupt.",
+                "confidence": 0.95,
             },
             {
                 "id": "annotation-affirmation",
                 "kind": "affirmation",
                 "anchor": {"page": 2, "x": 0.36, "y": 0.58, "width": 0.24, "height": 0.07},
-                "message": "Your acknowledgement of the family's care feels clear and warm.",
+                "message": "Your reassurance about the family feels clear and warm.",
                 "confidence": 0.98,
             },
             {

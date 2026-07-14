@@ -76,7 +76,7 @@ def captured_payload():
 
 
 class ReplyReviewerTests(unittest.TestCase):
-    def test_fixture_reviewer_covers_each_gentle_annotation_kind(self):
+    def test_fixture_reviewer_covers_teacher_marginalia_without_grading(self):
         document = review_reply(
             FixtureReplyReviewer("standard"),
             make_review_request(submitted_session()),
@@ -85,7 +85,14 @@ class ReplyReviewerTests(unittest.TestCase):
         self.assertEqual(document["status"], "reviewed")
         self.assertEqual(
             {annotation["kind"] for annotation in document["annotations"]},
-            {"correction", "uncertain-reading", "affirmation", "reflection"},
+            {"correction", "uncertain-reading", "affirmation", "tone", "reflection"},
+        )
+        self.assertLessEqual(len(document["summary"]), 160)
+        self.assertTrue(all(len(item["message"]) <= 100 for item in document["annotations"]))
+        self.assertTrue(any(item["id"] == "annotation-grammar" for item in document["annotations"]))
+        self.assertEqual(
+            document,
+            json.loads((ROOT / "contracts" / "review.example.json").read_text()),
         )
         validate_payload("review", document)
         self.assertNotIn("transcription", document)
@@ -203,9 +210,15 @@ class ReviewPolicyTests(unittest.TestCase):
 
     def test_checked_in_policy_preserves_uncertainty_and_writer_ink(self):
         policy = (ROOT / "docs" / "fixtures" / "reply-review.prompt.md").read_text()
+        flat_policy = " ".join(policy.split())
         self.assertIn("immutable stroke vectors", policy)
+        self.assertIn("supportive Chinese-language teacher", flat_policy)
+        self.assertIn("concise grammar guidance", flat_policy)
+        self.assertIn("tone guidance", flat_policy)
+        self.assertIn("short review of one or two sentences", flat_policy)
         self.assertIn("Phrase confidence below `0.7`", policy)
         self.assertIn("Never produce a score, grade, single correct answer", policy)
+        self.assertIn("never rewrite the writer's full response", flat_policy)
         self.assertIn("omit it and return a margin-only summary", policy)
 
 

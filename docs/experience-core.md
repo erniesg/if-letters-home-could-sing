@@ -38,4 +38,10 @@ Changing a field's meaning, state value, or transition requires a new schema ver
 
 `ReviewRequest` gives a reviewer detached, immutable stroke vectors together with a deterministic SVG rendering of the same page. `review_reply` rejects provider input mutation, mismatched session or review identifiers, and any output that does not satisfy the bounded version 1 review schema. The required provider is `FixtureReplyReviewer`; it covers ordinary, empty, non-Chinese, mixed-language, illegible, and provider-error paths without network access.
 
-The checked-in policy is [`fixtures/reply-review.prompt.md`](fixtures/reply-review.prompt.md). It forbids scores, grades, a single correct answer, replacement ink, and fabricated full transcriptions. Unsupported readings return a summary without invented anchors, while validated annotations remain a separate toggleable overlay.
+The checked-in policy is [`fixtures/reply-review.prompt.md`](fixtures/reply-review.prompt.md).
+The fixture uses a supportive Chinese-language teacher voice for concise local
+corrections, uncertainty, grammar and tone guidance, plus a short review. This
+remains one reading rather than a verdict: the policy forbids scores, grades, a
+single correct answer, replacement ink, and fabricated full transcriptions.
+Unsupported readings return a summary without invented anchors, while validated
+annotations remain a separate toggleable overlay.

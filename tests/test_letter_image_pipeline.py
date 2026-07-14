@@ -24,6 +24,8 @@ from letter_image import (
 
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES = json.loads((ROOT / "contracts" / "render-profiles.json").read_text())["profiles"]
+FERRARI_FIXTURE = ROOT / "fixtures" / "generated" / "incoming-qiaopi-ferrari-001.png"
+FERRARI_SIDECAR = ROOT / "fixtures" / "generated" / "incoming-qiaopi-ferrari-001.json"
 SAFE_PROMPT = (
     "Create a fictional family letter on warm paper. Do not use real names, signatures, "
     "museum logos, accession numbers, or authenticity claims."
@@ -71,14 +73,70 @@ class FixtureProviderTests(unittest.TestCase):
         self.assertEqual((result.width, result.height), (1086, 1448))
         self.assertFalse(sidecar["provenance"]["archival_source"])
 
+    def test_ferrari_fixture_is_native_profiled_and_has_reviewed_provenance(self):
+        result = FixtureLetterImageProvider(
+            asset_path=FERRARI_FIXTURE,
+            sidecar_path=FERRARI_SIDECAR,
+        ).generate(profile_id="ferrari_3.28.0.162")
+        sidecar = result.sidecar
+
+        self.assertEqual((result.width, result.height), (1696, 954))
+        self.assertEqual(sidecar["profile_id"], "ferrari_3.28.0.162")
+        self.assertEqual(
+            sidecar["render_profile"],
+            {
+                "generation_dimensions": {"width": 1696, "height": 960},
+                "native_dimensions": {"width": 1696, "height": 954},
+                "transform": {"kind": "crop", "top": 3, "right": 0, "bottom": 3, "left": 0},
+                "preparation": (
+                    "Resample the original built-in output to 1696 x 960, then crop "
+                    "three rows from the top and bottom."
+                ),
+            },
+        )
+        self.assertEqual(
+            sidecar["checksums"]["asset_sha256"],
+            hashlib.sha256(result.content).hexdigest(),
+        )
+        self.assertEqual(
+            sidecar["checksums"]["source_asset_sha256"],
+            "5afcdcdcd3025788b647c7b0bbe6db7172691de1c252864bb7a76fa8ef24e46a",
+        )
+        prompt_file = ROOT / sidecar["provenance"]["prompt_file"]
+        self.assertEqual(
+            sidecar["checksums"]["prompt_file_sha256"],
+            hashlib.sha256(prompt_file.read_bytes()).hexdigest(),
+        )
+        self.assertEqual(
+            sidecar["checksums"]["prompt_sha256"],
+            hashlib.sha256(sidecar["prompt"].encode()).hexdigest(),
+        )
+        self.assertFalse(sidecar["provenance"]["archival_source"])
+        self.assertEqual(
+            set(sidecar["provenance"]["visual_reviewed_absent"]),
+            {
+                "accession",
+                "real-author",
+                "personal-name",
+                "signature",
+                "seal",
+                "watermark",
+                "toolbar-ui",
+            },
+        )
+
 
 class PromptPolicyTests(unittest.TestCase):
     def test_approved_fixture_prompt_and_render_sizes_are_allowed(self):
-        sidecar = json.loads(
-            (ROOT / "fixtures" / "generated" / "incoming-qiaopi-001.json").read_text()
+        sidecars = (
+            ROOT / "fixtures" / "generated" / "incoming-qiaopi-001.json",
+            FERRARI_SIDECAR,
         )
-        for profile in PROFILES.values():
-            PromptPolicy.validate(sidecar["prompt"], **profile["generation"])
+        for sidecar_path in sidecars:
+            sidecar = json.loads(sidecar_path.read_text())
+            for profile in PROFILES.values():
+                with self.subTest(sidecar=sidecar_path.name, profile=profile):
+                    PromptPolicy.validate(sidecar["prompt"], **profile["generation"])
 
     def test_disallowed_archival_claims_and_identity_markers_are_rejected(self):
         prompts = (

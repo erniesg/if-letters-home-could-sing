@@ -24,11 +24,15 @@
 </g>
 <g id="marginalia-layer">
 <rect x="326" y="288" width="196" height="40" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
-<text x="326" y="274" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">Consider using 您 here to keep the respectful address consistent.</text>
+<text x="326" y="274" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">Use 您 here so the respectful address stays consistent.</text>
 <rect x="1027" y="408" width="130" height="27" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
-<text x="1027" y="394" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">This character is difficult to read; did you mean 家?</text>
+<text x="1027" y="394" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">I am not certain this character is 家; is that what you intended?</text>
+<rect x="815" y="468" width="326" height="40" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="815" y="454" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">Place 也 before 很想念您 so the sentence reads more naturally.</text>
+<rect x="424" y="581" width="408" height="40" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="424" y="567" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">请勿挂念 keeps this reassurance warm rather than abrupt.</text>
 <rect x="620" y="514" width="391" height="46" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
-<text x="620" y="500" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">Your acknowledgement of the family's care feels clear and warm.</text>
+<text x="620" y="500" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">Your reassurance about the family feels clear and warm.</text>
 <rect x="229" y="647" width="1011" height="53" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
 <text x="229" y="633" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">What would you want the reader to know about the distance between you?</text>
 </g>

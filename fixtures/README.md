@@ -18,6 +18,20 @@ timestamps, dimensions, and checksums are pinned in
 
 The app must display the separate disclosure `Fictional letter generated for this encounter` and must not present the image as a museum accession.
 
+`generated/incoming-qiaopi-ferrari-001.png` is the reviewed Ferrari / Paper Pro
+Move landscape fixture generated with Codex's built-in image capability. Its
+exact prompt, source checksum, deterministic profile transform, visual-review
+record, and final checksum are pinned in
+`generated/incoming-qiaopi-ferrari-001.json`.
+
+- Generated: 2026-07-15 (Asia/Singapore)
+- Source prompt: `docs/fixtures/incoming-qiaopi-ferrari.prompt.md`
+- Visual references: none supplied to the generator
+- Provenance: fictional; not an archival reconstruction
+- Native Ferrari dimensions: 1696 x 954
+- SHA-256: `d8053206b0883fa4b39f3a6cbac9475bec34098586114c9562cb87f812b9495c`
+- Usage: reviewed Ferrari incoming-page test fixture
+
 ## Blank huipi stationery
 
 `reply/reply-chiappa.svg` and `reply/reply-ferrari.svg` are deterministic blank reply surfaces for the two portrait device profiles. They contain only paper, fold, border, and writing-guide geometry: no text, raster image, handwriting, stamp, receipt field, signature, or remittance mark.
