@@ -1,9 +1,9 @@
 ; Fixture phase 2. Install only after human-reviewed visual/stability confirmation.
-; Chiappa/Ferrari Sidebar fixture SHA-256: 06bf4c2777d5d4b15297f0d6370fb0352c2ca38098d440d7b7bd405a5384e793
+; Chiappa/Ferrari Sidebar fixture SHA-256: 03d6744e13fab8b4d268029e4b9529d90f71196e4a5f3caf68e990edaf522578
 VERSION 3.28.0.162
 AFFECT [[4911547370760691430]]
     IMPORT net.asivery.AppLoad 1.0
-    TRAVERSE [[3819512207256720568]] > [[14125623155555875541]]#[[15885405667098360701]] > [[5882927607508357618]]#lettersHomeLauncher
+    TRAVERSE [[8397993708429497603]] > [[14125623155555875541]]#[[15885405667098360701]] > [[5882927607508357618]]#lettersHomeLauncher
         REPLACE [[254542236275632405]] WITH {
             ~&254542236275632405&~: AppLoadLauncher.launchApplication("letters-home", [], {}, false)
         }

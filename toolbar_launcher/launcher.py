@@ -107,14 +107,12 @@ def _launcher_block(phase: str) -> str:
         "        ArkControls.SidebarItem {\n"
         "            id: lettersHomeLauncher\n"
         '            objectName: "letters-home-launcher"\n'
-        '            title: qsTr("Letters Home")\n'
+        '            text: qsTr("Letters Home")\n'
         '            iconSource: "qrc:/letters-home/icons/letter"\n'
-        "            active: false\n"
+        "            highlighted: false\n"
         "            enabled: true\n"
-        "            visible: true\n"
-        "            Layout.preferredHeight: Values.navigatorSidebarItemHeight\n"
+        "            Layout.preferredHeight: Common.Values.navigatorSidebarItemHeight\n"
         "            Layout.preferredWidth: parent.width\n"
-        "            navigationHandler: sidebar\n"
         f"            onClicked: {clicked}\n"
         "        }\n"
     )
@@ -138,8 +136,8 @@ def _patch_sidebar(preinstall: bytes, phase: str) -> bytes:
     patched = contents[:start] + patched_sidebar + contents[end:]
     if phase == "launch":
         patched = patched.replace(
-            "import QtQuick 2.15\n",
-            "import QtQuick 2.15\nimport net.asivery.AppLoad 1.0\n",
+            "import QtQuick\n",
+            "import QtQuick\nimport net.asivery.AppLoad 1.0\n",
             1,
         )
     return patched.encode("utf-8")

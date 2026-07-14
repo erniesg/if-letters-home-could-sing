@@ -43,6 +43,13 @@ def approval_plan(target_name: str) -> dict[str, object]:
             "active_qmd_order": list(target.active_qmd_order),
             "warning": "fixture expectations are not observations of the physical device",
         },
+        "backed_up_observations": {
+            "hashtab_sha256": target.hashtab_sha256,
+            "resource_sha256": target.backed_up_resource_sha256,
+            "source": "verified full-device backup for this target",
+            "warning": "backed-up observations must be re-confirmed on the connected device",
+            "xochitl_sha256": target.xochitl_sha256,
+        },
         "observed_device_state": None,
         "read_only_discovery_fields": [
             "connection endpoint selected by the owner",

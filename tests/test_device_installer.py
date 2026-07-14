@@ -109,6 +109,12 @@ class InstallerFixtureTests(unittest.TestCase):
             self.assertEqual(record["model"], target.model)
             self.assertEqual(record["os_version"], "3.28.0.162")
             self.assertEqual(record["resource_sha256"], target.resource_sha256)
+            self.assertEqual(
+                record["backed_up_resource_sha256"],
+                target.backed_up_resource_sha256,
+            )
+            self.assertEqual(record["xochitl_sha256"], target.xochitl_sha256)
+            self.assertEqual(record["hashtab_sha256"], target.hashtab_sha256)
             self.assertEqual(record["appload_version"], "0.5.3")
             self.assertEqual(record["xovi_version"], "0.3.3")
             self.assertEqual(record["active_qmd_order"], list(target.active_qmd_order))
@@ -383,6 +389,18 @@ class InstallerFixtureTests(unittest.TestCase):
                 self.assertEqual(
                     plan["fixture_expectations"]["resource_sha256"],
                     target.resource_sha256,
+                )
+                self.assertEqual(
+                    plan["backed_up_observations"]["resource_sha256"],
+                    target.backed_up_resource_sha256,
+                )
+                self.assertEqual(
+                    plan["backed_up_observations"]["xochitl_sha256"],
+                    target.xochitl_sha256,
+                )
+                self.assertEqual(
+                    plan["backed_up_observations"]["hashtab_sha256"],
+                    target.hashtab_sha256,
                 )
                 self.assertEqual(
                     plan["proposed_destinations"]["appload_application"],

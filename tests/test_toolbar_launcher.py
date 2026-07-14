@@ -57,6 +57,10 @@ class TargetContractTests(unittest.TestCase):
             with self.subTest(target=name):
                 source = source_for(name)
                 self.assertEqual(hashlib.sha256(source).hexdigest(), target.resource_sha256)
+                self.assertEqual(
+                    target.backed_up_resource_sha256,
+                    "5cfd661e6c68c343513d9ca034042ee3f5cdc3ab0df77ea0396838c77135adc0",
+                )
                 self.assertEqual(target.os_version, "3.28.0.162")
                 self.assertEqual(
                     target.resource_path,
@@ -66,6 +70,20 @@ class TargetContractTests(unittest.TestCase):
                 self.assertEqual(Path(target.fixture_path).name, "Sidebar.qml")
                 self.assertEqual(target.appload_version, "0.5.3")
                 self.assertEqual(target.xovi_version, "0.3.3")
+                self.assertEqual(
+                    target.xochitl_sha256,
+                    {
+                        "chiappa": "9e3e0372a15da25b148ac17667feb566014440e079c3e3ee504112d556ad2e10",
+                        "ferrari": "10082aeb857c69c3f404ab189d7403318ba97d0c169e756ae9a5b3532b248a4a",
+                    }[name],
+                )
+                self.assertEqual(
+                    target.hashtab_sha256,
+                    {
+                        "chiappa": "313aaf72896b152c7668bcd83fa9ed23e1c5b9d24eacc1a34bebf66ce66d68b1",
+                        "ferrari": "ebbb415d5e875a67a84416c3029e6ce7e94861a32bb8d390fd01fe0403d492cd",
+                    }[name],
+                )
                 self.assertEqual(
                     target.active_qmd_order,
                     (
@@ -81,12 +99,21 @@ class TargetContractTests(unittest.TestCase):
         for patch in (inert, launch):
             self.assertIn("VERSION 3.28.0.162", patch)
             self.assertIn("AFFECT [[4911547370760691430]]", patch)
-            self.assertIn("[[14125623155555875541]]#[[15885405667098360701]]", patch)
+            self.assertIn(
+                "[[8397993708429497603]] > "
+                "[[14125623155555875541]]#[[15885405667098360701]]",
+                patch,
+            )
             self.assertIn(TARGETS["chiappa"].resource_sha256, patch)
             self.assertNotIn("toolbarProvider.editingTools", patch)
             self.assertNotIn("[[2857280009207495592]]", patch)
+            self.assertNotIn("[[3819512207256720568]]", patch)
         self.assertIn("[[5882927607508357618]]#[[7709552963638993992]]", inert)
         self.assertIn("[[5882927607508357618]]#lettersHomeLauncher", launch)
+        self.assertIn("~&6504315758&~", inert)  # text
+        self.assertIn("~&484431552542639914&~", inert)  # highlighted
+        self.assertNotIn("~&214642559243&~", inert)  # title
+        self.assertNotIn("~&11921478716705041271&~", inert)  # navigationHandler
         self.assertNotIn("launchApplication", inert)
         self.assertIn(
             'AppLoadLauncher.launchApplication("letters-home", [], {}, false)',
@@ -122,14 +149,20 @@ class FixturePatchTests(unittest.TestCase):
                 )
                 installed = result.installed.decode("utf-8")
                 self.assertEqual(installed.count('objectName: "letters-home-launcher"'), 1)
-                self.assertIn('objectName: "filter-my-files"', installed)
-                self.assertIn('objectName: "filter-tags"', installed)
-                self.assertIn('objectName: "filter-trash"', installed)
+                self.assertIn("FocusScope {", installed)
+                self.assertIn('objectName: "filterMyFiles"', installed)
+                self.assertIn('objectName: "filterTags"', installed)
+                self.assertIn('objectName: "filterTrashed"', installed)
                 self.assertLess(
                     installed.index('objectName: "letters-home-launcher"'),
-                    installed.index('objectName: "filter-my-files"'),
+                    installed.index('objectName: "filterMyFiles"'),
                 )
-                self.assertIn('title: qsTr("Letters Home")', installed)
+                self.assertIn('text: qsTr("Letters Home")', installed)
+                self.assertIn(
+                    "Layout.preferredHeight: Common.Values.navigatorSidebarItemHeight",
+                    installed,
+                )
+                self.assertNotIn('title: qsTr("Letters Home")', installed)
                 self.assertNotIn("toolbarProvider.editingTools", installed)
                 self.assertNotIn("launchApplication", installed)
 
@@ -161,7 +194,7 @@ class FixturePatchTests(unittest.TestCase):
         restored = uninstall_toolbar_patch(result.installed, result)
         self.assertEqual(restored, result.preinstall)
         self.assertEqual(hashlib.sha256(restored).hexdigest(), result.rollback.preinstall_sha256)
-        self.assertIn(b'objectName: "filter-my-files"', restored)
+        self.assertIn(b'objectName: "filterMyFiles"', restored)
         self.assertNotIn(b'objectName: "letters-home-launcher"', restored)
 
     def test_uninstall_stops_if_installed_resource_changed(self):
@@ -195,7 +228,7 @@ class FixturePatchTests(unittest.TestCase):
             ),
         }
         duplicate = source_for("chiappa").replace(
-            b'objectName: "filter-my-files"',
+            b'objectName: "filterMyFiles"',
             b'objectName: "letters-home-launcher"',
             1,
         )

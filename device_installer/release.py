@@ -57,9 +57,12 @@ def target_manifest(target: Target) -> dict[str, object]:
         "os_version": target.os_version,
         "qmldiff_commit": target.qmldiff_commit,
         "qrr_commit": target.qrr_commit,
+        "backed_up_resource_sha256": target.backed_up_resource_sha256,
+        "hashtab_sha256": target.hashtab_sha256,
         "resource_id": target.resource_id,
         "resource_path": target.resource_path,
         "resource_sha256": target.resource_sha256,
+        "xochitl_sha256": target.xochitl_sha256,
         "xovi_version": target.xovi_version,
     }
 

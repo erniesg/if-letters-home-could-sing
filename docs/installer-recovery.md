@@ -14,8 +14,10 @@ provider.
 `device_installer` version `1.0.0-fixture.1` builds the existing AppLoad bundle
 and packages both staged toolbar QMDs plus their icon resources. Its generated
 `payload-manifest.json` contains separate Ferrari and Chiappa records, exact OS,
-resource, QMLDiff/QRR, Xovi and AppLoad pins, required file modes, and a SHA-256
-and byte count for every payload file. The install phase activates only
+target-specific backed-up Xochitl/QRR-hashtable hashes, sanitized fixture
+hashes, QMLDiff/QRR, Xovi and AppLoad pins, required file modes, and a SHA-256
+and byte count for every payload file. Fixture and backed-up device hashes are
+separate fields and must never be interchanged. The install phase activates only
 `10-letters-home-inert.qmd`; the launch QMD remains packaged but inactive until
 an approved hardware trial confirms the inert icon and Xochitl stability.
 

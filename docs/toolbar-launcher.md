@@ -2,19 +2,30 @@
 
 This round stops at deterministic host fixtures. It performs no tablet SSH,
 Xochitl mutation, QMD installation, restart, reboot, or screenshot capture.
-The resource path and hash below identify the checked-in sanitized fixture,
-not a claim that OS `3.28.0.162` hardware has been observed. An approved
-hardware discovery must confirm every pin without broadening the locator.
+The fixture hash identifies checked-in sanitized bytes. Separate device-source,
+Xochitl, and hashtable hashes come from the verified full backups; they are not
+a claim about the device currently connected. Approved discovery must confirm
+every physical pin without broadening the locator.
 
 ## Exact fixture matrix
 
-| Target | Model label | OS | QRR resource | Fixture SHA-256 |
-|---|---|---|---|---|
-| Chiappa | reMarkable Paper Pro (Chiappa) | `3.28.0.162` | `/qml/device/view/navigator/Sidebar.qml` / `[[4911547370760691430]]` | `06bf4c2777d5d4b15297f0d6370fb0352c2ca38098d440d7b7bd405a5384e793` |
-| Ferrari | reMarkable Paper Pro Move (Ferrari) | `3.28.0.162` | `/qml/device/view/navigator/Sidebar.qml` / `[[4911547370760691430]]` | `06bf4c2777d5d4b15297f0d6370fb0352c2ca38098d440d7b7bd405a5384e793` |
+| Target | Model label | OS | QRR resource | Sanitized fixture SHA-256 | Backed-up source SHA-256 |
+|---|---|---|---|---|---|
+| Chiappa | reMarkable Paper Pro (Chiappa) | `3.28.0.162` | `/qml/device/view/navigator/Sidebar.qml` / `[[4911547370760691430]]` | `03d6744e13fab8b4d268029e4b9529d90f71196e4a5f3caf68e990edaf522578` | `5cfd661e6c68c343513d9ca034042ee3f5cdc3ab0df77ea0396838c77135adc0` |
+| Ferrari | reMarkable Paper Pro Move (Ferrari) | `3.28.0.162` | `/qml/device/view/navigator/Sidebar.qml` / `[[4911547370760691430]]` | `03d6744e13fab8b4d268029e4b9529d90f71196e4a5f3caf68e990edaf522578` | `5cfd661e6c68c343513d9ca034042ee3f5cdc3ab0df77ea0396838c77135adc0` |
+
+The fixture and backed-up source hashes are deliberately separate contract
+fields. A physical preflight must never compare device bytes with the
+sanitized fixture hash.
+
+| Target | Xochitl SHA-256 | QRR hashtable SHA-256 |
+|---|---|---|
+| Chiappa | `9e3e0372a15da25b148ac17667feb566014440e079c3e3ee504112d556ad2e10` | `313aaf72896b152c7668bcd83fa9ed23e1c5b9d24eacc1a34bebf66ce66d68b1` |
+| Ferrari | `10082aeb857c69c3f404ab189d7403318ba97d0c169e756ae9a5b3532b248a4a` | `ebbb415d5e875a67a84416c3029e6ce7e94861a32bb8d390fd01fe0403d492cd` |
 
 Ferrari and Chiappa are separate target records and fixtures even though the
-current fixture bytes match. Each independently pins AppLoad `0.5.3`, Xovi
+current fixture and recovered sidebar bytes match. Their Xochitl binaries and
+hashtables are distinct. Each independently pins AppLoad `0.5.3`, Xovi
 `0.3.3`, QMLDiff commit
 `25681c3cc7addb93fdbb41ceac1f1bdce8b2625d`, and qt-resource-rebuilder commit
 `7874154dba6793cc68a15fae0fb9dd272c4ed20a`.
@@ -32,15 +43,22 @@ The preflight accepts the declared unrelated
 
 ## Locator and staged action
 
-The saved Chiappa `3.28.0.162` QRR hashtable identifies the main library
-sidebar as resource `[[4911547370760691430]]`, corresponding to
-`/qml/device/view/navigator/Sidebar.qml`. The candidate QMLDiff traverses
-`DeviceKeyboardNavigationHandler > ColumnLayout#filterColumn`, locates
+The verified Chiappa and Ferrari `3.28.0.162` backups contain their distinct,
+exactly pinned Xochitl binaries. Offline Qt-resource parsing and Zstandard
+decompression recover a byte-identical main library sidebar from each as
+`/qml/device/view/navigator/Sidebar.qml`; its own source comment identifies it
+as the menu opened by the top-left menu button.
+The saved QRR hashtable maps that path to resource
+`[[4911547370760691430]]`. The candidate QMLDiff traverses
+`FocusScope > ColumnLayout#filterColumn`, locates
 `ArkControls.SidebarItem#filterMyFiles`, and inserts immediately before it.
-Every hashed token passes the pinned QMLDiff compatibility checker against
-that saved table. This is evidence of token availability, not yet proof that
-the structural locator matches a live device source; approved read-only
-discovery must reproduce exactly one match or stop.
+The exact source uses `text`, `highlighted`, and `Common.Values`; the fixture
+and QMLDiff pin those 3.28 names. Every hashed token passes the pinned QMLDiff
+compatibility checker against both target-specific saved tables. Applying
+phase 1 and then phases 1+2 to each target's recovered source succeeds with
+exactly one and two diffs, respectively. Approved read-only discovery must
+still confirm that the connected device matches the backed-up binary,
+hashtable, and active runtime or stop.
 
 The former `/qml/DocumentView.qml` / `toolbarProvider.editingTools` locator is
 rejected by regression tests. The launcher must never appear among pen and
