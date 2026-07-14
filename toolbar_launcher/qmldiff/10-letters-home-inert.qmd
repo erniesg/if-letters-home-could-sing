@@ -1,9 +1,9 @@
 ; Fixture phase 1. Do not add a launch action before hardware confirmation.
-; Chiappa/Ferrari Sidebar fixture SHA-256: 03d6744e13fab8b4d268029e4b9529d90f71196e4a5f3caf68e990edaf522578
+; Chiappa/Ferrari Sidebar fixture SHA-256: dba999d3dbadf0a2c61506398a11f5ae485d637e15036d9dd508db2021df0fca
 VERSION 3.28.0.162
 AFFECT [[4911547370760691430]]
     TRAVERSE [[8397993708429497603]] > [[14125623155555875541]]#[[15885405667098360701]]
-        LOCATE BEFORE [[5882927607508357618]]#[[7709552963638993992]]
+        LOCATE AFTER [[5882927607508357618]]#[[16045040163728568448]]
         INSERT {
             ~&5882927607508357618&~ {
                 ~&5972374&~: lettersHomeLauncher

@@ -24,7 +24,6 @@ FocusScope {
             Layout.preferredHeight: Common.Values.navigatorSidebarItemHeight
         }
 
-        // letters-home-insertion-point
         ArkControls.SidebarItem {
             id: filterMyFiles
             objectName: "filterMyFiles"
@@ -52,6 +51,17 @@ FocusScope {
             Layout.preferredWidth: parent.width
         }
 
+        ArkControls.SidebarItem {
+            id: integrations
+            objectName: "integrations"
+            text: qsTr("Import files")
+            iconSource: "qrc:/ark/icons/cloud"
+            highlighted: false
+            Layout.preferredHeight: Common.Values.navigatorSidebarItemHeight
+            Layout.preferredWidth: parent.width
+        }
+
+        // letters-home-insertion-point
         ArkControls.SidebarItem {
             id: filterTrashed
             objectName: "filterTrashed"

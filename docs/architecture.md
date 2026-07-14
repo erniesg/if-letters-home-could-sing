@@ -27,7 +27,7 @@ flowchart LR
 ### 1. Main-sidebar launcher
 
 - QMLDiff patch against exact, hashed Xochitl/QRR resources for Ferrari and Chiappa on OS `3.28.0.162`.
-- Adds one envelope-labelled sidebar item immediately before `My files`, plus
+- Adds one envelope-labelled sidebar item immediately below `Import files`, plus
   its AppLoad launch action after the inert item is confirmed.
 - Must coexist with the installed CJK font/language QMDs.
 - A missing or mismatched hash must fail closed without changing the device.

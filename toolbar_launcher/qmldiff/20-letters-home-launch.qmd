@@ -1,5 +1,5 @@
 ; Fixture phase 2. Install only after human-reviewed visual/stability confirmation.
-; Chiappa/Ferrari Sidebar fixture SHA-256: 03d6744e13fab8b4d268029e4b9529d90f71196e4a5f3caf68e990edaf522578
+; Chiappa/Ferrari Sidebar fixture SHA-256: dba999d3dbadf0a2c61506398a11f5ae485d637e15036d9dd508db2021df0fca
 VERSION 3.28.0.162
 AFFECT [[4911547370760691430]]
     IMPORT net.asivery.AppLoad 1.0

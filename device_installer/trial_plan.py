@@ -88,7 +88,7 @@ def approval_plan(target_name: str) -> dict[str, object]:
             "commands": "pending observed paths and backup hashes",
         },
         "controlled_trial_checks": [
-            "inert main-sidebar placement before My files and CJK coexistence",
+            "inert main-sidebar placement below Import files and CJK coexistence",
             "Xochitl stability",
             "incoming letter, blank huipi reply, and reversible marginalia pages",
             "pen input and first-ink timing",

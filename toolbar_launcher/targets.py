@@ -9,7 +9,7 @@ OS_VERSION = "3.28.0.162"
 RESOURCE_PATH = "/qml/device/view/navigator/Sidebar.qml"
 RESOURCE_ID = "[[4911547370760691430]]"
 # Sanitized fixture bytes are intentionally distinct from proprietary source.
-RESOURCE_SHA256 = "03d6744e13fab8b4d268029e4b9529d90f71196e4a5f3caf68e990edaf522578"
+RESOURCE_SHA256 = "dba999d3dbadf0a2c61506398a11f5ae485d637e15036d9dd508db2021df0fca"
 BACKED_UP_RESOURCE_SHA256 = "5cfd661e6c68c343513d9ca034042ee3f5cdc3ab0df77ea0396838c77135adc0"
 APPLOAD_VERSION = "0.5.3"
 XOVI_VERSION = "0.3.3"

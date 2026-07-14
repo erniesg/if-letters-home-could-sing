@@ -1,18 +1,16 @@
 # Fixture-only main-sidebar launcher spike
 
-This round stops at deterministic host fixtures. It performs no tablet SSH,
-Xochitl mutation, QMD installation, restart, reboot, or screenshot capture.
-The fixture hash identifies checked-in sanitized bytes. Separate device-source,
-Xochitl, and hashtable hashes come from the verified full backups; they are not
-a claim about the device currently connected. Approved discovery must confirm
-every physical pin without broadening the locator.
+The portable proof uses deterministic host fixtures. The fixture hash identifies
+checked-in sanitized bytes; separate device-source, Xochitl, and hashtable hashes
+come from verified full backups. Ferrari hardware observations and mutations are
+recorded separately in [`paper-pro-hardware-trial.md`](paper-pro-hardware-trial.md).
 
 ## Exact fixture matrix
 
 | Target | Model label | OS | QRR resource | Sanitized fixture SHA-256 | Backed-up source SHA-256 |
 |---|---|---|---|---|---|
-| Chiappa | reMarkable Paper Pro (Chiappa) | `3.28.0.162` | `/qml/device/view/navigator/Sidebar.qml` / `[[4911547370760691430]]` | `03d6744e13fab8b4d268029e4b9529d90f71196e4a5f3caf68e990edaf522578` | `5cfd661e6c68c343513d9ca034042ee3f5cdc3ab0df77ea0396838c77135adc0` |
-| Ferrari | reMarkable Paper Pro Move (Ferrari) | `3.28.0.162` | `/qml/device/view/navigator/Sidebar.qml` / `[[4911547370760691430]]` | `03d6744e13fab8b4d268029e4b9529d90f71196e4a5f3caf68e990edaf522578` | `5cfd661e6c68c343513d9ca034042ee3f5cdc3ab0df77ea0396838c77135adc0` |
+| Chiappa | reMarkable Paper Pro (Chiappa) | `3.28.0.162` | `/qml/device/view/navigator/Sidebar.qml` / `[[4911547370760691430]]` | `dba999d3dbadf0a2c61506398a11f5ae485d637e15036d9dd508db2021df0fca` | `5cfd661e6c68c343513d9ca034042ee3f5cdc3ab0df77ea0396838c77135adc0` |
+| Ferrari | reMarkable Paper Pro Move (Ferrari) | `3.28.0.162` | `/qml/device/view/navigator/Sidebar.qml` / `[[4911547370760691430]]` | `dba999d3dbadf0a2c61506398a11f5ae485d637e15036d9dd508db2021df0fca` | `5cfd661e6c68c343513d9ca034042ee3f5cdc3ab0df77ea0396838c77135adc0` |
 
 The fixture and backed-up source hashes are deliberately separate contract
 fields. A physical preflight must never compare device bytes with the
@@ -50,8 +48,9 @@ decompression recover a byte-identical main library sidebar from each as
 as the menu opened by the top-left menu button.
 The saved QRR hashtable maps that path to resource
 `[[4911547370760691430]]`. The candidate QMLDiff traverses
-`FocusScope > ColumnLayout#filterColumn`, locates
-`ArkControls.SidebarItem#filterMyFiles`, and inserts immediately before it.
+`FocusScope > ColumnLayout#filterColumn`, locates the exact
+`ArkControls.SidebarItem#integrations` object whose text is `Import files`, and
+inserts immediately after it.
 The exact source uses `text`, `highlighted`, and `Common.Values`; the fixture
 and QMLDiff pin those 3.28 names. Every hashed token passes the pinned QMLDiff
 compatibility checker against both target-specific saved tables. Applying
@@ -87,8 +86,8 @@ Against Ferrari's saved 3.28 hashtable, the adapted AppLoad QMD plus the inert
 and launch QMDs pass compatibility checking and structurally apply to all six
 affected sources: `Sidebar.qml`, `Navigator.qml`, `MainView.qml`,
 `GesturesWindow.qml`, AppLoad's `window.qml`, and `DisplayMethodArea.qml`. The
-combined sidebar output contains exactly one `Letters Home` item before
-`My files` and one launch call.
+combined sidebar output contains exactly one `Letters Home` item below
+`Import files` and one launch call.
 
 The QMLDiff language and AppLoad call are pinned to their maintained upstream
 contracts:
@@ -104,7 +103,7 @@ correctly treating those patches as affecting resources other than
 `Sidebar.qml`. It inserts the launcher in the bounded sidebar region. Tests
 compare the pre-install and installed resources with that region removed, so
 changes to another QML subtree fail. `My files`, `Tags`, and `Trash` remain
-present, the launcher occurs before `My files`, repeated application is
+present, the launcher occurs below `Import files`, repeated application is
 deterministic, and duplicate input is rejected.
 
 The rollback record pins both pre-install and installed SHA-256 values.
@@ -119,14 +118,14 @@ python3 -m unittest tests.test_toolbar_launcher
 scripts/agent-evidence
 ```
 
-## Pending device observations
+## Ferrari observation
 
-No physical UI or Xochitl stability observation was made in this round. Before
-the first device step, the owner must approve the exact tablet, read-only
-discovery commands, proposed QMD/RCC destinations and hashes, rollback files,
-and expected downtime. The first mutation installs only the inert phase. The
-launch phase remains held until the inert icon is visually confirmed and
-Xochitl stability is reviewed. Evidence must use the approved
-framebuffer/AppLoad path; the stock reMarkable screenshot helper is forbidden
-while Xovi is running. The completed Ferrari read-only preflight and exact held
-mutation are recorded in [`paper-pro-hardware-trial.md`](paper-pro-hardware-trial.md).
+The approved first Ferrari mutation installed the inert item and adapted
+AppLoad runtime. The owner confirmed that `Letters Home` was visible and
+Xochitl remained stable, then requested that the item move from its initial
+position to immediately below `Import files`. The revised selector passes both
+target hashtables and structurally applies to the exact recovered Ferrari
+source. The replacement QMD and restart remain a separate physical approval;
+the launch action remains absent. The stock reMarkable screenshot helper is
+forbidden while Xovi is running. Exact hashes, backup, and rollback are recorded
+in [`paper-pro-hardware-trial.md`](paper-pro-hardware-trial.md).

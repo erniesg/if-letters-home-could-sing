@@ -108,7 +108,10 @@ class TargetContractTests(unittest.TestCase):
             self.assertNotIn("toolbarProvider.editingTools", patch)
             self.assertNotIn("[[2857280009207495592]]", patch)
             self.assertNotIn("[[3819512207256720568]]", patch)
-        self.assertIn("[[5882927607508357618]]#[[7709552963638993992]]", inert)
+        self.assertIn(
+            "LOCATE AFTER [[5882927607508357618]]#[[16045040163728568448]]",
+            inert,
+        )
         self.assertIn("[[5882927607508357618]]#lettersHomeLauncher", launch)
         self.assertIn("~&6504315758&~", inert)  # text
         self.assertIn("~&484431552542639914&~", inert)  # highlighted
@@ -152,10 +155,15 @@ class FixturePatchTests(unittest.TestCase):
                 self.assertIn("FocusScope {", installed)
                 self.assertIn('objectName: "filterMyFiles"', installed)
                 self.assertIn('objectName: "filterTags"', installed)
+                self.assertIn('objectName: "integrations"', installed)
                 self.assertIn('objectName: "filterTrashed"', installed)
                 self.assertLess(
+                    installed.index('objectName: "integrations"'),
                     installed.index('objectName: "letters-home-launcher"'),
-                    installed.index('objectName: "filterMyFiles"'),
+                )
+                self.assertLess(
+                    installed.index('objectName: "letters-home-launcher"'),
+                    installed.index('objectName: "filterTrashed"'),
                 )
                 self.assertIn('text: qsTr("Letters Home")', installed)
                 self.assertIn(

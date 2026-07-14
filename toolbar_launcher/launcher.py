@@ -127,10 +127,14 @@ def _patch_sidebar(preinstall: bytes, phase: str) -> bytes:
     sidebar = contents[start:end]
     locator = "        id: filterColumn\n"
     anchor = "        // letters-home-insertion-point\n"
-    my_files = "            id: filterMyFiles\n"
-    if sidebar.count(locator) != 1 or sidebar.count(anchor) != 1 or sidebar.count(my_files) != 1:
+    integrations = "            id: integrations\n"
+    if (
+        sidebar.count(locator) != 1
+        or sidebar.count(anchor) != 1
+        or sidebar.count(integrations) != 1
+    ):
         raise PatchError("fixture_locator_mismatch")
-    if sidebar.index(anchor) > sidebar.index(my_files):
+    if sidebar.index(anchor) < sidebar.index(integrations):
         raise PatchError("fixture_locator_mismatch")
     patched_sidebar = sidebar.replace(anchor, _launcher_block(phase) + anchor, 1)
     patched = contents[:start] + patched_sidebar + contents[end:]

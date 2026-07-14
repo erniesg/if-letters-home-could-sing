@@ -6,8 +6,8 @@ labels: rucksack-needs-human
 ## Goal
 
 Identify the exact Xochitl/QRR main hamburger/library-sidebar resource and
-build a hash-pinned QMLDiff patch that adds one inert `Letters Home` item before
-`My files`, then launches the AppLoad experience, without conflicting with
+build a hash-pinned QMLDiff patch that adds one inert `Letters Home` item below
+`Import files`, then launches the AppLoad experience, without conflicting with
 existing CJK QMDs. The open-document editing toolbar is explicitly out of
 scope.
 

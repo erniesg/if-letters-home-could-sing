@@ -1,9 +1,10 @@
 # Ferrari Paper Pro hardware trial
 
-Status: read-only preflight and target artifact build complete; physical
-mutation held for the owner approval stated below.
+Status: the first inert Ferrari install completed and remained stable. The
+owner confirmed the item was visible, requested placement below `Import files`,
+and the revised replacement QMD is held at the approval boundary below.
 
-## Observed target
+## Initial observed target
 
 The connected tablet identified itself as `reMarkable Ferrari`, ARM64, OS
 `3.28.0.162`. It matches the verified Ferrari pins:
@@ -40,7 +41,7 @@ The build uses:
 - adapted AppLoad resource manifest SHA-256:
   `093e26c241b2b776228de174c0dce1feab5bb46dcc517ea30b2f3b7313191aee`
 
-Current held artifacts:
+Current reviewed artifacts:
 
 | Artifact | SHA-256 |
 |---|---|
@@ -48,8 +49,8 @@ Current held artifacts:
 | Native ARM64 backend `entry` | `d7713ecf21851c264ab0e94edcef5c49045162faf9e1f14ed12d0f0a3e17a92c` |
 | App `resources.rcc` | `0e78534cd02e069725461c6e4bcb28e0fe01ad131915be523a931121e55fe9c1` |
 | App `manifest.json` | `ca6000280526388560715ca3869b3d1f2eb67cad626ee1b4bc36c3fd91938338` |
-| Inert sidebar QMD | `fe98c19f1423516e1197c5e351c489ece17739c22eb7777ecf26b2bebe7b0dee` |
-| Launch-action QMD | `34e2e0fcc823f53481907ef33c8f47a89de231178d5c938a3389f4d121a0e3cb` |
+| Revised inert sidebar QMD | `da7f7d22fab609fd4f7c144e8661f65d7416fe74c0652a4a2e01be69c2cc304c` |
+| Revised launch-action QMD | `002383284266cb9c5d97f01de7da03a071ad66089a6e22999fca77edd287017f` |
 | Envelope SVG embedded in AppLoad | `c0437e3f3d8eb9436d3be8be54c5afa86bfd14370a78c3907c16a1803d5ccb30` |
 
 The AppLoad build was repeated in the same pinned container and reproduced the
@@ -58,47 +59,57 @@ application pass for adapted AppLoad + inert + launch phases in their intended
 order. Linux tests also drive the compiled native backend through the complete
 fixture page flow over a real `SOCK_SEQPACKET` connection.
 
-## Proposed first mutation: inert item only
+## Completed first mutation: inert item only
 
-This is the approval boundary. The first mutation will:
+The approved first mutation created backup
+`/home/root/.local/share/letters-home-installer/backups/20260715-e58a8f7-first-inert`,
+installed the adapted runtime, native app, and inert QMD, then ran
+`/home/root/xovi/start` once. Xochitl returned under a new PID with zero
+automatic restarts; QMLDiff loaded all three QMDs in order, AppLoad loaded the
+`letters-home` app, and the original QRR/CJK/hashtable hashes remained exact.
+The owner confirmed the item was visible but requested that it move from the
+initial location to below `Import files`. Clicking remained intentionally inert.
 
-1. Re-run the read-only model, OS, Xochitl, QRR, hashtable, active-QMD, process,
-   free-space, and absence checks. Any difference stops the trial.
-2. Create a timestamped backup below
-   `/home/root/.local/share/letters-home-installer/backups/`, including hashes,
-   modes, active-QMD order, and copies of the current QRR/CJK files. No ink or
-   biometric data is involved.
-3. Stage and hash-verify the adapted runtime and app before moving them to:
-   - `/home/root/xovi/extensions.d/appload.so` (`0755`)
-   - `/home/root/xovi/exthome/appload/letters-home/` (directories `0755`,
-     `backend/entry` `0755`, other files `0644`)
-4. Install only
+## Proposed placement correction: below Import files
+
+This is the next approval boundary. The correction will:
+
+1. Re-run the exact Ferrari firmware, Xochitl, QRR, hashtable, active-QMD,
+   process, free-space, installed-artifact, and launch-QMD-absence checks.
+2. Back up the currently installed inert QMD, SHA-256
+   `fe98c19f1423516e1197c5e351c489ece17739c22eb7777ecf26b2bebe7b0dee`.
+3. Stage and hash-verify revised inert QMD SHA-256
+   `da7f7d22fab609fd4f7c144e8661f65d7416fe74c0652a4a2e01be69c2cc304c`.
+4. Atomically replace only
    `/home/root/xovi/exthome/qt-resource-rebuilder/10-letters-home-inert.qmd`
-   (`0600`). The launch QMD remains absent.
-5. Run `/home/root/xovi/start`, which restarts Xochitl once. No tablet reboot is
-   planned. Expected library unavailability is 15–45 seconds; the full observed
-   window is capped at two minutes.
-6. Confirm on the tablet that one envelope-labelled `Letters Home` item appears
-   before `My files`, CJK menus still work, and Xochitl remains stable. The item
-   is intentionally inert in this phase.
+   with mode `0600`; the launch QMD remains absent.
+5. Run `/home/root/xovi/start` once. No reboot is planned; expected library
+   unavailability is 15–45 seconds and the observed window is capped at two
+   minutes.
+6. Confirm `Letters Home` appears immediately below `Import files`, the CJK
+   menus still work, and Xochitl remains stable. It stays inert in this phase.
 
 The stock reMarkable screenshot helper will not be used while Xovi runs.
 Evidence is manual observation plus service status, restart count, and hashes.
 
 ## Rollback
 
-If any preflight, startup, placement, CJK, input, refresh, or stability check
-fails, remove only the three paths that were absent at preflight—AppLoad
-extension, AppLoad application directory, and Letters Home QMD—restore any
-recorded file that differs from its backup, and run `/home/root/xovi/start`
-once. Rollback must restore the two original CJK QMD hashes, QRR and hashtable
-hashes, and the pretrial active extension set. Stop rather than broadening a
-hash or locator.
+For the placement correction, restore the backed-up original inert QMD and run
+`/home/root/xovi/start` once. Its hash must return to
+`fe98c19f1423516e1197c5e351c489ece17739c22eb7777ecf26b2bebe7b0dee`.
+
+For a full trial rollback, remove only the three paths that were absent at
+initial preflight—AppLoad extension, AppLoad application directory, and Letters
+Home QMD—restore any recorded file that differs from its backup, and run
+`/home/root/xovi/start` once. Rollback must restore the two original CJK QMD
+hashes, QRR and hashtable hashes, and the pretrial active extension set. Stop
+rather than broadening a hash or locator.
 
 ## Second phase after visual confirmation
 
-Only after the owner confirms the inert placement and stability will a second
-approval install `20-letters-home-launch.qmd` (`0600`) and restart Xochitl once.
+Only after the owner confirms the corrected inert placement and stability will
+a second approval install `20-letters-home-launch.qmd` (`0600`) and restart
+Xochitl once.
 The owner can then tap `Letters Home`, decline or select unavailable WHOOP,
 swipe to the blank huipi, write with the pen, submit, and verify page 3 shows
 the unchanged ink plus reversible fixture marginalia and a short review. This
