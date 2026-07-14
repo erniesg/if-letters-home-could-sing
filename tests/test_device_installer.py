@@ -2,6 +2,7 @@ import hashlib
 import json
 import shutil
 import stat
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -303,6 +304,54 @@ class InstallerFixtureTests(unittest.TestCase):
         root = self.workspace / "not-a-fixture"
         root.mkdir()
         self.assert_refused("not_fixture_device", FixtureInstaller(self.release, root))
+
+    def test_controlled_trial_script_emits_a_per_target_plan_and_stops_for_approval(self):
+        script = ROOT / "scripts" / "run-controlled-device-trial.sh"
+        self.assertTrue(script.is_file())
+        self.assertTrue(script.stat().st_mode & stat.S_IXUSR)
+        script_source = script.read_text()
+        for forbidden_command in ("ssh ", "scp ", "systemctl ", "reboot "):
+            self.assertNotIn(forbidden_command, script_source)
+
+        for target_name, target in TARGETS.items():
+            with self.subTest(target=target_name):
+                completed = subprocess.run(
+                    [str(script), "--device", target_name],
+                    cwd=ROOT,
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertEqual(completed.returncode, 4)
+                plan = json.loads(completed.stdout)
+                self.assertEqual(plan["action"], "stop_for_owner_approval")
+                self.assertEqual(plan["target"]["codename"], target_name)
+                self.assertEqual(plan["target"]["model"], target.model)
+                self.assertEqual(plan["fixture_expectations"]["os_version"], "3.28.0.162")
+                self.assertEqual(
+                    plan["fixture_expectations"]["resource_sha256"],
+                    target.resource_sha256,
+                )
+                self.assertEqual(
+                    plan["proposed_destinations"]["appload_application"],
+                    "/home/root/xovi/exthome/appload/letters-home",
+                )
+                self.assertIsNone(plan["observed_device_state"])
+                self.assertFalse(plan["authorization"]["network_access"])
+                self.assertFalse(plan["authorization"]["mutation"])
+                self.assertEqual(plan["requested_read_only_window_minutes"], 5)
+
+    def test_controlled_trial_script_has_no_execute_mode_before_discovery(self):
+        script = ROOT / "scripts" / "run-controlled-device-trial.sh"
+        completed = subprocess.run(
+            [str(script), "--device", "chiappa", "--execute"],
+            cwd=ROOT,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(completed.returncode, 2)
+        self.assertEqual(completed.stdout, "")
 
     def test_installed_fixture_matrix_exercises_flow_retry_and_orientations(self):
         snapshot_root = ROOT / "tablet_app" / "snapshots"

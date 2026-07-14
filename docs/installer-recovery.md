@@ -87,3 +87,17 @@ observed model/OS/resource/QMD/dependency pins, proposed destinations and file
 modes, exact mutation duration, framebuffer/AppLoad evidence method, and
 rollback commands. Stop on the first divergence. The first approved mutation
 may activate only the inert QMD; launch activation remains a second decision.
+
+Generate the target-specific held-boundary manifest with:
+
+```bash
+scripts/run-controlled-device-trial.sh --device chiappa
+scripts/run-controlled-device-trial.sh --device ferrari
+```
+
+The script performs no device or network operation and exits `4` (`human
+decision required`). It records fixture expectations separately from observed
+device state, which remains empty until the owner approves a five-minute,
+read-only discovery window. There is intentionally no `--execute` mode before
+that discovery fixes the physical paths, hashes, backup files, rollback
+commands, and expected downtime.
