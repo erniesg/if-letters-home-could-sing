@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 from pathlib import Path
 from typing import Union
@@ -16,6 +17,7 @@ TOOLCHAIN_IMAGE = (
     "eeems/remarkable-toolchain@"
     "sha256:37699143ba448dc5b55c914a18af93466f5a55fc31cce388ef9efa49e30ed457"
 )
+SOURCE_DATE_EPOCH = 1779378487
 UPSTREAM_QMD_SHA256 = "adb0604ec314bf49a2194e8982df7a865f673561383b43584fa2fd236f433815"
 ADAPTED_QMD_SHA256 = "8a15eada28010751f7b4ae50ae8853837335820d3346887478b4b9736c073c6e"
 UPSTREAM_RESOURCES_QRC_SHA256 = "ba92f47b52e2af86d33b1953f71f441a7f4fffd26d0ec3e6765c8749d35af70d"
@@ -158,6 +160,9 @@ def prepare_source_tree(source: Path, icon: Path, output: Path) -> Path:
     icon_destination = output / "resources" / "icons" / "letters-home.svg"
     icon_destination.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(icon, icon_destination)
+    for resource_path in (output / "resources").rglob("*"):
+        if resource_path.is_file():
+            os.utime(resource_path, (SOURCE_DATE_EPOCH, SOURCE_DATE_EPOCH))
     return output
 
 

@@ -11,6 +11,7 @@ from device_installer.appload_runtime import (
     ADAPTED_RESOURCES_QRC_SHA256,
     ADAPTED_WINDOW_QML_SHA256,
     PAPER_PRO_FIRMWARE,
+    SOURCE_DATE_EPOCH,
     TOOLCHAIN_IMAGE,
     UPSTREAM_RESOURCES_QRC_SHA256,
     UPSTREAM_QMD_SHA256,
@@ -141,6 +142,12 @@ class AppLoadRuntimeAdaptationTests(unittest.TestCase):
                 ADAPTED_WINDOW_QML_SHA256,
             )
             self.assertTrue((output / "resources" / "icons" / "letters-home.svg").is_file())
+            resource_mtimes = {
+                int(path.stat().st_mtime)
+                for path in (output / "resources").rglob("*")
+                if path.is_file()
+            }
+            self.assertEqual(resource_mtimes, {SOURCE_DATE_EPOCH})
 
 
 if __name__ == "__main__":
