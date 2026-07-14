@@ -1,0 +1,5 @@
+<RCC>
+  <qresource prefix="/letters-home/icons">
+    <file alias="letter">letter.svg</file>
+  </qresource>
+</RCC>
