@@ -1,4 +1,4 @@
-"""Fixture-only exact-version toolbar launcher spike."""
+"""Fixture-only exact-version home-sidebar launcher spike."""
 
 from .launcher import (
     PatchError,

@@ -1,4 +1,4 @@
-# Fixture-only toolbar launcher spike
+# Fixture-only main-sidebar launcher spike
 
 This round stops at deterministic host fixtures. It performs no tablet SSH,
 Xochitl mutation, QMD installation, restart, reboot, or screenshot capture.
@@ -10,8 +10,8 @@ hardware discovery must confirm every pin without broadening the locator.
 
 | Target | Model label | OS | QRR resource | Fixture SHA-256 |
 |---|---|---|---|---|
-| Chiappa | reMarkable Paper Pro (Chiappa) | `3.28.0.162` | `/qml/DocumentView.qml` / `[[2857280009207495592]]` | `095e19d24d23ee8d2cbc67f9a08d3af5a13e27644eb7a361fb6d0aa10f136c4e` |
-| Ferrari | reMarkable Paper Pro Move (Ferrari) | `3.28.0.162` | `/qml/DocumentView.qml` / `[[2857280009207495592]]` | `095e19d24d23ee8d2cbc67f9a08d3af5a13e27644eb7a361fb6d0aa10f136c4e` |
+| Chiappa | reMarkable Paper Pro (Chiappa) | `3.28.0.162` | `/qml/device/view/navigator/Sidebar.qml` / `[[4911547370760691430]]` | `06bf4c2777d5d4b15297f0d6370fb0352c2ca38098d440d7b7bd405a5384e793` |
+| Ferrari | reMarkable Paper Pro Move (Ferrari) | `3.28.0.162` | `/qml/device/view/navigator/Sidebar.qml` / `[[4911547370760691430]]` | `06bf4c2777d5d4b15297f0d6370fb0352c2ca38098d440d7b7bd405a5384e793` |
 
 Ferrari and Chiappa are separate target records and fixtures even though the
 current fixture bytes match. Each independently pins AppLoad `0.5.3`, Xovi
@@ -32,15 +32,23 @@ The preflight accepts the declared unrelated
 
 ## Locator and staged action
 
-The candidate hashed QMLDiff locator selects resource
-`[[2857280009207495592]]`, then the unique
-`toolbarProvider.editingTools` column. This follows the hashed toolbar shape
-used by maintained QMLDiff mods, but its OS `3.28.0.162` mapping remains a
-hardware assertion. If discovery does not reproduce the one exact match, the
-run stops.
+The saved Chiappa `3.28.0.162` QRR hashtable identifies the main library
+sidebar as resource `[[4911547370760691430]]`, corresponding to
+`/qml/device/view/navigator/Sidebar.qml`. The candidate QMLDiff traverses
+`DeviceKeyboardNavigationHandler > ColumnLayout#filterColumn`, locates
+`ArkControls.SidebarItem#filterMyFiles`, and inserts immediately before it.
+Every hashed token passes the pinned QMLDiff compatibility checker against
+that saved table. This is evidence of token availability, not yet proof that
+the structural locator matches a live device source; approved read-only
+discovery must reproduce exactly one match or stop.
 
-`10-letters-home-inert.qmd` adds one button whose click handler is empty.
-`20-letters-home-launch.qmd` changes only that button handler to
+The former `/qml/DocumentView.qml` / `toolbarProvider.editingTools` locator is
+rejected by regression tests. The launcher must never appear among pen and
+eraser controls inside an open document.
+
+`10-letters-home-inert.qmd` adds one `Letters Home` sidebar item with an
+envelope icon and an empty click handler. `20-letters-home-launch.qmd` changes
+only that item's handler to
 `AppLoadLauncher.launchApplication("letters-home", [], {}, false)`. The host
 harness refuses the launch phase unless visual/stability confirmation is
 explicitly represented. The SVG icon is packaged under
@@ -55,11 +63,13 @@ contracts:
 
 ## Composition and rollback proof
 
-The harness first composes the AppLoad and CJK fixture mods in recorded order,
-then inserts the launcher in the bounded toolbar region. Tests compare the
-pre-toolbar and installed resources with that region removed, so changes to
-the CJK settings, canvas, or any other QML subtree fail. Repeated application
-is deterministic and duplicate input is rejected.
+The harness preserves the recorded AppLoad and CJK fixture order, while
+correctly treating those patches as affecting resources other than
+`Sidebar.qml`. It inserts the launcher in the bounded sidebar region. Tests
+compare the pre-install and installed resources with that region removed, so
+changes to another QML subtree fail. `My files`, `Tags`, and `Trash` remain
+present, the launcher occurs before `My files`, repeated application is
+deterministic, and duplicate input is rejected.
 
 The rollback record pins both pre-install and installed SHA-256 values.
 Uninstall refuses a resource changed after install, otherwise restores the

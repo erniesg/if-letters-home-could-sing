@@ -1,4 +1,4 @@
-"""Build an auditable, fixture-only AppLoad and toolbar release."""
+"""Build an auditable, fixture-only AppLoad and sidebar-launcher release."""
 
 from __future__ import annotations
 

@@ -4,7 +4,9 @@
 
 The feature is done only when all of the following are demonstrated on both backed-up target devices at the pinned OS version:
 
-1. A letter icon appears in the intended stock toolbar location and launches the experience without corrupting the open notebook.
+1. A `Letters Home` envelope entry appears in the main hamburger/library
+   sidebar beside `My files`, never in the open-document editing toolbar, and
+   launches the experience without corrupting a notebook.
 2. Page 1 shows a generated or cached fictional qiao pi-inspired letter with provenance visible on demand.
 3. One swipe reaches a blank, low-latency reply page; pen strokes render and survive an app restart.
 4. The first accepted stroke starts the heart-rate capture window and submit closes it.
@@ -51,7 +53,7 @@ An issue is not complete because code was written. Its pull request must include
 
 - Exact model, OS build, resource hashes, and active QMD set are recorded.
 - Install preflight and uninstall dry-run pass before mutation.
-- The toolbar launcher, stroke latency, orientation, suspend/resume, and page flow are observed on each device.
+- The main-sidebar launcher, stroke latency, orientation, suspend/resume, and page flow are observed on each device.
 - CJK font/language menus still work.
 - Xochitl remains stable; the prohibited stock screenshot helper is not used under Xovi.
 - Rollback returns files and hashes to their pre-install state.

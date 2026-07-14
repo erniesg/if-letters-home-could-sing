@@ -6,9 +6,9 @@ from dataclasses import dataclass
 
 
 OS_VERSION = "3.28.0.162"
-RESOURCE_PATH = "/qml/DocumentView.qml"
-RESOURCE_ID = "[[2857280009207495592]]"
-RESOURCE_SHA256 = "095e19d24d23ee8d2cbc67f9a08d3af5a13e27644eb7a361fb6d0aa10f136c4e"
+RESOURCE_PATH = "/qml/device/view/navigator/Sidebar.qml"
+RESOURCE_ID = "[[4911547370760691430]]"
+RESOURCE_SHA256 = "06bf4c2777d5d4b15297f0d6370fb0352c2ca38098d440d7b7bd405a5384e793"
 APPLOAD_VERSION = "0.5.3"
 XOVI_VERSION = "0.3.3"
 QMLDIFF_COMMIT = "25681c3cc7addb93fdbb41ceac1f1bdce8b2625d"
@@ -41,11 +41,11 @@ TARGETS = {
     "chiappa": Target(
         codename="chiappa",
         model="reMarkable Paper Pro (Chiappa)",
-        fixture_path="fixtures/chiappa/DocumentView.qml",
+        fixture_path="fixtures/chiappa/Sidebar.qml",
     ),
     "ferrari": Target(
         codename="ferrari",
         model="reMarkable Paper Pro Move (Ferrari)",
-        fixture_path="fixtures/ferrari/DocumentView.qml",
+        fixture_path="fixtures/ferrari/Sidebar.qml",
     ),
 }

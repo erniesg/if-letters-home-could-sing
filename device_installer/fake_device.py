@@ -15,7 +15,7 @@ DEVICE_RECORD = ".letters-home-fixture-device.json"
 ACTIVE_QMDS_RECORD = "xovi/active-qmds.json"
 DEPENDENCIES_RECORD = "xovi/dependencies.json"
 BACKUP_MARKER = "backups/verified.json"
-BACKUP_RESOURCE = "backups/DocumentView.qml"
+BACKUP_RESOURCE = "backups/Sidebar.qml"
 DEFAULT_FREE_BYTES = 64 * 1024 * 1024
 
 
@@ -45,6 +45,7 @@ def create_fake_device(
 
     source = ROOT / "toolbar_launcher" / target.fixture_path
     resource = root / target.resource_path.lstrip("/")
+    resource.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(source, resource)
     shutil.copy2(source, root / BACKUP_RESOURCE)
     _write_json(

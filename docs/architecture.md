@@ -2,13 +2,16 @@
 
 ## Decision
 
-Build a small, version-pinned AppLoad application and launch it from a QMLDiff-inserted toolbar icon. Do not write directly into reMarkable's proprietary notebook files for the first vertical slice.
+Build a small, version-pinned AppLoad application and launch it from a
+QMLDiff-inserted entry in Xochitl's main hamburger/library sidebar. Do not write
+directly into reMarkable's proprietary notebook files for the first vertical
+slice.
 
 This keeps the stock notebook application responsible for notebooks while the experience owns only its three-page session. It also matches the existing Xovi/QMLDiff setup and provides a rollback boundary.
 
 ```mermaid
 flowchart LR
-    A["Stock Xochitl toolbar"] -->|"letter icon"| B["QMLDiff launcher patch"]
+    A["Main Xochitl hamburger sidebar"] -->|"Letters Home entry"| B["QMLDiff launcher patch"]
     B --> C["AppLoad QML experience"]
     C --> D["Device backend"]
     D -->|"HTTPS / WebSocket"| E["Session gateway"]
@@ -21,14 +24,19 @@ flowchart LR
 
 ## Components
 
-### 1. Toolbar launcher
+### 1. Main-sidebar launcher
 
 - QMLDiff patch against exact, hashed Xochitl/QRR resources for Ferrari and Chiappa on OS `3.28.0.162`.
-- Adds only an icon and AppLoad launch action.
+- Adds one envelope-labelled sidebar item immediately before `My files`, plus
+  its AppLoad launch action after the inert item is confirmed.
 - Must coexist with the installed CJK font/language QMDs.
 - A missing or mismatched hash must fail closed without changing the device.
 
-The exact toolbar resource and insertion point are a reverse-engineering spike, not an assumption. Xochitl is proprietary and reMarkable does not promise patch compatibility between versions.
+The launcher targets `/qml/device/view/navigator/Sidebar.qml`, never
+`/qml/DocumentView.qml` or `toolbarProvider.editingTools`. The exact source
+structure remains a reverse-engineering and hardware-validation boundary.
+Xochitl is proprietary and reMarkable does not promise patch compatibility
+between versions.
 
 ### 2. Tablet application
 

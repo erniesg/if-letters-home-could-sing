@@ -8,8 +8,8 @@ from dataclasses import dataclass
 from .targets import TARGETS, Target
 
 
-TOOLBAR_START = "    // fixture-region: toolbar:start\n"
-TOOLBAR_END = "    // fixture-region: toolbar:end\n"
+SIDEBAR_START = "    // fixture-region: sidebar:start\n"
+SIDEBAR_END = "    // fixture-region: sidebar:end\n"
 LAUNCHER_MARKER = 'objectName: "letters-home-launcher"'
 KNOWN_UNRELATED_MOD = "fixture-quick-settings-clock-1.qmd"
 
@@ -56,12 +56,6 @@ def _sha256(contents: bytes) -> str:
     return hashlib.sha256(contents).hexdigest()
 
 
-def _replace_once(contents: str, old: str, new: str) -> str:
-    if contents.count(old) != 1:
-        raise PatchError("fixture_locator_mismatch")
-    return contents.replace(old, new, 1)
-
-
 def _validate_snapshot(snapshot: TabletSnapshot) -> Target:
     try:
         target = TARGETS[snapshot.target]
@@ -95,30 +89,13 @@ def _validate_snapshot(snapshot: TabletSnapshot) -> Target:
 
 
 def _compose_active_mods(source: bytes, active_qmds: tuple[str, ...]) -> bytes:
-    contents = source.decode("utf-8")
+    # The declared AppLoad, CJK, and quick-settings fixtures target resources
+    # other than Sidebar.qml. Preserve their order in rollback metadata without
+    # inventing changes to this resource.
     for mod in active_qmds:
-        if mod == "appload-0.5.3.qmd":
-            contents = _replace_once(
-                contents,
-                "import QtQuick 2.15\n",
-                "import QtQuick 2.15\nimport net.asivery.AppLoad 1.0\n",
-            )
-        elif mod == "fixture-cjk-font-1.qmd":
-            contents = _replace_once(
-                contents,
-                'property string family: "sans-serif"',
-                'property string family: "Noto Sans CJK SC"',
-            )
-        elif mod == "fixture-cjk-language-1.qmd":
-            contents = _replace_once(
-                contents,
-                'property string locale: "en_US"',
-                'property string locale: "zh_CN"',
-            )
-        elif mod == KNOWN_UNRELATED_MOD:
-            # Its declared resource is /qml/QuickSettings.qml, not this resource.
-            continue
-    return contents.encode("utf-8")
+        if mod not in {*TARGETS["chiappa"].active_qmd_order, KNOWN_UNRELATED_MOD}:
+            raise PatchError("unknown_active_mod")
+    return source
 
 
 def _launcher_block(phase: str) -> str:
@@ -127,29 +104,45 @@ def _launcher_block(phase: str) -> str:
         clicked = 'AppLoadLauncher.launchApplication("letters-home", [], {}, false)'
     return (
         "\n"
-        "            ToolButton {\n"
-        "                id: lettersHomeLauncher\n"
-        '                objectName: "letters-home-launcher"\n'
-        '                iconSource: "qrc:/letters-home/icons/letter"\n'
-        '                accessibleName: "Open Letters Home"\n'
-        f"                onClicked: {clicked}\n"
-        "            }\n"
+        "        ArkControls.SidebarItem {\n"
+        "            id: lettersHomeLauncher\n"
+        '            objectName: "letters-home-launcher"\n'
+        '            title: qsTr("Letters Home")\n'
+        '            iconSource: "qrc:/letters-home/icons/letter"\n'
+        "            active: false\n"
+        "            enabled: true\n"
+        "            visible: true\n"
+        "            Layout.preferredHeight: Values.navigatorSidebarItemHeight\n"
+        "            Layout.preferredWidth: parent.width\n"
+        "            navigationHandler: sidebar\n"
+        f"            onClicked: {clicked}\n"
+        "        }\n"
     )
 
 
-def _patch_toolbar(preinstall: bytes, phase: str) -> bytes:
+def _patch_sidebar(preinstall: bytes, phase: str) -> bytes:
     contents = preinstall.decode("utf-8")
-    if contents.count(TOOLBAR_START) != 1 or contents.count(TOOLBAR_END) != 1:
+    if contents.count(SIDEBAR_START) != 1 or contents.count(SIDEBAR_END) != 1:
         raise PatchError("fixture_locator_mismatch")
-    start = contents.index(TOOLBAR_START) + len(TOOLBAR_START)
-    end = contents.index(TOOLBAR_END)
-    toolbar = contents[start:end]
-    locator = 'property string modelSource: "toolbarProvider.editingTools"'
-    anchor = "            // letters-home-insertion-point\n"
-    if toolbar.count(locator) != 1 or toolbar.count(anchor) != 1:
+    start = contents.index(SIDEBAR_START) + len(SIDEBAR_START)
+    end = contents.index(SIDEBAR_END)
+    sidebar = contents[start:end]
+    locator = "        id: filterColumn\n"
+    anchor = "        // letters-home-insertion-point\n"
+    my_files = "            id: filterMyFiles\n"
+    if sidebar.count(locator) != 1 or sidebar.count(anchor) != 1 or sidebar.count(my_files) != 1:
         raise PatchError("fixture_locator_mismatch")
-    patched_toolbar = toolbar.replace(anchor, _launcher_block(phase) + anchor, 1)
-    return (contents[:start] + patched_toolbar + contents[end:]).encode("utf-8")
+    if sidebar.index(anchor) > sidebar.index(my_files):
+        raise PatchError("fixture_locator_mismatch")
+    patched_sidebar = sidebar.replace(anchor, _launcher_block(phase) + anchor, 1)
+    patched = contents[:start] + patched_sidebar + contents[end:]
+    if phase == "launch":
+        patched = patched.replace(
+            "import QtQuick 2.15\n",
+            "import QtQuick 2.15\nimport net.asivery.AppLoad 1.0\n",
+            1,
+        )
+    return patched.encode("utf-8")
 
 
 def apply_toolbar_patch(
@@ -158,7 +151,7 @@ def apply_toolbar_patch(
     phase: str = "inert",
     visual_stability_confirmed: bool = False,
 ) -> PatchResult:
-    """Compose fixture mods and add exactly one staged launcher button."""
+    """Compose fixture mods and add one staged home-sidebar launcher item."""
 
     target = _validate_snapshot(snapshot)
     if phase not in {"inert", "launch"}:
@@ -167,7 +160,7 @@ def apply_toolbar_patch(
         raise PatchError("visual_confirmation_required")
 
     preinstall = _compose_active_mods(snapshot.source, snapshot.active_qmds)
-    installed = _patch_toolbar(preinstall, phase)
+    installed = _patch_sidebar(preinstall, phase)
     rollback = RollbackManifest(
         target=target.codename,
         source_path=target.resource_path,

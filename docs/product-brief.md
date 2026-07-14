@@ -10,8 +10,10 @@ The participant's reply is a contemporary **huipi** (回批): the return message
 
 ### Page 1 — Incoming letter
 
-- A letter icon appears in the stock reMarkable toolbar.
-- Tapping it launches the correspondence experience without changing the current notebook.
+- A `Letters Home` envelope entry appears in the main hamburger sidebar beside
+  the library destinations such as `My files`.
+- Tapping it launches the correspondence experience from the home/library UI;
+  it is never inserted into an open document's pen-and-eraser toolbar.
 - A fictional qiao pi-inspired letter is shown as a paper image.
 - It is labelled `A fictional letter generated for this encounter` in the UI or accessible provenance panel.
 - It may be informed by themes such as remittance received, education, health, care, distance, and requests to visit, but it must not reproduce a museum accession, signature, handwriting, seal, or claim a real author.

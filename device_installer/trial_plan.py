@@ -60,12 +60,12 @@ def approval_plan(target_name: str) -> dict[str, object]:
         "proposed_destinations": {
             "appload_application": APPLOAD_APPLICATION_DESTINATION,
             "basis": "maintained AppLoad v0.5.3 README",
-            "toolbar_qmd": "pending_read_only_discovery",
-            "toolbar_rcc": "pending_read_only_discovery",
+            "sidebar_qmd": "pending_read_only_discovery",
+            "sidebar_rcc": "pending_read_only_discovery",
         },
         "proposed_first_mutation": {
             "authorized": False,
-            "phase": "inert toolbar icon only",
+            "phase": "inert main-sidebar item only",
             "launch_action": False,
             "requires_second_owner_approval": True,
         },
@@ -81,7 +81,7 @@ def approval_plan(target_name: str) -> dict[str, object]:
             "commands": "pending observed paths and backup hashes",
         },
         "controlled_trial_checks": [
-            "inert launcher placement and CJK coexistence",
+            "inert main-sidebar placement before My files and CJK coexistence",
             "Xochitl stability",
             "incoming letter, blank huipi reply, and reversible marginalia pages",
             "pen input and first-ink timing",

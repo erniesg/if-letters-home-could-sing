@@ -11,7 +11,7 @@ from toolbar_launcher import (
     apply_toolbar_patch,
     uninstall_toolbar_patch,
 )
-from toolbar_launcher.launcher import KNOWN_UNRELATED_MOD, TOOLBAR_END, TOOLBAR_START
+from toolbar_launcher.launcher import KNOWN_UNRELATED_MOD
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,11 +38,15 @@ def snapshot_for(target_name="chiappa", **changes):
     return TabletSnapshot(**values)
 
 
-def without_toolbar(contents):
+SIDEBAR_START = "    // fixture-region: sidebar:start\n"
+SIDEBAR_END = "    // fixture-region: sidebar:end\n"
+
+
+def without_sidebar(contents):
     text = contents.decode("utf-8")
-    before, remainder = text.split(TOOLBAR_START, 1)
-    _, after = remainder.split(TOOLBAR_END, 1)
-    return before + "<toolbar/>" + after
+    before, remainder = text.split(SIDEBAR_START, 1)
+    _, after = remainder.split(SIDEBAR_END, 1)
+    return before + "<sidebar/>" + after
 
 
 class TargetContractTests(unittest.TestCase):
@@ -54,8 +58,12 @@ class TargetContractTests(unittest.TestCase):
                 source = source_for(name)
                 self.assertEqual(hashlib.sha256(source).hexdigest(), target.resource_sha256)
                 self.assertEqual(target.os_version, "3.28.0.162")
-                self.assertEqual(target.resource_path, "/qml/DocumentView.qml")
-                self.assertEqual(target.resource_id, "[[2857280009207495592]]")
+                self.assertEqual(
+                    target.resource_path,
+                    "/qml/device/view/navigator/Sidebar.qml",
+                )
+                self.assertEqual(target.resource_id, "[[4911547370760691430]]")
+                self.assertEqual(Path(target.fixture_path).name, "Sidebar.qml")
                 self.assertEqual(target.appload_version, "0.5.3")
                 self.assertEqual(target.xovi_version, "0.3.3")
                 self.assertEqual(
@@ -72,14 +80,22 @@ class TargetContractTests(unittest.TestCase):
         launch = (PACKAGE / "qmldiff" / "20-letters-home-launch.qmd").read_text()
         for patch in (inert, launch):
             self.assertIn("VERSION 3.28.0.162", patch)
-            self.assertIn("AFFECT [[2857280009207495592]]", patch)
-            self.assertIn("toolbarProvider.editingTools", patch)
+            self.assertIn("AFFECT [[4911547370760691430]]", patch)
+            self.assertIn("[[14125623155555875541]]#[[15885405667098360701]]", patch)
             self.assertIn(TARGETS["chiappa"].resource_sha256, patch)
+            self.assertNotIn("toolbarProvider.editingTools", patch)
+            self.assertNotIn("[[2857280009207495592]]", patch)
+        self.assertIn("[[5882927607508357618]]#[[7709552963638993992]]", inert)
+        self.assertIn("[[5882927607508357618]]#lettersHomeLauncher", launch)
         self.assertNotIn("launchApplication", inert)
         self.assertIn(
             'AppLoadLauncher.launchApplication("letters-home", [], {}, false)',
             launch,
         )
+
+    def test_open_document_toolbar_fixture_is_not_a_launcher_target(self):
+        self.assertFalse(any((PACKAGE / "fixtures").glob("*/DocumentView.qml")))
+        self.assertNotIn("DocumentView.qml", TARGETS["chiappa"].fixture_path)
 
     def test_launcher_icon_has_the_expected_qt_resource_alias(self):
         qrc = ET.parse(PACKAGE / "qmldiff" / "letter-icon.qrc").getroot()
@@ -96,17 +112,25 @@ class FixturePatchTests(unittest.TestCase):
             apply_toolbar_patch(snapshot, **options)
         self.assertEqual(context.exception.code, code)
 
-    def test_matching_targets_change_only_the_toolbar_subtree(self):
+    def test_matching_targets_change_only_the_main_sidebar_subtree(self):
         for name in TARGETS:
             with self.subTest(target=name):
                 result = apply_toolbar_patch(snapshot_for(name))
-                self.assertEqual(without_toolbar(result.preinstall), without_toolbar(result.installed))
+                self.assertEqual(
+                    without_sidebar(result.preinstall),
+                    without_sidebar(result.installed),
+                )
                 installed = result.installed.decode("utf-8")
                 self.assertEqual(installed.count('objectName: "letters-home-launcher"'), 1)
-                self.assertIn('objectName: "pen-tool"', installed)
-                self.assertIn('objectName: "eraser-tool"', installed)
-                self.assertIn('property string family: "Noto Sans CJK SC"', installed)
-                self.assertIn('property string locale: "zh_CN"', installed)
+                self.assertIn('objectName: "filter-my-files"', installed)
+                self.assertIn('objectName: "filter-tags"', installed)
+                self.assertIn('objectName: "filter-trash"', installed)
+                self.assertLess(
+                    installed.index('objectName: "letters-home-launcher"'),
+                    installed.index('objectName: "filter-my-files"'),
+                )
+                self.assertIn('title: qsTr("Letters Home")', installed)
+                self.assertNotIn("toolbarProvider.editingTools", installed)
                 self.assertNotIn("launchApplication", installed)
 
     def test_patch_is_deterministic_and_unrelated_mods_remain_unmodified(self):
@@ -132,13 +156,13 @@ class FixturePatchTests(unittest.TestCase):
             launched.installed.decode("utf-8"),
         )
 
-    def test_uninstall_restores_byte_identical_preinstall_resource_and_cjk(self):
+    def test_uninstall_restores_byte_identical_preinstall_sidebar(self):
         result = apply_toolbar_patch(snapshot_for())
         restored = uninstall_toolbar_patch(result.installed, result)
         self.assertEqual(restored, result.preinstall)
         self.assertEqual(hashlib.sha256(restored).hexdigest(), result.rollback.preinstall_sha256)
-        self.assertIn(b"Noto Sans CJK SC", restored)
-        self.assertIn(b"zh_CN", restored)
+        self.assertIn(b'objectName: "filter-my-files"', restored)
+        self.assertNotIn(b'objectName: "letters-home-launcher"', restored)
 
     def test_uninstall_stops_if_installed_resource_changed(self):
         result = apply_toolbar_patch(snapshot_for())
@@ -171,7 +195,7 @@ class FixturePatchTests(unittest.TestCase):
             ),
         }
         duplicate = source_for("chiappa").replace(
-            b'objectName: "pen-tool"',
+            b'objectName: "filter-my-files"',
             b'objectName: "letters-home-launcher"',
             1,
         )
