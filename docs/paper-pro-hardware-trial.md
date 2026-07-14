@@ -65,7 +65,8 @@ Repair candidates built from the same pins:
 |---|---|
 | Letters Home-only no-chrome ARM64 `appload.so` | `77db69b17238326396007602c68707ad4797533c7b8f5d86b29fc01aa01573b1` |
 | Repaired native ARM64 backend `entry` | `5fa9f01089ab497226162ae292aebbe8d5415877aa161ea6646597389ec67a20` |
-| Repaired app `resources.rcc` | `66ab2a6d498e58718cbb6da103ad297798381abfd8c469f3c087ddadb355e67c` |
+| Repaired app `resources.rcc` | `1cb98ab70573ad0dbadde2be5b12f8d297c16bed8edbaae648f6d73d43553984` |
+| Codex-generated Ferrari incoming fixture / app `icon.png` | `d8053206b0883fa4b39f3a6cbac9475bec34098586114c9562cb87f812b9495c` |
 
 The AppLoad build was repeated in the same pinned container and reproduced the
 same `appload.so` hash. Offline QMLDiff compatibility and full structural
@@ -126,12 +127,14 @@ hashtable, active-QMD, process, free-space, and installed-artifact checks. Back
 up the installed extension and entire app directory, then atomically replace:
 
 - `/home/root/xovi/extensions.d/appload.so`
+- `/home/root/xovi/exthome/appload/letters-home/icon.png`
 - `/home/root/xovi/exthome/appload/letters-home/resources.rcc`
 - `/home/root/xovi/exthome/appload/letters-home/backend/entry`
 
-The inert and launch QMDs remain byte-identical. Run `/home/root/xovi/start`
+The manifest plus inert and launch QMDs remain byte-identical. Run
+`/home/root/xovi/start`
 once; no reboot is planned. Expected unavailability is 15–45 seconds, capped at
-two minutes. Rollback restores the three backed-up files and restarts once.
+two minutes. Rollback restores the four backed-up files and restarts once.
 After repair, verify the incoming fictional letter, forward navigation to blank
 huipi stationery, ink preservation, submit, teacher-style non-scoring fixture
 marginalia on page 3, the in-app close control, and absence of pull-down chrome.

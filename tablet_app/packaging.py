@@ -40,7 +40,7 @@ def validate_source() -> None:
         "ui/StationeryLayer.qml",
         "ui/InkLayer.qml",
         "ui/MarginaliaLayer.qml",
-        "assets/incoming-qiaopi-001.png",
+        "assets/incoming-qiaopi-ferrari-001.png",
     }
     if not required.issubset(aliases):
         raise ValueError("the Qt resource manifest is missing required UI assets")
@@ -78,7 +78,7 @@ def build_bundle(
     (output / "backend").mkdir(parents=True)
     shutil.copy2(SOURCE / "manifest.json", output / "manifest.json")
     shutil.copy2(
-        ROOT / "fixtures" / "generated" / "incoming-qiaopi-001.png",
+        ROOT / "fixtures" / "generated" / "incoming-qiaopi-ferrari-001.png",
         output / "icon.png",
     )
     subprocess.run(

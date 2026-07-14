@@ -183,7 +183,7 @@ Rectangle {
                 width: Math.min(parent.width * 0.76, height * 0.75)
                 height: parent.height * 0.76
                 fillMode: Image.PreserveAspectFit
-                source: "qrc:/assets/incoming-qiaopi-001.png"
+                source: "qrc:/assets/incoming-qiaopi-ferrari-001.png"
                 Accessible.name: "Fictional qiao pi-inspired incoming letter fixture"
                 Accessible.description: "Synthetic correspondence; not an archival accession"
                 Accessible.role: Accessible.Graphic

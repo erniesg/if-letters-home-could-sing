@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import socket
@@ -164,7 +165,16 @@ class AppLoadSourceTests(unittest.TestCase):
         notice = "A fictional letter generated for this encounter"
         self.assertIn(f'text: "{notice}"', qml)
         self.assertIn("Accessible.description: \"Provenance disclosure\"", qml)
-        self.assertIn("qrc:/assets/incoming-qiaopi-001.png", qml)
+        self.assertIn("qrc:/assets/incoming-qiaopi-ferrari-001.png", qml)
+        qrc = (SOURCE / "application.qrc").read_text(encoding="utf-8")
+        self.assertIn(
+            'alias="assets/incoming-qiaopi-ferrari-001.png"',
+            qrc,
+        )
+        self.assertIn(
+            "../../fixtures/generated/incoming-qiaopi-ferrari-001.png",
+            qrc,
+        )
 
     def test_app_has_a_discreet_exit_without_fixture_orientation_chrome(self):
         qml = (SOURCE / "ui" / "Main.qml").read_text(encoding="utf-8")
@@ -188,6 +198,17 @@ class AppLoadSourceTests(unittest.TestCase):
 
             self.assertTrue((output / "manifest.json").is_file())
             self.assertTrue((output / "icon.png").is_file())
+            self.assertEqual(
+                hashlib.sha256((output / "icon.png").read_bytes()).hexdigest(),
+                hashlib.sha256(
+                    (
+                        ROOT
+                        / "fixtures"
+                        / "generated"
+                        / "incoming-qiaopi-ferrari-001.png"
+                    ).read_bytes()
+                ).hexdigest(),
+            )
             self.assertTrue((output / "resources.rcc").is_file())
             self.assertTrue((output / "backend" / "entry").is_file())
             self.assertTrue(
