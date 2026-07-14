@@ -114,6 +114,21 @@ def state_values(messages):
 
 
 class AppLoadSourceTests(unittest.TestCase):
+    def test_qml_subcomponents_import_accessibility_attached_type(self):
+        for filename in ("StationeryLayer.qml", "InkLayer.qml", "MarginaliaLayer.qml"):
+            with self.subTest(filename=filename):
+                source = (SOURCE / "ui" / filename).read_text(encoding="utf-8")
+                self.assertIn("import QtQuick.Controls 2.5", source)
+
+    def test_native_fixture_review_is_teacher_like_and_non_scoring(self):
+        source = (SOURCE / "backend" / "native_backend.c").read_text(encoding="utf-8")
+        self.assertIn('\\"kind\\":\\"uncertain_reading\\"', source)
+        self.assertIn('\\"kind\\":\\"language_note\\"', source)
+        self.assertIn("测试", source)
+        self.assertIn("不确定", source)
+        self.assertNotIn("score", source.lower())
+        self.assertNotIn("grade", source.lower())
+
     def test_manifest_qml_and_socket_entry_follow_the_example_contract(self):
         validate_source()
         manifest = json.loads((SOURCE / "manifest.json").read_text())
@@ -150,6 +165,13 @@ class AppLoadSourceTests(unittest.TestCase):
         self.assertIn(f'text: "{notice}"', qml)
         self.assertIn("Accessible.description: \"Provenance disclosure\"", qml)
         self.assertIn("qrc:/assets/incoming-qiaopi-001.png", qml)
+
+    def test_app_has_a_discreet_exit_without_fixture_orientation_chrome(self):
+        qml = (SOURCE / "ui" / "Main.qml").read_text(encoding="utf-8")
+        self.assertIn("onClicked: root.close()", qml)
+        self.assertIn('Accessible.name: "Close Letters Home"', qml)
+        self.assertNotIn("Landscape fixture", qml)
+        self.assertNotIn("Portrait fixture", qml)
 
     def test_qml_presents_versioned_optional_heart_rate_choices(self):
         qml = (SOURCE / "ui" / "Main.qml").read_text()
@@ -251,8 +273,18 @@ class AppLoadSourceTests(unittest.TestCase):
                     self.assertEqual(final_type, MESSAGE_STATE)
                     self.assertEqual(final["state"], "marginalia")
                     self.assertEqual(final["strokes"], submitting["strokes"])
-                    self.assertTrue(final["annotations"])
-                    self.assertTrue(final["reviewSummary"])
+                    self.assertEqual(
+                        [annotation["kind"] for annotation in final["annotations"]],
+                        ["uncertain_reading", "language_note"],
+                    )
+                    review_text = " ".join(
+                        [annotation["message"] for annotation in final["annotations"]]
+                        + [final["reviewSummary"]]
+                    )
+                    self.assertIn("测试", review_text)
+                    self.assertIn("不确定", review_text)
+                    self.assertNotIn("score", review_text.lower())
+                    self.assertNotIn("grade", review_text.lower())
                 stdout, stderr = process.communicate(timeout=5)
                 self.assertEqual(process.returncode, 0, stdout + stderr)
 

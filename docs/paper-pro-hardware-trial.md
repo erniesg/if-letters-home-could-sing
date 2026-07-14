@@ -1,8 +1,10 @@
 # Ferrari Paper Pro hardware trial
 
-Status: the first inert Ferrari install completed and remained stable. The
-owner confirmed the item was visible, requested placement below `Import files`,
-and the revised replacement QMD is held at the approval boundary below.
+Status: the inert install, placement correction, and approved launch phase all
+completed and remained stable. The owner then reproduced a blank application
+window. Read-only journal evidence identified a QML component load failure; a
+repaired app bundle and Letters Home-only no-chrome AppLoad runtime are built
+and held at the next approval boundary below.
 
 ## Initial observed target
 
@@ -40,6 +42,10 @@ The build uses:
   `8a15eada28010751f7b4ae50ae8853837335820d3346887478b4b9736c073c6e`
 - adapted AppLoad resource manifest SHA-256:
   `093e26c241b2b776228de174c0dce1feab5bb46dcc517ea30b2f3b7313191aee`
+- upstream AppLoad `window.qml` SHA-256:
+  `848b234015d2d8671648b6b661e57cdd3b51d80c537c38cb053e503cf3a95c30`
+- adapted no-chrome `window.qml` SHA-256:
+  `6a16bb0c322ce00fdc960418b85944b3978bbc6706d1e276a26d7108ec787638`
 
 Current reviewed artifacts:
 
@@ -52,6 +58,14 @@ Current reviewed artifacts:
 | Revised inert sidebar QMD | `da7f7d22fab609fd4f7c144e8661f65d7416fe74c0652a4a2e01be69c2cc304c` |
 | Revised launch-action QMD | `002383284266cb9c5d97f01de7da03a071ad66089a6e22999fca77edd287017f` |
 | Envelope SVG embedded in AppLoad | `c0437e3f3d8eb9436d3be8be54c5afa86bfd14370a78c3907c16a1803d5ccb30` |
+
+Repair candidates built from the same pins:
+
+| Artifact | SHA-256 |
+|---|---|
+| Letters Home-only no-chrome ARM64 `appload.so` | `77db69b17238326396007602c68707ad4797533c7b8f5d86b29fc01aa01573b1` |
+| Repaired native ARM64 backend `entry` | `5fa9f01089ab497226162ae292aebbe8d5415877aa161ea6646597389ec67a20` |
+| Repaired app `resources.rcc` | `66ab2a6d498e58718cbb6da103ad297798381abfd8c469f3c087ddadb355e67c` |
 
 The AppLoad build was repeated in the same pinned container and reproduced the
 same `appload.so` hash. Offline QMLDiff compatibility and full structural
@@ -70,24 +84,57 @@ automatic restarts; QMLDiff loaded all three QMDs in order, AppLoad loaded the
 The owner confirmed the item was visible but requested that it move from the
 initial location to below `Import files`. Clicking remained intentionally inert.
 
-## Proposed placement correction: below Import files
+## Completed placement correction and launch
 
-This is the next approval boundary. The correction will:
+The placement correction created backup
+`/home/root/.local/share/letters-home-installer/backups/20260715-329f1c1-import-placement`,
+installed inert QMD SHA-256
+`da7f7d22fab609fd4f7c144e8661f65d7416fe74c0652a4a2e01be69c2cc304c`,
+and restarted Xochitl once. The owner confirmed `Letters Home` appeared
+immediately below `Import files`.
 
-1. Re-run the exact Ferrari firmware, Xochitl, QRR, hashtable, active-QMD,
-   process, free-space, installed-artifact, and launch-QMD-absence checks.
-2. Back up the currently installed inert QMD, SHA-256
-   `fe98c19f1423516e1197c5e351c489ece17739c22eb7777ecf26b2bebe7b0dee`.
-3. Stage and hash-verify revised inert QMD SHA-256
-   `da7f7d22fab609fd4f7c144e8661f65d7416fe74c0652a4a2e01be69c2cc304c`.
-4. Atomically replace only
-   `/home/root/xovi/exthome/qt-resource-rebuilder/10-letters-home-inert.qmd`
-   with mode `0600`; the launch QMD remains absent.
-5. Run `/home/root/xovi/start` once. No reboot is planned; expected library
-   unavailability is 15–45 seconds and the observed window is capped at two
-   minutes.
-6. Confirm `Letters Home` appears immediately below `Import files`, the CJK
-   menus still work, and Xochitl remains stable. It stays inert in this phase.
+The separately approved launch phase created backup
+`/home/root/.local/share/letters-home-installer/backups/20260715-329f1c1-launch-enable`,
+installed launch QMD SHA-256
+`002383284266cb9c5d97f01de7da03a071ad66089a6e22999fca77edd287017f`,
+and restarted Xochitl once. The item then launched AppLoad and its native
+backend successfully, with zero automatic Xochitl restarts.
+
+## Reproduced blank-window failure and repair boundary
+
+The live journal showed that the sidebar handler, AppLoad coordinator, native
+backend process, and `SOCK_SEQPACKET` connection all started. The UI then
+stopped at:
+
+```text
+Type StationeryLayer unavailable
+Non-existent attached object
+```
+
+The custom QML components did not import the module used by their `Accessible`
+attached properties, even though `Main.qml` did. The repair adds the same
+`QtQuick.Controls 2.5` import to all three components. It also replaces the
+fixture-orientation header label with a discreet in-app close control.
+
+The pull-down minimize/maximize/close strip was AppLoad window chrome, not part
+of the Letters Home experience. The exact-source AppLoad adaptation now makes
+that strip and its pull-down gesture inactive only when `appName` is exactly
+`Letters Home`; other AppLoad apps are unchanged.
+
+Before a repair install, re-run the exact Ferrari firmware, Xochitl, QRR,
+hashtable, active-QMD, process, free-space, and installed-artifact checks. Back
+up the installed extension and entire app directory, then atomically replace:
+
+- `/home/root/xovi/extensions.d/appload.so`
+- `/home/root/xovi/exthome/appload/letters-home/resources.rcc`
+- `/home/root/xovi/exthome/appload/letters-home/backend/entry`
+
+The inert and launch QMDs remain byte-identical. Run `/home/root/xovi/start`
+once; no reboot is planned. Expected unavailability is 15–45 seconds, capped at
+two minutes. Rollback restores the three backed-up files and restarts once.
+After repair, verify the incoming fictional letter, forward navigation to blank
+huipi stationery, ink preservation, submit, teacher-style non-scoring fixture
+marginalia on page 3, the in-app close control, and absence of pull-down chrome.
 
 The stock reMarkable screenshot helper will not be used while Xovi runs.
 Evidence is manual observation plus service status, restart count, and hashes.
@@ -105,12 +152,10 @@ Home QMD—restore any recorded file that differs from its backup, and run
 hashes, QRR and hashtable hashes, and the pretrial active extension set. Stop
 rather than broadening a hash or locator.
 
-## Second phase after visual confirmation
+## Trial scope
 
-Only after the owner confirms the corrected inert placement and stability will
-a second approval install `20-letters-home-launch.qmd` (`0600`) and restart
-Xochitl once.
-The owner can then tap `Letters Home`, decline or select unavailable WHOOP,
-swipe to the blank huipi, write with the pen, submit, and verify page 3 shows
-the unchanged ink plus reversible fixture marginalia and a short review. This
-trial makes no live OpenAI or WHOOP call.
+The repaired vertical slice uses the bundled fictional incoming image and a
+transparent teacher-style fixture review. It makes no live OpenAI or WHOOP
+call. Response-dependent OCR/model review and real heart-rate capture remain
+later human-approved provider lanes; the present trial proves the three-page
+tablet interaction and preservation of the writer's original ink.

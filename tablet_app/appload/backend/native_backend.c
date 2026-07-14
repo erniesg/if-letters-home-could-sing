@@ -44,9 +44,15 @@ static const char *PURPOSE_NOTICE =
 
 static const char *FIXTURE_ANNOTATIONS =
     "[{\"anchor\":{\"height\":0.18,\"width\":0.28,\"x\":0.18,\"y\":0.24},"
-    "\"confidence\":0.82,\"id\":\"fixture-note-1\",\"kind\":\"reflection\","
-    "\"message\":\"This reads as a warm acknowledgement. One phrase may be "
-    "ambiguous; consider whether you meant care or return.\"}]";
+    "\"confidence\":0.48,\"id\":\"fixture-note-1\","
+    "\"kind\":\"uncertain_reading\","
+    "\"message\":\"纠错提示（测试）：这一处笔画重叠，字形暂不确定。"
+    "请核对原意；不作强行转写。\"},"
+    "{\"anchor\":{\"height\":0.16,\"width\":0.30,\"x\":0.52,\"y\":0.52},"
+    "\"confidence\":0.74,\"id\":\"fixture-note-2\","
+    "\"kind\":\"language_note\","
+    "\"message\":\"表达建议（测试）：回信语气真诚；若要更清楚，"
+    "可补充具体的人、时间或行动。\"}]";
 
 static int send_packet(int fd, const void *contents, size_t length) {
     ssize_t sent = send(fd, contents, length, 0);
@@ -113,7 +119,8 @@ static char *state_payload(const struct session *session) {
     const char *annotations = reviewed ? FIXTURE_ANNOTATIONS : "[]";
     const char *review_status = reviewed ? "\"complete\"" : "null";
     const char *review_summary = reviewed
-        ? "A gentle fixture reading is shown in the margin; your ink remains unchanged."
+        ? "教师式试读（测试）：先标出一处不确定字形，再给一项表达建议。"
+          "没有改写你的原墨迹。"
         : "";
     const char *review_id = submitted ? "\"fixture-review-0001\"" : "null";
     char *first_ink_json = NULL;

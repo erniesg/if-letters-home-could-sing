@@ -112,6 +112,8 @@ Rectangle {
         Text {
             anchors.left: parent.left
             anchors.leftMargin: 42
+            anchors.right: closeButton.left
+            anchors.rightMargin: 24
             anchors.verticalCenter: parent.verticalCenter
             color: "#2f2923"
             font.pixelSize: 44
@@ -124,15 +126,29 @@ Rectangle {
             Accessible.role: Accessible.Heading
         }
 
-        Text {
+        Rectangle {
+            id: closeButton
             anchors.right: parent.right
-            anchors.rightMargin: 42
+            anchors.rightMargin: 24
             anchors.verticalCenter: parent.verticalCenter
-            color: "#2f2923"
-            font.pixelSize: 28
-            text: root.width > root.height ? "Landscape fixture" : "Portrait fixture"
-            Accessible.name: text
-            Accessible.role: Accessible.StaticText
+            width: root.minimumTouchTarget
+            height: root.minimumTouchTarget
+            color: "transparent"
+            radius: width / 2
+            Accessible.name: "Close Letters Home"
+            Accessible.role: Accessible.Button
+
+            Text {
+                anchors.centerIn: parent
+                color: "#2f2923"
+                font.pixelSize: 46
+                text: "×"
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: root.close()
+            }
         }
     }
 

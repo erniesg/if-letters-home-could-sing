@@ -80,7 +80,12 @@ anchor locates an `Epaper.ScreenModeItem` removed from `MainView.qml` in 3.28.
 `device_installer.appload_runtime` fails closed on the exact upstream QMD and
 resource-manifest hashes, removes only the obsolete self-sidebar block, anchors
 the overlay immediately after `FocusScope#rootItem`, and embeds the Letters Home
-envelope. The adapted QMD retains AppLoad's global gesture replacement.
+envelope. It also fails closed on AppLoad's exact upstream `window.qml` and, for
+the exact application name `Letters Home` only, disables the pull-down handler
+and top-bar visibility. Other AppLoad applications retain their window chrome.
+Letters Home provides its own close control, so hiding minimize/maximize/close
+chrome does not trap the participant. The adapted QMD retains AppLoad's global
+gesture replacement.
 
 Against Ferrari's saved 3.28 hashtable, the adapted AppLoad QMD plus the inert
 and launch QMDs pass compatibility checking and structurally apply to all six

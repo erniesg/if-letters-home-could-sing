@@ -9,13 +9,16 @@ from device_installer.appload_runtime import (
     APPLOAD_COMMIT,
     APPLOAD_VERSION,
     ADAPTED_RESOURCES_QRC_SHA256,
+    ADAPTED_WINDOW_QML_SHA256,
     PAPER_PRO_FIRMWARE,
     TOOLCHAIN_IMAGE,
     UPSTREAM_RESOURCES_QRC_SHA256,
     UPSTREAM_QMD_SHA256,
+    UPSTREAM_WINDOW_QML_SHA256,
     AdaptationError,
     adapt_qmd,
     adapt_resources_qrc,
+    adapt_window_qml,
     prepare_source_tree,
 )
 
@@ -24,6 +27,9 @@ ROOT = Path(__file__).resolve().parents[1]
 UPSTREAM_FIXTURE = ROOT / "tests" / "fixtures" / "appload-v0.5.3-upstream.qmd"
 UPSTREAM_RESOURCES_FIXTURE = (
     ROOT / "tests" / "fixtures" / "appload-v0.5.3-upstream-resources.qrc"
+)
+UPSTREAM_WINDOW_FIXTURE = (
+    ROOT / "tests" / "fixtures" / "appload-v0.5.3-upstream-window.qml"
 )
 
 
@@ -66,6 +72,37 @@ class AppLoadRuntimeAdaptationTests(unittest.TestCase):
         self.assertIn('<qresource prefix="/letters-home/icons">', adapted)
         self.assertIn('<file alias="letter">icons/letters-home.svg</file>', adapted)
 
+    def test_window_adaptation_suppresses_chrome_only_for_letters_home(self):
+        upstream = UPSTREAM_WINDOW_FIXTURE.read_text(encoding="utf-8")
+        self.assertEqual(
+            hashlib.sha256(upstream.encode()).hexdigest(),
+            UPSTREAM_WINDOW_QML_SHA256,
+        )
+
+        adapted = adapt_window_qml(upstream)
+
+        self.assertEqual(
+            hashlib.sha256(adapted.encode()).hexdigest(),
+            ADAPTED_WINDOW_QML_SHA256,
+        )
+        self.assertIn(
+            'property bool chromeSuppressed: appName === "Letters Home"',
+            adapted,
+        )
+        self.assertIn(
+            "if(fullscreen && !forceTopBarVisible && !chromeSuppressed)",
+            adapted,
+        )
+        self.assertIn(
+            "visible: !chromeSuppressed && (!fullscreen || forceTopBarVisible)",
+            adapted,
+        )
+
+    def test_window_adaptation_refuses_an_unknown_upstream(self):
+        upstream = UPSTREAM_WINDOW_FIXTURE.read_text(encoding="utf-8")
+        with self.assertRaisesRegex(AdaptationError, "upstream_window_qml_hash_mismatch"):
+            adapt_window_qml(upstream.replace("AppLoad 1.0", "AppLoad 1.1", 1))
+
     def test_file_adapter_refuses_to_replace_an_existing_output(self):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "adapted.qmd"
@@ -79,9 +116,10 @@ class AppLoadRuntimeAdaptationTests(unittest.TestCase):
             root = Path(temporary)
             source = root / "upstream"
             (source / "xovi" / "template").mkdir(parents=True)
-            (source / "resources").mkdir()
+            (source / "resources" / "qml").mkdir(parents=True)
             shutil.copy2(UPSTREAM_FIXTURE, source / "xovi" / "template" / "appload.qmd")
             shutil.copy2(UPSTREAM_RESOURCES_FIXTURE, source / "resources" / "resources.qrc")
+            shutil.copy2(UPSTREAM_WINDOW_FIXTURE, source / "resources" / "qml" / "window.qml")
             output = root / "adapted"
 
             prepare_source_tree(
@@ -97,6 +135,10 @@ class AppLoadRuntimeAdaptationTests(unittest.TestCase):
             self.assertEqual(
                 hashlib.sha256((output / "resources" / "resources.qrc").read_bytes()).hexdigest(),
                 ADAPTED_RESOURCES_QRC_SHA256,
+            )
+            self.assertEqual(
+                hashlib.sha256((output / "resources" / "qml" / "window.qml").read_bytes()).hexdigest(),
+                ADAPTED_WINDOW_QML_SHA256,
             )
             self.assertTrue((output / "resources" / "icons" / "letters-home.svg").is_file())
 
