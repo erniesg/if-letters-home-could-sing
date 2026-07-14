@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+set -eu
+
+APP_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+SOURCE_ROOT=$(CDPATH= cd -- "$APP_DIR/../.." && pwd)
+RUNTIME_ROOT="$APP_DIR/backend/runtime"
+if [ -d "$RUNTIME_ROOT/tablet_app" ]; then
+  PYTHON_ROOT="$RUNTIME_ROOT"
+else
+  PYTHON_ROOT="$SOURCE_ROOT"
+fi
+PYTHONPATH="$PYTHON_ROOT${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m tablet_app.protocol "$@"

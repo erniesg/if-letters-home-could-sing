@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1696" height="954" viewBox="0 0 1696 954">
+<rect width="1696" height="954" fill="#f1e8d5"/>
+<rect width="1696" height="96" fill="#e5d9c2"/>
+<text x="42" y="64" fill="#2f2923" font-family="sans-serif" font-size="44" text-anchor="start">A reading of your reply</text>
+<text x="1654" y="61" fill="#2f2923" font-family="sans-serif" font-size="32" text-anchor="end">Ferrari</text>
+<rect x="33" y="129" width="1630" height="664" rx="8" fill="#f6efdf" stroke="#8d7964" stroke-width="3"/>
+<g id="stationery-layer">
+<rect x="76" y="172" width="1544" height="578" fill="none" stroke="#a45149" stroke-width="3" opacity="0.62"/>
+<path d="M 848 129 V 793" stroke="#796d5e" stroke-width="2" opacity="0.10"/>
+<path d="M 33 461 H 1663" stroke="#796d5e" stroke-width="2" opacity="0.10"/>
+<path d="M 248 172 V 750" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 419 172 V 750" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 591 172 V 750" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 762 172 V 750" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 934 172 V 750" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 1105 172 V 750" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 1277 172 V 750" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 1448 172 V 750" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 76 230 H 1620" stroke="#a45149" stroke-width="2" opacity="0.22"/>
+<path d="M 76 692 H 1620" stroke="#a45149" stroke-width="2" opacity="0.22"/>
+</g>
+<g id="ink-layer" fill="none" stroke="#33475b" stroke-linecap="round">
+<path d="M 359 328 L 424 355 L 522 395" stroke-width="5"/>
+</g>
+<g id="marginalia-layer">
+<rect x="1027" y="408" width="130" height="27" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="1027" y="394" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">This character is difficult to read; did you mean 家?</text>
+<rect x="229" y="647" width="1011" height="53" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="229" y="633" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">What would you want the reader to know about the distance between you?</text>
+</g>
+<g id="controls-layer" data-min-touch-target="96">
+<rect x="1222" y="842" width="441" height="96" rx="10" fill="#2f2923" data-touch-target="true"/>
+<text x="1442" y="903" fill="#fffaf0" font-family="sans-serif" font-size="30" text-anchor="middle">Hide notes</text>
+<text x="42" y="902" fill="#2f2923" font-family="sans-serif" font-size="27" text-anchor="start">Heart rate unavailable — reply is still available</text>
+</g>
+</svg>

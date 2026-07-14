@@ -49,4 +49,16 @@ python3 -m unittest discover -s tests
 scripts/agent-evidence
 ```
 
+The fixture-first AppLoad UI and host simulator can be exercised without Qt,
+a tablet, network access, or credentials:
+
+```bash
+python3 -m tablet_app.simulator --profile chiappa --orientation portrait --scenario timeout-retry
+python3 -m tablet_app.simulator --verify-snapshots tablet_app/snapshots
+python3 -m tablet_app.packaging --check
+```
+
+See [`docs/tablet-simulator.md`](docs/tablet-simulator.md) for the AppLoad
+source/bundle boundary and the hardware behavior that remains unverified.
+
 Legacy ML/data tests live under `legacy_tests/` and remain an explicit optional lane because required datasets, mapping outputs, fonts, and parts of the historical pipeline are not available in a clean checkout. Their public dependency subset is pinned separately in `requirements-legacy.txt`. Run `scripts/legacy-tests` to preflight that setup; it exits `2` with a setup-block report when local research inputs are unavailable. Missing private inputs must not be copied into the repository.
