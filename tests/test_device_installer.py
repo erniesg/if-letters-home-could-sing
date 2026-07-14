@@ -1,5 +1,6 @@
 import hashlib
 import json
+import os
 import shutil
 import stat
 import subprocess
@@ -216,6 +217,57 @@ class InstallerFixtureTests(unittest.TestCase):
         shutil.rmtree(release)
         self.assertEqual(installer.recover().action, "recovered")
         self.assertEqual(tree_snapshot(device), original)
+
+    def test_recovery_rejects_tampered_transaction_and_qmd_backup(self):
+        for tamper, expected in (
+            ("transaction", "invalid_transaction_state"),
+            ("backup", "rollback_state_mismatch"),
+        ):
+            with self.subTest(tamper=tamper):
+                device = self.create_device("chiappa", f"tampered-{tamper}")
+                installer = FixtureInstaller(self.release, device)
+
+                def interrupt(completed):
+                    if completed == "app_installed":
+                        raise RuntimeError("synthetic interruption")
+
+                with self.assertRaisesRegex(RuntimeError, "synthetic interruption"):
+                    installer.install(step_hook=interrupt)
+                if tamper == "transaction":
+                    transaction = load_json(installer.transaction)
+                    transaction["target"] = "ferrari"
+                    write_json(installer.transaction, transaction)
+                else:
+                    backup = installer.state / "active-qmds.json"
+                    backup.write_bytes(backup.read_bytes() + b"\n")
+
+                with self.assertRaises(InstallError) as context:
+                    installer.recover()
+                self.assertEqual(context.exception.code, expected)
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlink support is required")
+    def test_preflight_rejects_symlink_escape_from_fixture_root(self):
+        device = self.create_device("chiappa", "symlink-escape")
+        outside = self.workspace / "outside-fixture"
+        outside.mkdir()
+        extensions = device / "opt" / "xovi" / "extensions"
+        extensions.rmdir()
+        extensions.symlink_to(outside, target_is_directory=True)
+
+        with self.assertRaises(InstallError) as context:
+            FixtureInstaller(self.release, device).preflight()
+
+        self.assertEqual(context.exception.code, "unsafe_device_symlink")
+        self.assertEqual(list(outside.iterdir()), [])
+
+    def test_preflight_rejects_orphaned_installer_state(self):
+        device = self.create_device("chiappa", "orphaned-state")
+        (device / STATE_DIRECTORY).mkdir()
+
+        self.assert_refused(
+            "orphaned_installer_state",
+            FixtureInstaller(self.release, device),
+        )
 
     def test_preflight_refusal_matrix_covers_both_exact_targets(self):
         def low_space(root, _target):

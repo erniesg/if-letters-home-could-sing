@@ -69,18 +69,22 @@ class FixtureInstaller:
         self.release = release.resolve()
         self.device_root = device_root.resolve()
         self.payload = self.release / PAYLOAD_DIRECTORY
-        self.state = self.device_root / STATE_DIRECTORY
-        self.transaction = self.state / TRANSACTION_RECORD
-        self.installed = self.state / INSTALLED_RECORD
+        self.state = self._device_path(STATE_DIRECTORY)
+        self.transaction = self._state_path(TRANSACTION_RECORD)
+        self.installed = self._state_path(INSTALLED_RECORD)
 
     def preflight(self) -> PreflightResult:
         device = self._device_record()
         if self.transaction.exists():
             raise InstallError("active_partial_install")
+        if self.state.exists() and not self.state.is_dir():
+            raise InstallError("invalid_installer_state")
         manifest = self._validated_release()
         if self.installed.exists():
             self._validate_installed(manifest, device)
             return PreflightResult(str(device["target"]), True)
+        if self.state.exists():
+            raise InstallError("orphaned_installer_state")
 
         target, active_qmds = self._validate_device_base(manifest, device)
         required_free = manifest.get("minimum_free_bytes")
@@ -116,16 +120,28 @@ class FixtureInstaller:
 
         manifest = self._validated_release()
         original_active = self._device_path(ACTIVE_QMDS_RECORD)
-        self.state.mkdir(mode=0o700)
-        shutil.copy2(original_active, self.state / ACTIVE_QMDS_BACKUP)
-        self._write_json(
-            self.transaction,
-            {
-                "operation": "install",
-                "target": preflight.target,
-                "version": INSTALLER_VERSION,
-            },
-        )
+        original_qmds = list(self._read_active_qmds(original_active))
+        backup = self._state_path(ACTIVE_QMDS_BACKUP)
+        try:
+            self.state.mkdir(mode=0o700)
+            shutil.copy2(original_active, backup)
+            backup_hash = sha256(backup.read_bytes())
+            if backup_hash != sha256(original_active.read_bytes()):
+                raise InstallError("active_qmd_backup_mismatch")
+            self._write_json(
+                self.transaction,
+                {
+                    "active_qmds_backup_sha256": backup_hash,
+                    "operation": "install",
+                    "original_active_qmds": original_qmds,
+                    "target": preflight.target,
+                    "version": INSTALLER_VERSION,
+                },
+            )
+        except Exception:
+            if not self.transaction.exists() and not self.installed.exists():
+                shutil.rmtree(self.state, ignore_errors=True)
+            raise
 
         stage = self.state / "stage"
         stage.mkdir()
@@ -150,7 +166,7 @@ class FixtureInstaller:
             self.installed,
             {
                 "active_qmds_backup_sha256": sha256(
-                    (self.state / ACTIVE_QMDS_BACKUP).read_bytes()
+                    backup.read_bytes()
                 ),
                 "manifest_sha256": manifest_hash,
                 "original_active_qmds": active[:-1],
@@ -171,11 +187,14 @@ class FixtureInstaller:
             self._assert_unmanaged_destinations_absent(manifest)
             return InstallResult("already_uninstalled", str(device["target"]))
         self._validate_installed(manifest, device)
+        installed_record = self._read_json(self.installed, "installed_state_invalid")
 
         self._write_json(
             self.transaction,
             {
+                "active_qmds_backup_sha256": installed_record["active_qmds_backup_sha256"],
                 "operation": "uninstall",
+                "original_active_qmds": installed_record["original_active_qmds"],
                 "target": device["target"],
                 "version": INSTALLER_VERSION,
             },
@@ -197,7 +216,8 @@ class FixtureInstaller:
         device = self._device_record()
         if not self.transaction.exists():
             return InstallResult("no_partial_install", str(device["target"]))
-        backup = self.state / ACTIVE_QMDS_BACKUP
+        self._validated_transaction(device)
+        backup = self._state_path(ACTIVE_QMDS_BACKUP)
         if not backup.is_file():
             raise InstallError("rollback_unavailable")
         target_name = str(device["target"])
@@ -225,6 +245,26 @@ class FixtureInstaller:
         self._restore_active_qmds()
         shutil.rmtree(self.state)
         return InstallResult("recovered", target_name)
+
+    def _validated_transaction(self, device: Mapping[str, object]) -> Mapping[str, object]:
+        record = self._read_json(self.transaction, "invalid_transaction_state")
+        if (
+            record.get("operation") not in {"install", "uninstall"}
+            or record.get("target") != device.get("target")
+            or record.get("version") != INSTALLER_VERSION
+        ):
+            raise InstallError("invalid_transaction_state")
+        backup = self._state_path(ACTIVE_QMDS_BACKUP)
+        if not backup.is_file():
+            raise InstallError("rollback_unavailable")
+        backup_hash = sha256(backup.read_bytes())
+        original_qmds = self._read_active_qmds(backup)
+        if (
+            record.get("active_qmds_backup_sha256") != backup_hash
+            or record.get("original_active_qmds") != list(original_qmds)
+        ):
+            raise InstallError("rollback_state_mismatch")
+        return record
 
     def _validated_release(self) -> Mapping[str, object]:
         try:
@@ -355,7 +395,7 @@ class FixtureInstaller:
             or record.get("manifest_sha256") != manifest_hash
         ):
             raise InstallError("installed_state_mismatch")
-        backup = self.state / ACTIVE_QMDS_BACKUP
+        backup = self._state_path(ACTIVE_QMDS_BACKUP)
         if not backup.is_file() or record.get("active_qmds_backup_sha256") != sha256(backup.read_bytes()):
             raise InstallError("rollback_unavailable")
         original = self._read_active_qmds(backup)
@@ -435,16 +475,18 @@ class FixtureInstaller:
             raise InstallError("unmanaged_installation")
 
     def _restore_active_qmds(self) -> None:
-        backup = self.state / ACTIVE_QMDS_BACKUP
+        backup = self._state_path(ACTIVE_QMDS_BACKUP)
         if not backup.is_file():
             raise InstallError("rollback_unavailable")
         destination = self._device_path(ACTIVE_QMDS_RECORD)
         temporary = destination.with_name(destination.name + ".restore")
+        if temporary.exists() or temporary.is_symlink():
+            raise InstallError("unsafe_temporary_path")
         shutil.copy2(backup, temporary)
         os.replace(temporary, destination)
 
     def _device_record(self) -> Mapping[str, object]:
-        path = self.device_root / DEVICE_RECORD
+        path = self._device_path(DEVICE_RECORD)
         if not path.is_file():
             raise InstallError("not_fixture_device")
         device = self._read_json(path, "invalid_fixture_device")
@@ -458,7 +500,22 @@ class FixtureInstaller:
         return self._device_path(resource_path.lstrip("/"))
 
     def _device_path(self, relative: str) -> Path:
-        return self.device_root / self._safe_relative(relative)
+        candidate = self.device_root / self._safe_relative(relative)
+        current = candidate
+        while current != self.device_root:
+            if current.is_symlink():
+                raise InstallError("unsafe_device_symlink")
+            current = current.parent
+        try:
+            resolved = candidate.resolve(strict=False)
+        except OSError as error:
+            raise InstallError("unsafe_device_path") from error
+        if resolved != self.device_root and self.device_root not in resolved.parents:
+            raise InstallError("unsafe_device_path")
+        return candidate
+
+    def _state_path(self, relative: str) -> Path:
+        return self._device_path(f"{STATE_DIRECTORY}/{relative}")
 
     @staticmethod
     def _safe_relative(value: object) -> PurePosixPath:
@@ -471,6 +528,8 @@ class FixtureInstaller:
 
     @staticmethod
     def _read_json(path: Path, code: str) -> Mapping[str, object]:
+        if path.is_symlink():
+            raise InstallError(code)
         try:
             value = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:
@@ -492,6 +551,8 @@ class FixtureInstaller:
 
     def _write_json_atomic(self, path: Path, value: object) -> None:
         temporary = path.with_name(path.name + ".new")
+        if temporary.exists() or temporary.is_symlink():
+            raise InstallError("unsafe_temporary_path")
         self._write_json(temporary, value)
         temporary.chmod(stat.S_IMODE(path.stat().st_mode))
         os.replace(temporary, path)
