@@ -70,7 +70,25 @@ only that item's handler to
 `AppLoadLauncher.launchApplication("letters-home", [], {}, false)`. The host
 harness refuses the launch phase unless visual/stability confirmation is
 explicitly represented. The SVG icon is packaged under
-`qrc:/letters-home/icons/letter`.
+`qrc:/letters-home/icons/letter` and embedded in the adapted AppLoad runtime,
+so the launcher does not depend on an unregistered standalone RCC.
+
+## AppLoad 3.28 adaptation
+
+Unmodified AppLoad `0.5.3` is not safe to install on these targets. Its embedded
+QMD still adds an AppLoad item using pre-3.28 sidebar selectors, and its overlay
+anchor locates an `Epaper.ScreenModeItem` removed from `MainView.qml` in 3.28.
+`device_installer.appload_runtime` fails closed on the exact upstream QMD and
+resource-manifest hashes, removes only the obsolete self-sidebar block, anchors
+the overlay immediately after `FocusScope#rootItem`, and embeds the Letters Home
+envelope. The adapted QMD retains AppLoad's global gesture replacement.
+
+Against Ferrari's saved 3.28 hashtable, the adapted AppLoad QMD plus the inert
+and launch QMDs pass compatibility checking and structurally apply to all six
+affected sources: `Sidebar.qml`, `Navigator.qml`, `MainView.qml`,
+`GesturesWindow.qml`, AppLoad's `window.qml`, and `DisplayMethodArea.qml`. The
+combined sidebar output contains exactly one `Letters Home` item before
+`My files` and one launch call.
 
 The QMLDiff language and AppLoad call are pinned to their maintained upstream
 contracts:
@@ -110,4 +128,5 @@ and expected downtime. The first mutation installs only the inert phase. The
 launch phase remains held until the inert icon is visually confirmed and
 Xochitl stability is reviewed. Evidence must use the approved
 framebuffer/AppLoad path; the stock reMarkable screenshot helper is forbidden
-while Xovi is running.
+while Xovi is running. The completed Ferrari read-only preflight and exact held
+mutation are recorded in [`paper-pro-hardware-trial.md`](paper-pro-hardware-trial.md).

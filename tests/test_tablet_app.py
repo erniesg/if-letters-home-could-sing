@@ -172,34 +172,11 @@ class AppLoadSourceTests(unittest.TestCase):
                 os.access(output / "backend" / "entry", os.X_OK),
                 "backend entry must remain executable",
             )
-            self.assertTrue(
-                (output / "backend" / "runtime" / "experience_core" / "state_machine.py").is_file()
-            )
-            self.assertTrue(
-                (output / "backend" / "runtime" / "contracts" / "review.example.json").is_file()
-            )
-            self.assertTrue(
-                (output / "backend" / "runtime" / "contracts" / "v1" / "schemas" / "review.schema.json").is_file()
-            )
-            self.assertTrue(
-                (output / "backend" / "runtime" / "experience_core" / "reviewer.py").is_file()
-            )
-            self.assertTrue(
-                (output / "backend" / "runtime" / "experience_core" / "privacy.py").is_file()
-            )
-            self.assertTrue(
-                (output / "backend" / "runtime" / "heart_rate" / "models.py").is_file()
-            )
-            self.assertTrue(
-                (
-                    output
-                    / "backend"
-                    / "runtime"
-                    / "contracts"
-                    / "v1"
-                    / "consent"
-                    / "biometric-purpose.consent-v1.json"
-                ).is_file()
+            self.assertFalse((output / "backend" / "runtime").exists())
+            self.assertNotEqual(
+                (output / "backend" / "entry").read_bytes()[:2],
+                b"#!",
+                "the physical bundle backend must not depend on device Python",
             )
 
     @unittest.skipUnless(
@@ -227,6 +204,55 @@ class AppLoadSourceTests(unittest.TestCase):
                     message_type, contents = receive_message(connection)
                     self.assertEqual(message_type, MESSAGE_STATE)
                     self.assertEqual(json.loads(contents)["state"], "incoming")
+                stdout, stderr = process.communicate(timeout=5)
+                self.assertEqual(process.returncode, 0, stdout + stderr)
+
+    @unittest.skipUnless(
+        UNIX_SEQPACKET_SUPPORTED,
+        "requires Unix SOCK_SEQPACKET support from the host kernel",
+    )
+    def test_native_backend_completes_reply_and_fixture_marginalia_flow(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_path = Path(temporary)
+            output = build_fixture_bundle(temporary_path)
+            path = str(temporary_path / "native-flow.sock")
+            with socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET) as listener:
+                listener.bind(path)
+                listener.listen(1)
+                process = subprocess.Popen(
+                    [str(output / "backend" / "entry"), path],
+                    cwd=temporary_path,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                )
+                connection, _ = listener.accept()
+                with connection:
+                    def exchange(message_type, payload):
+                        body = json.dumps(payload, separators=(",", ":")).encode()
+                        connection.send(HEADER.pack(message_type, len(body)))
+                        if body:
+                            connection.send(body)
+                        response_type, contents = receive_message(connection)
+                        return response_type, json.loads(contents)
+
+                    connection.send(HEADER.pack(MSG_SYSTEM_NEW_COORDINATOR, 0))
+                    self.assertEqual(receive_message(connection)[0], MESSAGE_STATE)
+                    self.assertEqual(exchange(MESSAGE_CONSENT, {"decision": "declined"})[1]["biometricConsent"], "declined")
+                    self.assertEqual(exchange(MESSAGE_SWIPE, {"direction": "forward"})[1]["state"], "reply")
+                    stroke = captured_payload()
+                    stroke_state = exchange(MESSAGE_STROKE, stroke)[1]
+                    self.assertEqual(stroke_state["firstInkAt"], stroke["accepted_at"])
+                    self.assertEqual(stroke_state["strokes"][0]["id"], stroke["stroke_id"])
+                    submitting = exchange(MESSAGE_SUBMIT, {"confirm_empty": False})[1]
+                    self.assertEqual(submitting["state"], "submitting")
+                    final_type, final_contents = receive_message(connection)
+                    final = json.loads(final_contents)
+                    self.assertEqual(final_type, MESSAGE_STATE)
+                    self.assertEqual(final["state"], "marginalia")
+                    self.assertEqual(final["strokes"], submitting["strokes"])
+                    self.assertTrue(final["annotations"])
+                    self.assertTrue(final["reviewSummary"])
                 stdout, stderr = process.communicate(timeout=5)
                 self.assertEqual(process.returncode, 0, stdout + stderr)
 

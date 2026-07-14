@@ -5,9 +5,11 @@ entrypoint, `AppLoad` endpoint, unload hook, Qt resource manifest, and
 backend invocation follow the maintained `rm-appload` full example at
 [commit `123c29eb2fa6d1025cb3fa1b47bece6cee0a74f6`](https://github.com/asivery/rm-appload/commit/123c29eb2fa6d1025cb3fa1b47bece6cee0a74f6)
 (AppLoad v0.5.3 lineage).
-The backend connects to the temporary Unix `SOCK_SEQPACKET` path supplied as
-`argv[1]` and exchanges the example protocol's separate eight-byte header and
-UTF-8 body packets.
+The bundled backend is a small native C program. It connects to the temporary
+Unix `SOCK_SEQPACKET` path supplied as `argv[1]` and exchanges the example
+protocol's separate eight-byte header and UTF-8 body packets. The Python
+adapter remains the portable reference model and simulator, but it is not
+shipped to the tablet: Ferrari `3.28.0.162` has no `python3` executable.
 
 The frontend keeps stationery, participant ink, and marginalia in separate
 QML components. Page 1 always carries the fictional-provenance disclosure.
@@ -48,26 +50,30 @@ Source validation does not require Qt:
 python3 -m tablet_app.packaging --check
 ```
 
-With Qt's `rcc` available, build the exact AppLoad directory shape containing
-`manifest.json`, `icon.png`, `resources.rcc`, and executable `backend/entry`:
+With Qt's `rcc` and a C compiler available, build the exact AppLoad directory
+shape containing `manifest.json`, `icon.png`, `resources.rcc`, and a native
+executable `backend/entry`:
 
 ```bash
 python3 -m tablet_app.packaging --output tmp/letters-home-appload
 ```
 
-The bundle contains only the fixture adapter and portable core. It does not
-contain provider credentials or make live calls.
+The bundle contains a fixture-only review backend. It does not contain Python,
+provider credentials, or live provider calls. On Linux, the test suite compiles
+and drives the native backend through a real Unix sequence-packet socket across
+consent, reply, stroke, submit, and marginalia. Darwin skips that kernel-specific
+test while still compiling the backend.
 
 ## Pending hardware assertions
 
-This VM does not provide the target AppLoad Qt runtime or `rcc`. The following
-remain hardware integration assertions, not host claims:
+The pinned reMarkable SDK container now builds both the Qt `resources.rcc` and
+ARM64 backend. The following remain hardware integration assertions, not host
+claims:
 
 - QML `Canvas` refresh and `MouseArea` pressure/timing under the device input
   stack;
 - accessibility roles and focus order in the target Qt/AppLoad build;
-- AppLoad endpoint lifecycle, backend termination, and Python availability on
-  the target image;
+- AppLoad endpoint lifecycle and backend termination on the target image;
 - colour e-ink contrast, refresh behavior, and physical pen latency.
 
 No stock screenshot helper, tablet SSH, Xochitl mutation, installation,

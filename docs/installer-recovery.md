@@ -21,16 +21,17 @@ separate fields and must never be interchanged. The install phase activates only
 `10-letters-home-inert.qmd`; the launch QMD remains packaged but inactive until
 an approved hardware trial confirms the inert icon and Xochitl stability.
 
-With Qt `rcc` available, build the release with:
+With Qt `rcc` and a C compiler available, build the release with:
 
 ```bash
 python3 -m device_installer build-release --output tmp/letters-home-release
 ```
 
-The required tests use a deterministic fixture `rcc`, because the current VM
-does not provide the target Qt toolchain. That proves the package, checksum,
-permission, install and rollback contracts without claiming target-runtime
-compatibility for the synthetic RCC bytes.
+The required tests use a deterministic fixture `rcc` and compile the native
+backend for the host. The separate held hardware artifact uses Qt `rcc` 6.8.2
+and the ARM64 compiler from the digest-pinned reMarkable SDK container; its
+commands and hashes are in
+[`paper-pro-hardware-trial.md`](paper-pro-hardware-trial.md).
 
 ## Synthetic install and uninstall
 

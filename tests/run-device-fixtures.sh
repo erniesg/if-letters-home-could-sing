@@ -3,6 +3,7 @@ set -eu
 
 python3 -m unittest \
   tests.test_device_installer \
+  tests.test_appload_runtime \
   tests.test_toolbar_launcher \
   tests.test_tablet_app \
   tests.test_reply_review \

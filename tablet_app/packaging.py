@@ -55,37 +55,46 @@ def validate_source() -> None:
         if contract_fragment not in qml:
             raise ValueError(f"root QML is missing {contract_fragment}")
 
+    backend = (SOURCE / "backend" / "native_backend.c").read_text()
+    for contract_fragment in (
+        "SOCK_SEQPACKET",
+        "MESSAGE_SYSTEM_NEW_COORDINATOR",
+        "MESSAGE_CONFIRM_EMPTY",
+        'session->state = "marginalia"',
+    ):
+        if contract_fragment not in backend:
+            raise ValueError(f"native backend is missing {contract_fragment}")
 
-def build_bundle(output: Path, rcc: str) -> None:
+
+def build_bundle(
+    output: Path,
+    rcc: str,
+    cc: str = "cc",
+    cflags: Sequence[str] = (),
+) -> None:
     validate_source()
     if output.exists():
         raise FileExistsError(f"refusing to replace existing output: {output}")
-    (output / "backend" / "runtime").mkdir(parents=True)
+    (output / "backend").mkdir(parents=True)
     shutil.copy2(SOURCE / "manifest.json", output / "manifest.json")
     shutil.copy2(
         ROOT / "fixtures" / "generated" / "incoming-qiaopi-001.png",
         output / "icon.png",
     )
-    shutil.copy2(SOURCE / "backend" / "entry", output / "backend" / "entry")
-    runtime_app = output / "backend" / "runtime" / "tablet_app"
-    runtime_app.mkdir()
-    for filename in ("__init__.py", "adapter.py", "protocol.py"):
-        shutil.copy2(ROOT / "tablet_app" / filename, runtime_app / filename)
-    shutil.copytree(
-        ROOT / "experience_core",
-        output / "backend" / "runtime" / "experience_core",
-        ignore=shutil.ignore_patterns("__pycache__"),
-    )
-    shutil.copytree(
-        ROOT / "heart_rate",
-        output / "backend" / "runtime" / "heart_rate",
-        ignore=shutil.ignore_patterns("__pycache__"),
-    )
-    runtime_contracts = output / "backend" / "runtime" / "contracts"
-    shutil.copytree(ROOT / "contracts" / "v1", runtime_contracts / "v1")
-    shutil.copy2(
-        ROOT / "contracts" / "review.example.json",
-        runtime_contracts / "review.example.json",
+    subprocess.run(
+        [
+            cc,
+            *cflags,
+            "-std=c11",
+            "-O2",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            str(SOURCE / "backend" / "native_backend.c"),
+            "-o",
+            str(output / "backend" / "entry"),
+        ],
+        check=True,
     )
     subprocess.run(
         [rcc, "--binary", "-o", str(output / "resources.rcc"), str(SOURCE / "application.qrc")],
@@ -99,6 +108,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--check", action="store_true")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--rcc", default=shutil.which("rcc") or shutil.which("rcc6"))
+    parser.add_argument("--cc", default=shutil.which("cc"))
+    parser.add_argument("--cflag", action="append", default=[])
     arguments = parser.parse_args(argv)
     try:
         validate_source()
@@ -110,7 +121,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         if not arguments.rcc:
             print("AppLoad packaging blocked: Qt rcc is unavailable", file=sys.stderr)
             return 2
-        build_bundle(arguments.output, arguments.rcc)
+        if not arguments.cc:
+            print("AppLoad packaging blocked: C compiler is unavailable", file=sys.stderr)
+            return 2
+        build_bundle(
+            arguments.output,
+            arguments.rcc,
+            arguments.cc,
+            arguments.cflag,
+        )
     except (FileExistsError, OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"AppLoad packaging failed: {type(error).__name__}", file=sys.stderr)
         return 1
