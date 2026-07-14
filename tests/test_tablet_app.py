@@ -46,6 +46,47 @@ ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOTS = ROOT / "tablet_app" / "snapshots"
 
 
+def unix_seqpacket_supported():
+    try:
+        connection = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+    except OSError:
+        return False
+    connection.close()
+    return True
+
+
+UNIX_SEQPACKET_SUPPORTED = unix_seqpacket_supported()
+
+
+class PacketChannel:
+    def __init__(self):
+        self.packets = []
+
+    def send(self, contents):
+        self.packets.append(contents)
+        return len(contents)
+
+    def recv(self, _size):
+        return self.packets.pop(0) if self.packets else b""
+
+
+def build_fixture_bundle(temporary_path):
+    fake_rcc = temporary_path / "rcc"
+    fake_rcc.write_text(
+        "#!/bin/sh\n"
+        "out=\n"
+        "while [ \"$#\" -gt 0 ]; do\n"
+        "  if [ \"$1\" = -o ]; then shift; out=$1; fi\n"
+        "  shift\n"
+        "done\n"
+        "printf fixture-rcc > \"$out\"\n"
+    )
+    fake_rcc.chmod(0o755)
+    output = temporary_path / "bundle"
+    build_bundle(output, str(fake_rcc))
+    return output
+
+
 def captured_payload():
     stroke = MockPenSource.default().next_stroke()
     return {
@@ -112,19 +153,7 @@ class AppLoadSourceTests(unittest.TestCase):
     def test_bundle_builder_produces_the_required_appload_directory_shape(self):
         with tempfile.TemporaryDirectory() as temporary:
             temporary_path = Path(temporary)
-            fake_rcc = temporary_path / "rcc"
-            fake_rcc.write_text(
-                "#!/bin/sh\n"
-                "out=\n"
-                "while [ \"$#\" -gt 0 ]; do\n"
-                "  if [ \"$1\" = -o ]; then shift; out=$1; fi\n"
-                "  shift\n"
-                "done\n"
-                "printf fixture-rcc > \"$out\"\n"
-            )
-            fake_rcc.chmod(0o755)
-            output = temporary_path / "bundle"
-            build_bundle(output, str(fake_rcc))
+            output = build_fixture_bundle(temporary_path)
 
             self.assertTrue((output / "manifest.json").is_file())
             self.assertTrue((output / "icon.png").is_file())
@@ -141,6 +170,14 @@ class AppLoadSourceTests(unittest.TestCase):
                 (output / "backend" / "runtime" / "contracts" / "review.example.json").is_file()
             )
 
+    @unittest.skipUnless(
+        UNIX_SEQPACKET_SUPPORTED,
+        "requires Unix SOCK_SEQPACKET support from the host kernel",
+    )
+    def test_bundled_backend_uses_the_appload_socket_contract(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            temporary_path = Path(temporary)
+            output = build_fixture_bundle(temporary_path)
             path = str(temporary_path / "bundle.sock")
             with socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET) as listener:
                 listener.bind(path)
@@ -239,14 +276,18 @@ class AdapterIntegrationTests(unittest.TestCase):
 
 class SocketBoundaryTests(unittest.TestCase):
     def test_frame_helpers_match_separate_header_and_body_packets(self):
-        left, right = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-        with left, right:
-            outbound = OutboundMessage(101, {"state": "incoming"})
-            send_message(left, outbound)
-            message_type, contents = receive_message(right)
-            self.assertEqual(message_type, 101)
-            self.assertEqual(json.loads(contents), {"state": "incoming"})
+        connection = PacketChannel()
+        outbound = OutboundMessage(101, {"state": "incoming"})
+        send_message(connection, outbound)
+        message_type, contents = receive_message(connection)
+        self.assertEqual(message_type, 101)
+        self.assertEqual(json.loads(contents), {"state": "incoming"})
+        self.assertEqual(connection.packets, [])
 
+    @unittest.skipUnless(
+        UNIX_SEQPACKET_SUPPORTED,
+        "requires Unix SOCK_SEQPACKET support from the host kernel",
+    )
     def test_backend_connects_to_socket_from_argv_one(self):
         with tempfile.TemporaryDirectory() as temporary:
             path = str(Path(temporary) / "appload.sock")

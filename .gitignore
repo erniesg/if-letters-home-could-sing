@@ -35,7 +35,6 @@ node_modules/
 .jpg*
 ref/
 .next
-.python-version
 models/
 # Local rucksack outputs and generated artifacts
 .agent/evidence/

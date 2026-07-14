@@ -30,6 +30,7 @@ class PythonWorkspaceTests(unittest.TestCase):
         metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())
         project = metadata["project"]
 
+        self.assertEqual((ROOT / ".python-version").read_text().strip(), "3.12.8")
         self.assertEqual(project["requires-python"], ">=3.11,<3.13")
         self.assertEqual(project["dependencies"], [])
         self.assertEqual(project["optional-dependencies"]["dev"], [])
