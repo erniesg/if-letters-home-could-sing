@@ -14,5 +14,5 @@ dependencies = []
 dev = []
 
 [tool.setuptools]
-packages = ["experience_core", "tablet_app"]
+packages = ["experience_core", "tablet_app", "toolbar_launcher"]
 py-modules = []
