@@ -61,4 +61,8 @@ python3 -m tablet_app.packaging --check
 See [`docs/tablet-simulator.md`](docs/tablet-simulator.md) for the AppLoad
 source/bundle boundary and the hardware behavior that remains unverified.
 
+The rollback-safe dual-device packaging slice is fixture-only. See
+[`docs/installer-recovery.md`](docs/installer-recovery.md) for the versioned
+release manifest, synthetic Ferrari/Chiappa matrix, and held hardware gates.
+
 Legacy ML/data tests live under `legacy_tests/` and remain an explicit optional lane because required datasets, mapping outputs, fonts, and parts of the historical pipeline are not available in a clean checkout. Their public dependency subset is pinned separately in `requirements-legacy.txt`. Run `scripts/legacy-tests` to preflight that setup; it exits `2` with a setup-block report when local research inputs are unavailable. Missing private inputs must not be copied into the repository.
