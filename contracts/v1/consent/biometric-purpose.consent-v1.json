@@ -1,0 +1,18 @@
+{
+  "schema_version": "1",
+  "consent_version": "consent-v1",
+  "status": "fixture-only",
+  "purpose_notice": "Heart rate can add a live rhythm to this encounter. It is optional; your reply and marginalia work the same without it.",
+  "choices": [
+    {
+      "id": "connect-whoop",
+      "label": "Connect WHOOP",
+      "records": "granted"
+    },
+    {
+      "id": "continue-without-heart-rate",
+      "label": "Continue without heart rate",
+      "records": "declined"
+    }
+  ]
+}

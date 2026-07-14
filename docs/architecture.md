@@ -98,6 +98,12 @@ Minimum fields:
 - heart-rate consent state, samples, gaps, and source;
 - retention deadline and deletion status.
 
+The existing session `retention_deadline` is the operational deadline. Optional
+installation retention is represented separately and requires its own consent
+decision and deadline; it never silently extends storage of operational ink or
+raw biometrics. The fixture implementation and threat model are documented in
+[`privacy-data-flow.md`](privacy-data-flow.md).
+
 Do not store WHOOP email/profile fields by default. Do not put participant ink, heart-rate samples, OAuth tokens, prompts containing personal data, or provider responses into GitHub issues, PRs, CI logs, or Rucksack evidence.
 
 ## Security and privacy boundary
@@ -107,6 +113,8 @@ Do not store WHOOP email/profile fields by default. Do not put participant ink, 
 - Separate optional research/installation retention from what is required to render page 3.
 - Encrypt transport and stored sensitive session objects; rotate identifiers between installations.
 - Provide deletion by session receipt and enforce a configured retention deadline.
+- Treat withdrawal as deletion, retry partial per-category deletion, and allow no
+  tombstone unless a reviewed aggregate approval is explicitly recorded.
 - Keep tokens in the trusted secret store, not `.env` files committed to the repository.
 - Do not expose the gateway directly from the VM until private networking and an approved publication boundary are verified.
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Iterable, Mapping, Optional, Sequence, Tuple
 
 from experience_core import (
@@ -24,6 +25,7 @@ from experience_core import (
     submit,
     swipe,
 )
+from experience_core.privacy import ConsentRecord, load_consent_copy
 
 
 MESSAGE_OPEN = 1
@@ -31,6 +33,7 @@ MESSAGE_SWIPE = 2
 MESSAGE_STROKE = 3
 MESSAGE_SUBMIT = 4
 MESSAGE_RETRY = 5
+MESSAGE_CONSENT = 6
 
 MESSAGE_STATE = 101
 MESSAGE_CONFIRM_EMPTY = 102
@@ -40,6 +43,8 @@ FIXTURE_SESSION_ID = "fixture-session-0001"
 FIXTURE_REVIEW_ID = "fixture-review-0001"
 FIXTURE_CREATED_AT = "2026-07-14T00:00:00Z"
 FIXTURE_SUBMITTED_AT = "2026-07-14T00:01:02Z"
+FIXTURE_CONSENT_AT = "2026-07-14T00:00:02Z"
+
 
 @dataclass(frozen=True)
 class CapturedPoint:
@@ -152,6 +157,8 @@ class FixtureBackend:
             session_id=FIXTURE_SESSION_ID,
             created_at=FIXTURE_CREATED_AT,
         )
+        self.consent = ConsentRecord(FIXTURE_SESSION_ID)
+        self.consent_copy = load_consent_copy()
         self.pen_records: Tuple[CapturedStroke, ...] = ()
         self._review_outcomes = tuple(review_outcomes)
         self._review_attempt = 0
@@ -177,13 +184,26 @@ class FixtureBackend:
                 return self._submit(payload)
             if message_type == MESSAGE_RETRY:
                 return self._retry()
+            if message_type == MESSAGE_CONSENT:
+                return self._consent(payload)
             return (self._error_message("unknown_message"),)
         except (KeyError, TypeError, ValueError) as error:
             return (self._error_message(_safe_error_code(error)),)
 
     def _swipe(self, payload: Mapping[str, object]) -> Tuple[OutboundMessage, ...]:
+        if self.consent.biometric_decision == "pending":
+            return (self._error_message("consent_required"),)
         self.session = swipe(self.session, str(payload["direction"]))
         return (self._state_message(),)
+
+    def _consent(self, payload: Mapping[str, object]) -> Tuple[OutboundMessage, ...]:
+        decision = _string_field(payload, "decision")
+        decided_at = _string_field(payload, "decided_at", FIXTURE_CONSENT_AT)
+        self.consent = self.consent.decide_biometric(
+            decision,
+            datetime.fromisoformat(decided_at.replace("Z", "+00:00")),
+        )
+        return (self._state_message(event=f"biometric_consent_{decision}"),)
 
     def _accept_stroke(
         self, payload: Mapping[str, object]
@@ -273,6 +293,8 @@ class FixtureBackend:
     def _state_message(self, *, event: Optional[str] = None) -> OutboundMessage:
         payload: dict[str, object] = {
             "annotations": [_annotation_payload(item) for item in self.session.annotations],
+            "biometricConsent": self.consent.biometric_decision,
+            "consentVersion": self.consent.consent_version,
             "errorCode": self.session.error_code,
             "firstInkAt": self.session.first_ink_at,
             "reviewStatus": (
@@ -282,6 +304,12 @@ class FixtureBackend:
                 self.review_document["summary"] if self.review_document else ""
             ),
             "reviewId": self.session.review_id,
+            "heartRateStatus": {
+                "pending": "idle",
+                "granted": "unavailable",
+                "declined": "declined",
+            }[self.consent.biometric_decision],
+            "purposeNotice": self.consent_copy["purpose_notice"],
             "state": self.session.state.value,
             "strokes": [_stroke_payload(item) for item in self.session.strokes],
         }
@@ -344,8 +372,10 @@ def _safe_error_code(error: Exception) -> str:
     return "invalid_message"
 
 
-def _string_field(payload: Mapping[str, object], name: str) -> str:
-    value = payload[name]
+def _string_field(
+    payload: Mapping[str, object], name: str, default: Optional[str] = None
+) -> str:
+    value = payload.get(name, default)
     if not isinstance(value, str):
         raise TypeError(f"{name} must be a string")
     return value

@@ -10,6 +10,9 @@ from typing import Any
 
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "contracts" / "v1" / "schemas"
 CONTRACTS = {
+    "consent-copy": "consent-copy.schema.json",
+    "consent": "consent.schema.json",
+    "installation-export": "installation-export.schema.json",
     "letter-provenance": "letter-provenance.schema.json",
     "stroke": "stroke.schema.json",
     "heart-rate": "heart-rate.schema.json",
@@ -30,7 +33,13 @@ def validate_payload(contract: str, payload: Any) -> None:
         raise ValueError(f"unknown contract: {contract}") from error
     schema = json.loads(schema_path.read_text())
     _validate_schema(schema, payload, "$", schema_path.parent)
-    if contract == "heart-rate":
+    if contract == "consent-copy":
+        _validate_consent_copy(payload)
+    elif contract == "consent":
+        _validate_consent(payload)
+    elif contract == "installation-export":
+        _validate_installation_export(payload)
+    elif contract == "heart-rate":
         _validate_heart_rate(payload, "$")
     elif contract == "review":
         _validate_review(payload, "$")
@@ -146,6 +155,60 @@ def _validate_heart_rate(payload: dict, path: str) -> None:
         ended = _timestamp(gap["ended_at"], f"{path}.gaps[{index}].ended_at")
         if ended < started:
             raise ContractValidationError("heart-rate gap cannot end before it starts")
+
+
+def _validate_consent_copy(payload: dict) -> None:
+    choices = {choice["id"]: choice for choice in payload["choices"]}
+    expected = {
+        "connect-whoop": "granted",
+        "continue-without-heart-rate": "declined",
+    }
+    if set(choices) != set(expected):
+        raise ContractValidationError("$.choices must contain both biometric choices")
+    for choice_id, decision in expected.items():
+        if choices[choice_id]["records"] != decision:
+            raise ContractValidationError(f"$.choices[{choice_id}] records the wrong decision")
+
+
+def _validate_consent(payload: dict) -> None:
+    biometric_decided = payload["biometric_decided_at"]
+    if (payload["biometric_decision"] == "pending") != (biometric_decided is None):
+        raise ContractValidationError(
+            "$.biometric_decided_at must be set exactly when biometric consent is decided"
+        )
+    research_decided = payload["research_decided_at"]
+    if (payload["research_decision"] == "not-requested") != (research_decided is None):
+        raise ContractValidationError(
+            "$.research_decided_at must be set exactly when research consent is decided"
+        )
+    withdrawn = payload["withdrawn_at"]
+    if withdrawn:
+        withdrawn_at = _timestamp(withdrawn, "$.withdrawn_at")
+        decisions = [value for value in (biometric_decided, research_decided) if value]
+        if decisions and withdrawn_at < max(
+            _timestamp(value, "$.consent_decision") for value in decisions
+        ):
+            raise ContractValidationError("$.withdrawn_at cannot predate a consent decision")
+
+
+def _validate_installation_export(payload: dict) -> None:
+    sample_times = [item["elapsed_ms"] for item in payload["heart_rate"]["samples"]]
+    if sample_times != sorted(sample_times):
+        raise ContractValidationError("$.heart_rate.samples must be ordered by elapsed_ms")
+    for gap in payload["heart_rate"]["gaps"]:
+        if gap["ended_elapsed_ms"] < gap["started_elapsed_ms"]:
+            raise ContractValidationError("installation export gap cannot end before it starts")
+    events = payload["interaction_events"]
+    event_times = [item["elapsed_ms"] for item in events]
+    if event_times != sorted(event_times):
+        raise ContractValidationError("$.interaction_events must be ordered by elapsed_ms")
+    if not any(item == {"elapsed_ms": 0, "event": "first-ink"} for item in events):
+        raise ContractValidationError("installation export must anchor first ink at zero")
+    if not any(
+        item == {"elapsed_ms": payload["duration_ms"], "event": "submit"}
+        for item in events
+    ):
+        raise ContractValidationError("installation export must end with submit at duration_ms")
 
 
 def _validate_review(payload: dict, path: str) -> None:

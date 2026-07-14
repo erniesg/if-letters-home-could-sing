@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://if-letters-home-could-sing.invalid/contracts/v1/consent.schema.json",
+  "title": "Pseudonymous session consent state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session_id",
+    "consent_version",
+    "biometric_decision",
+    "biometric_decided_at",
+    "research_decision",
+    "research_decided_at",
+    "withdrawn_at"
+  ],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "session_id": {
+      "type": "string",
+      "pattern": "^(?:fixture-session-[a-z0-9-]+|session-[0-9a-f]{32})$"
+    },
+    "consent_version": {"type": "string", "pattern": "^consent-v[0-9]+$"},
+    "biometric_decision": {"enum": ["pending", "granted", "declined"]},
+    "biometric_decided_at": {"type": ["string", "null"], "format": "date-time"},
+    "research_decision": {"enum": ["not-requested", "granted", "declined"]},
+    "research_decided_at": {"type": ["string", "null"], "format": "date-time"},
+    "withdrawn_at": {"type": ["string", "null"], "format": "date-time"}
+  }
+}

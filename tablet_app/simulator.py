@@ -9,6 +9,7 @@ from typing import Mapping, Optional, Sequence, Tuple
 
 from .adapter import (
     MESSAGE_CONFIRM_EMPTY,
+    MESSAGE_CONSENT,
     MESSAGE_OPEN,
     MESSAGE_RETRY,
     MESSAGE_STATE,
@@ -35,6 +36,7 @@ def run_scenario(name: str) -> Tuple[FixtureBackend, Tuple[str, ...]]:
     }[name]
     backend = FixtureBackend(outcomes)
     states = [backend.session.state.value]
+    backend.dispatch(MESSAGE_CONSENT, {"decision": "declined"})
     states.append(_last_state(backend.dispatch(MESSAGE_SWIPE, {"direction": "forward"})))
 
     if name == "empty":
@@ -85,6 +87,7 @@ def snapshot_state(state: str) -> Mapping[str, object]:
     backend = FixtureBackend()
     if state == "incoming":
         return backend.dispatch(MESSAGE_OPEN)[0].payload
+    backend.dispatch(MESSAGE_CONSENT, {"decision": "declined"})
     backend.dispatch(MESSAGE_SWIPE, {"direction": "forward"})
     if state == "reply":
         return backend.dispatch(MESSAGE_OPEN)[0].payload

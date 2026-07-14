@@ -22,6 +22,12 @@ Backward swipe from `incoming` and swipes unrelated to the current page are no-o
 
 Version 1 schemas live in `contracts/v1/schemas`. Session state uses caller-supplied RFC 3339 timestamps so replay does not consult a clock. A confirmed empty submission has empty `strokes`, a null `first_ink_at`, and no heart-rate samples; fake ink is never inserted.
 
+The privacy boundary adds versioned `consent`, `consent-copy`, and
+`installation-export` contracts. `experience_core.privacy` keeps operational and
+opted-in research deadlines separate, deletes sensitive categories idempotently,
+and creates exports from an explicit allowlist using time relative to first ink.
+It deliberately supplies no production retention duration.
+
 `submitted_at` closes the capture window in the same pure transition that records `review_id`. Recoverable errors preserve that durable submission. Heart-rate gaps remain explicit intervals, and samples must remain between `first_ink_at` and `submitted_at`.
 
 The participant's strokes are frozen values after acceptance and cannot be added after submit. Review annotations are carried by the separate review schema and never replace or rewrite the stroke array. Generated and fixture letter provenance is explicitly fictional; the closed provenance schema rejects accession-number claims and copied archival identity fields.

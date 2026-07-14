@@ -10,6 +10,7 @@ from pathlib import Path
 
 from tablet_app import (
     MESSAGE_CONFIRM_EMPTY,
+    MESSAGE_CONSENT,
     MESSAGE_OPEN,
     MESSAGE_RETRY,
     MESSAGE_STATE,
@@ -150,6 +151,14 @@ class AppLoadSourceTests(unittest.TestCase):
         self.assertIn("Accessible.description: \"Provenance disclosure\"", qml)
         self.assertIn("qrc:/assets/incoming-qiaopi-001.png", qml)
 
+    def test_qml_presents_versioned_optional_heart_rate_choices(self):
+        qml = (SOURCE / "ui" / "Main.qml").read_text()
+        self.assertIn('text: "Heart rate is optional"', qml)
+        self.assertIn('text: "Connect WHOOP"', qml)
+        self.assertIn('text: "Continue without heart rate"', qml)
+        self.assertIn('visible: biometricConsent === "pending"', qml)
+        self.assertIn('Accessible.description: "Purpose notice " + consentVersion', qml)
+
     def test_bundle_builder_produces_the_required_appload_directory_shape(self):
         with tempfile.TemporaryDirectory() as temporary:
             temporary_path = Path(temporary)
@@ -174,6 +183,23 @@ class AppLoadSourceTests(unittest.TestCase):
             )
             self.assertTrue(
                 (output / "backend" / "runtime" / "experience_core" / "reviewer.py").is_file()
+            )
+            self.assertTrue(
+                (output / "backend" / "runtime" / "experience_core" / "privacy.py").is_file()
+            )
+            self.assertTrue(
+                (output / "backend" / "runtime" / "heart_rate" / "models.py").is_file()
+            )
+            self.assertTrue(
+                (
+                    output
+                    / "backend"
+                    / "runtime"
+                    / "contracts"
+                    / "v1"
+                    / "consent"
+                    / "biometric-purpose.consent-v1.json"
+                ).is_file()
             )
 
     @unittest.skipUnless(
@@ -208,7 +234,30 @@ class AppLoadSourceTests(unittest.TestCase):
 class AdapterIntegrationTests(unittest.TestCase):
     def setUp(self):
         self.backend = FixtureBackend()
+        self.backend.dispatch(MESSAGE_CONSENT, {"decision": "declined"})
         self.backend.dispatch(MESSAGE_SWIPE, {"direction": "forward"})
+
+    def test_biometric_choices_record_consent_and_enable_equivalent_flow(self):
+        for decision, expected_status in (
+            ("granted", "unavailable"),
+            ("declined", "declined"),
+        ):
+            with self.subTest(decision=decision):
+                backend = FixtureBackend()
+                opened = backend.dispatch(MESSAGE_OPEN)[0]
+                blocked = backend.dispatch(MESSAGE_SWIPE, {"direction": "forward"})[0]
+                consented = backend.dispatch(MESSAGE_CONSENT, {"decision": decision})[0]
+                reply = backend.dispatch(MESSAGE_SWIPE, {"direction": "forward"})[0]
+                backend.dispatch(MESSAGE_STROKE, captured_payload())
+                final = backend.dispatch(MESSAGE_SUBMIT, {"confirm_empty": False})[-1]
+
+                self.assertEqual(opened.payload["biometricConsent"], "pending")
+                self.assertEqual(opened.payload["consentVersion"], "consent-v1")
+                self.assertTrue(opened.payload["purposeNotice"])
+                self.assertEqual(blocked.payload["code"], "consent_required")
+                self.assertEqual(consented.payload["heartRateStatus"], expected_status)
+                self.assertEqual(reply.payload["state"], "reply")
+                self.assertEqual(final.payload["state"], "marginalia")
 
     def test_forward_back_forward_navigation_preserves_accepted_ink(self):
         accepted = self.backend.dispatch(MESSAGE_STROKE, captured_payload())[0]
@@ -245,6 +294,7 @@ class AdapterIntegrationTests(unittest.TestCase):
 
     def test_timeout_retry_shows_progress_and_never_changes_ink(self):
         backend = FixtureBackend(("timeout", "success"))
+        backend.dispatch(MESSAGE_CONSENT, {"decision": "declined"})
         backend.dispatch(MESSAGE_SWIPE, {"direction": "forward"})
         backend.dispatch(MESSAGE_STROKE, captured_payload())
         original_ink = backend.session.strokes
@@ -258,6 +308,7 @@ class AdapterIntegrationTests(unittest.TestCase):
 
     def test_offline_failure_keeps_reply_available_for_retry(self):
         backend = FixtureBackend(("offline",))
+        backend.dispatch(MESSAGE_CONSENT, {"decision": "declined"})
         backend.dispatch(MESSAGE_SWIPE, {"direction": "forward"})
         backend.dispatch(MESSAGE_STROKE, captured_payload())
         ink = backend.session.strokes

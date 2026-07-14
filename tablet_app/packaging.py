@@ -76,6 +76,11 @@ def build_bundle(output: Path, rcc: str) -> None:
         output / "backend" / "runtime" / "experience_core",
         ignore=shutil.ignore_patterns("__pycache__"),
     )
+    shutil.copytree(
+        ROOT / "heart_rate",
+        output / "backend" / "runtime" / "heart_rate",
+        ignore=shutil.ignore_patterns("__pycache__"),
+    )
     runtime_contracts = output / "backend" / "runtime" / "contracts"
     shutil.copytree(ROOT / "contracts" / "v1", runtime_contracts / "v1")
     shutil.copy2(

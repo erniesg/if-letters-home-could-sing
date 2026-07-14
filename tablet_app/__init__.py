@@ -2,6 +2,7 @@
 
 from .adapter import (
     MESSAGE_CONFIRM_EMPTY,
+    MESSAGE_CONSENT,
     MESSAGE_ERROR,
     MESSAGE_OPEN,
     MESSAGE_RETRY,
@@ -18,6 +19,7 @@ from .adapter import (
 
 __all__ = [
     "MESSAGE_CONFIRM_EMPTY",
+    "MESSAGE_CONSENT",
     "MESSAGE_ERROR",
     "MESSAGE_OPEN",
     "MESSAGE_RETRY",

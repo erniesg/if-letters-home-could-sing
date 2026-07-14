@@ -18,6 +18,7 @@ from experience_core import (
 )
 from tablet_app import (
     MESSAGE_RETRY,
+    MESSAGE_CONSENT,
     MESSAGE_STROKE,
     MESSAGE_SUBMIT,
     MESSAGE_SWIPE,
@@ -211,6 +212,7 @@ class ReviewPolicyTests(unittest.TestCase):
 class ReviewAdapterTests(unittest.TestCase):
     def test_backend_renders_structured_review_and_ignores_duplicate_submit(self):
         backend = FixtureBackend()
+        backend.dispatch(MESSAGE_CONSENT, {"decision": "declined"})
         backend.dispatch(MESSAGE_SWIPE, {"direction": "forward"})
         backend.dispatch(MESSAGE_STROKE, captured_payload())
         first = backend.dispatch(MESSAGE_SUBMIT, {"confirm_empty": False})[-1]
@@ -229,6 +231,7 @@ class ReviewAdapterTests(unittest.TestCase):
             ("success", "success"),
             reviewer=FixtureReplyReviewer("provider-error"),
         )
+        backend.dispatch(MESSAGE_CONSENT, {"decision": "declined"})
         backend.dispatch(MESSAGE_SWIPE, {"direction": "forward"})
         backend.dispatch(MESSAGE_STROKE, captured_payload())
         first = backend.dispatch(MESSAGE_SUBMIT, {"confirm_empty": False})[-1]

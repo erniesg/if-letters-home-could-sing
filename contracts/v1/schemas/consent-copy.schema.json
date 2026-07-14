@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://if-letters-home-could-sing.invalid/contracts/v1/consent-copy.schema.json",
+  "title": "Versioned biometric purpose notice",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "consent_version", "status", "purpose_notice", "choices"],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "consent_version": {"type": "string", "pattern": "^consent-v[0-9]+$"},
+    "status": {"const": "fixture-only"},
+    "purpose_notice": {"type": "string", "minLength": 1, "maxLength": 240},
+    "choices": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "records"],
+        "properties": {
+          "id": {"enum": ["connect-whoop", "continue-without-heart-rate"]},
+          "label": {"type": "string", "minLength": 1, "maxLength": 64},
+          "records": {"enum": ["granted", "declined"]}
+        }
+      }
+    }
+  }
+}

@@ -17,6 +17,10 @@ Rectangle {
     property var annotations: []
     property string reviewStatus: ""
     property string reviewSummary: ""
+    property string biometricConsent: "pending"
+    property string consentVersion: ""
+    property string purposeNotice: ""
+    property string heartRateStatus: "idle"
     property bool emptyConfirmationVisible: false
     property bool marginaliaVisible: true
     property bool ferrariProfile: Math.max(width, height) / Math.min(width, height) > 1.55
@@ -44,6 +48,10 @@ Rectangle {
         annotations = payload.annotations || []
         reviewStatus = payload.reviewStatus || ""
         reviewSummary = payload.reviewSummary || ""
+        biometricConsent = payload.biometricConsent || "pending"
+        consentVersion = payload.consentVersion || ""
+        purposeNotice = payload.purposeNotice || ""
+        heartRateStatus = payload.heartRateStatus || "idle"
         inkLayer.strokes = strokes
         marginaliaLayer.annotations = annotations
         marginaliaLayer.summary = reviewSummary
@@ -280,7 +288,13 @@ Rectangle {
                   ? "Offline — your ink is safe on this page"
                   : errorCode === "reviewer_unavailable" || errorCode === "invalid_review" || errorCode === "reviewer_mutated_input"
                   ? "A reading is unavailable — your original ink is safe"
-                  : "Heart rate unavailable — reply is still available"
+                  : heartRateStatus === "connected"
+                  ? "Heart rate connected — capture begins with your first ink"
+                  : heartRateStatus === "declined"
+                  ? "Heart rate declined — reply and marginalia remain available"
+                  : heartRateStatus === "unavailable"
+                  ? "Heart rate unavailable — reply and marginalia remain available"
+                  : "Heart rate is optional"
             wrapMode: Text.WordWrap
             elide: Text.ElideNone
             Accessible.name: text
@@ -339,6 +353,85 @@ Rectangle {
             text: "Reading your reply…"
             Accessible.name: text
             Accessible.role: Accessible.StaticText
+        }
+    }
+
+    Rectangle {
+        id: consentOverlay
+        anchors.fill: parent
+        visible: biometricConsent === "pending"
+        z: 30
+        color: "#e5d9c2"
+        Accessible.name: "Optional heart-rate purpose notice"
+        Accessible.role: Accessible.Dialog
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(parent.width * 0.84, 1080)
+            height: Math.min(parent.height * 0.76, 620)
+            color: "#f6efdf"
+            border.color: "#74362f"
+            border.width: 4
+            radius: 10
+
+            Text {
+                id: consentHeading
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 42
+                color: "#2f2923"
+                font.pixelSize: 42
+                text: "Heart rate is optional"
+                wrapMode: Text.WordWrap
+                Accessible.name: text
+                Accessible.role: Accessible.Heading
+            }
+
+            Text {
+                id: consentPurpose
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: consentHeading.bottom
+                anchors.margins: 42
+                color: "#2f2923"
+                font.pixelSize: 30
+                text: purposeNotice
+                wrapMode: Text.WordWrap
+                elide: Text.ElideNone
+                Accessible.name: text
+                Accessible.description: "Purpose notice " + consentVersion
+                Accessible.role: Accessible.StaticText
+            }
+
+            Row {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 42
+                spacing: 24
+
+                Button {
+                    width: 360
+                    height: root.minimumTouchTarget
+                    text: "Continue without heart rate"
+                    Accessible.name: text
+                    onClicked: send(6, {
+                        "decision": "declined",
+                        "decided_at": new Date().toISOString()
+                    })
+                }
+
+                Button {
+                    width: 280
+                    height: root.minimumTouchTarget
+                    text: "Connect WHOOP"
+                    Accessible.name: text
+                    onClicked: send(6, {
+                        "decision": "granted",
+                        "decided_at": new Date().toISOString()
+                    })
+                }
+            }
         }
     }
 
