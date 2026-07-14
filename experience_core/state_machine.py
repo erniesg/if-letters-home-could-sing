@@ -78,12 +78,22 @@ class Annotation:
 
     def __post_init__(self):
         _require_identifier(self.annotation_id, "annotation_id")
-        if self.kind not in {"correction", "uncertain-reading", "tone", "reflection"}:
+        if self.kind not in {
+            "correction",
+            "uncertain-reading",
+            "affirmation",
+            "tone",
+            "reflection",
+        }:
             raise ValueError("unknown annotation kind")
         if not self.message:
             raise ValueError("annotation message must not be empty")
+        if len(self.message) > 180:
+            raise ValueError("annotation message is too long")
         if not 0 <= self.confidence <= 1:
             raise ValueError("confidence must be between zero and one")
+        if self.kind == "correction" and self.confidence < 0.7:
+            raise ValueError("low-confidence text cannot be a correction")
 
 
 @dataclass(frozen=True)

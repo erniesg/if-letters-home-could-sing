@@ -39,8 +39,9 @@
     "schema_version": "1",
     "review_id": "fixture-review-0001",
     "session_id": "fixture-session-0001",
-    "reviewer": "fixture",
-    "summary": "Your reply acknowledges the family's care and answers the invitation directly.",
+    "reviewer": "fixture-reply-reviewer-v1",
+    "status": "reviewed",
+    "summary": "This reading notices your direct response and the care carried in your wording.",
     "annotations": [
       {
         "id": "annotation-1",

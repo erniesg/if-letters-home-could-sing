@@ -23,8 +23,12 @@
 <path d="M 359 328 L 424 355 L 522 395" stroke-width="5"/>
 </g>
 <g id="marginalia-layer">
+<rect x="326" y="288" width="196" height="40" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="326" y="274" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">Consider using 您 here to keep the respectful address consistent.</text>
 <rect x="1027" y="408" width="130" height="27" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
 <text x="1027" y="394" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">This character is difficult to read; did you mean 家?</text>
+<rect x="620" y="514" width="391" height="46" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="620" y="500" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">Your acknowledgement of the family's care feels clear and warm.</text>
 <rect x="229" y="647" width="1011" height="53" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
 <text x="229" y="633" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">What would you want the reader to know about the distance between you?</text>
 </g>

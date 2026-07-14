@@ -1,6 +1,17 @@
 """Portable contracts for the qiao pi correspondence experience."""
 
 from .contracts import ContractValidationError, validate_payload
+from .reviewer import (
+    FixtureReplyReviewer,
+    RenderedReplyPage,
+    ReplyReviewer,
+    ReviewProviderError,
+    ReviewRequest,
+    make_review_request,
+    render_reply_page,
+    review_annotations,
+    review_reply,
+)
 from .state_machine import (
     Anchor,
     Annotation,
@@ -26,7 +37,12 @@ __all__ = [
     "ContractValidationError",
     "ExperienceSession",
     "ExperienceState",
+    "FixtureReplyReviewer",
     "Point",
+    "RenderedReplyPage",
+    "ReplyReviewer",
+    "ReviewProviderError",
+    "ReviewRequest",
     "Stroke",
     "SubmissionDecision",
     "TransitionError",
@@ -35,7 +51,11 @@ __all__ = [
     "fail_review",
     "fail_submission",
     "new_session",
+    "make_review_request",
+    "render_reply_page",
     "retry",
+    "review_annotations",
+    "review_reply",
     "submit",
     "swipe",
     "validate_payload",

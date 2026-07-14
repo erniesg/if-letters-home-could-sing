@@ -1,6 +1,7 @@
 """Small dependency-free validator for the versioned experience contracts."""
 
 import json
+import math
 import re
 from datetime import datetime
 from pathlib import Path
@@ -74,6 +75,8 @@ def _validate_schema(schema: dict, value: Any, path: str, schema_dir: Path) -> N
     if isinstance(value, list):
         if len(value) < schema.get("minItems", 0):
             raise ContractValidationError(f"{path} has too few items")
+        if len(value) > schema.get("maxItems", len(value)):
+            raise ContractValidationError(f"{path} has too many items")
         if schema.get("uniqueItems"):
             canonical = [json.dumps(item, sort_keys=True) for item in value]
             if len(canonical) != len(set(canonical)):
@@ -85,12 +88,16 @@ def _validate_schema(schema: dict, value: Any, path: str, schema_dir: Path) -> N
     if isinstance(value, str):
         if len(value) < schema.get("minLength", 0):
             raise ContractValidationError(f"{path} must not be empty")
+        if len(value) > schema.get("maxLength", len(value)):
+            raise ContractValidationError(f"{path} is too long")
         if "pattern" in schema and re.fullmatch(schema["pattern"], value) is None:
             raise ContractValidationError(f"{path} does not match the required pattern")
         if schema.get("format") == "date-time":
             _timestamp(value, path)
 
     if isinstance(value, (int, float)) and not isinstance(value, bool):
+        if not math.isfinite(value):
+            raise ContractValidationError(f"{path} must be finite")
         if "minimum" in schema and value < schema["minimum"]:
             raise ContractValidationError(f"{path} is below the minimum")
         if "maximum" in schema and value > schema["maximum"]:
@@ -142,12 +149,35 @@ def _validate_heart_rate(payload: dict, path: str) -> None:
 
 
 def _validate_review(payload: dict, path: str) -> None:
+    annotation_ids = [annotation["id"] for annotation in payload["annotations"]]
+    if len(annotation_ids) != len(set(annotation_ids)):
+        raise ContractValidationError(f"{path}.annotations must use unique ids")
+    forbidden = re.compile(r"\b(?:scores?|grades?|correct answer|full transcription)\b", re.IGNORECASE)
+    for field, text in (("summary", payload["summary"]),):
+        if forbidden.search(text):
+            raise ContractValidationError(f"{path}.{field} uses prohibited evaluative language")
     for index, annotation in enumerate(payload["annotations"]):
         anchor = annotation["anchor"]
         if anchor["x"] + anchor["width"] > 1 or anchor["y"] + anchor["height"] > 1:
             raise ContractValidationError(
                 f"{path}.annotations[{index}].anchor extends beyond page"
             )
+        message = annotation["message"]
+        if forbidden.search(message):
+            raise ContractValidationError(
+                f"{path}.annotations[{index}].message uses prohibited evaluative language"
+            )
+        if annotation["confidence"] < 0.7:
+            if annotation["kind"] == "correction":
+                raise ContractValidationError("low-confidence text cannot be a correction")
+            uncertainty = re.compile(
+                r"(?:\?|\b(?:might|perhaps|unclear|difficult to read|not sure|could)\b)",
+                re.IGNORECASE,
+            )
+            if uncertainty.search(message) is None:
+                raise ContractValidationError(
+                    "low-confidence text must be phrased as a question or uncertainty"
+                )
 
 
 def _validate_session(payload: dict) -> None:

@@ -4,20 +4,23 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Iterable, Mapping, Optional, Sequence, Tuple
 
 from experience_core import (
-    Anchor,
-    Annotation,
+    FixtureReplyReviewer,
     Point,
+    ReplyReviewer,
+    ReviewProviderError,
     Stroke,
     accept_stroke,
     complete_review,
     fail_review,
     fail_submission,
+    make_review_request,
     new_session,
     retry,
+    review_annotations,
+    review_reply,
     submit,
     swipe,
 )
@@ -37,9 +40,6 @@ FIXTURE_SESSION_ID = "fixture-session-0001"
 FIXTURE_REVIEW_ID = "fixture-review-0001"
 FIXTURE_CREATED_AT = "2026-07-14T00:00:00Z"
 FIXTURE_SUBMITTED_AT = "2026-07-14T00:01:02Z"
-
-ROOT = Path(__file__).resolve().parents[1]
-
 
 @dataclass(frozen=True)
 class CapturedPoint:
@@ -136,7 +136,13 @@ class FixtureBackend:
     ``success``, ``timeout``, and ``offline``.
     """
 
-    def __init__(self, review_outcomes: Sequence[str] = ("success",)) -> None:
+    def __init__(
+        self,
+        review_outcomes: Sequence[str] = ("success",),
+        *,
+        reviewer: Optional[ReplyReviewer] = None,
+        review_fixture: str = "auto",
+    ) -> None:
         if not review_outcomes:
             raise ValueError("at least one review outcome is required")
         unknown = set(review_outcomes) - {"success", "timeout", "offline"}
@@ -149,7 +155,8 @@ class FixtureBackend:
         self.pen_records: Tuple[CapturedStroke, ...] = ()
         self._review_outcomes = tuple(review_outcomes)
         self._review_attempt = 0
-        self._annotations = _fixture_annotations()
+        self._reviewer = reviewer or FixtureReplyReviewer(review_fixture)
+        self.review_document: Optional[Mapping[str, object]] = None
 
     def dispatch(
         self,
@@ -224,6 +231,8 @@ class FixtureBackend:
                     },
                 ),
             )
+        if decision.session is self.session and self.session.review_id is not None:
+            return (self._state_message(event="duplicate_submit_ignored"),)
         self.session = decision.session
         messages = [self._state_message(event="submission_started")]
         self._finish_review_attempt()
@@ -246,10 +255,19 @@ class FixtureBackend:
         elif outcome == "offline":
             self.session = fail_submission(self.session, "gateway_offline")
         else:
+            try:
+                document = review_reply(
+                    self._reviewer,
+                    make_review_request(self.session),
+                )
+            except ReviewProviderError as error:
+                self.session = fail_review(self.session, error.code)
+                return
+            self.review_document = document
             self.session = complete_review(
                 self.session,
                 review_id=FIXTURE_REVIEW_ID,
-                annotations=self._annotations,
+                annotations=review_annotations(document),
             )
 
     def _state_message(self, *, event: Optional[str] = None) -> OutboundMessage:
@@ -257,6 +275,13 @@ class FixtureBackend:
             "annotations": [_annotation_payload(item) for item in self.session.annotations],
             "errorCode": self.session.error_code,
             "firstInkAt": self.session.first_ink_at,
+            "reviewStatus": (
+                self.review_document["status"] if self.review_document else None
+            ),
+            "reviewSummary": (
+                self.review_document["summary"] if self.review_document else ""
+            ),
+            "reviewId": self.session.review_id,
             "state": self.session.state.value,
             "strokes": [_stroke_payload(item) for item in self.session.strokes],
         }
@@ -283,20 +308,6 @@ def _decode_payload(
     if not isinstance(payload, dict):
         raise TypeError("message payload must be an object")
     return payload
-
-
-def _fixture_annotations() -> Tuple[Annotation, ...]:
-    payload = json.loads((ROOT / "contracts" / "review.example.json").read_text())
-    return tuple(
-        Annotation(
-            annotation_id=item["id"],
-            kind=item["kind"],
-            anchor=Anchor(**item["anchor"]),
-            message=item["message"],
-            confidence=item["confidence"],
-        )
-        for item in payload["annotations"]
-    )
 
 
 def _stroke_payload(stroke: Stroke) -> dict[str, object]:

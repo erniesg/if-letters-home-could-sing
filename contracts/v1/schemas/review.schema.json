@@ -4,22 +4,34 @@
   "title": "Reversible marginalia overlay",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "review_id", "session_id", "reviewer", "summary", "annotations"],
+  "required": [
+    "schema_version",
+    "review_id",
+    "session_id",
+    "reviewer",
+    "status",
+    "summary",
+    "annotations"
+  ],
   "properties": {
     "schema_version": {"const": "1"},
-    "review_id": {"type": "string", "minLength": 1},
-    "session_id": {"type": "string", "minLength": 1},
-    "reviewer": {"type": "string", "minLength": 1},
-    "summary": {"type": "string", "minLength": 1},
+    "review_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "session_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "reviewer": {"type": "string", "minLength": 1, "maxLength": 64},
+    "status": {
+      "enum": ["reviewed", "empty", "non-chinese", "mixed-language", "illegible"]
+    },
+    "summary": {"type": "string", "minLength": 1, "maxLength": 280},
     "annotations": {
       "type": "array",
+      "maxItems": 6,
       "items": {
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "kind", "anchor", "message", "confidence"],
         "properties": {
-          "id": {"type": "string", "minLength": 1},
-          "kind": {"enum": ["correction", "uncertain-reading", "tone", "reflection"]},
+          "id": {"type": "string", "minLength": 1, "maxLength": 64},
+          "kind": {"enum": ["correction", "uncertain-reading", "affirmation", "tone", "reflection"]},
           "anchor": {
             "type": "object",
             "additionalProperties": false,
@@ -28,11 +40,11 @@
               "page": {"const": 2},
               "x": {"type": "number", "minimum": 0, "maximum": 1},
               "y": {"type": "number", "minimum": 0, "maximum": 1},
-              "width": {"type": "number", "minimum": 0, "maximum": 1},
-              "height": {"type": "number", "minimum": 0, "maximum": 1}
+              "width": {"type": "number", "exclusiveMinimum": 0, "maximum": 1},
+              "height": {"type": "number", "exclusiveMinimum": 0, "maximum": 1}
             }
           },
-          "message": {"type": "string", "minLength": 1},
+          "message": {"type": "string", "minLength": 1, "maxLength": 180},
           "confidence": {"type": "number", "minimum": 0, "maximum": 1}
         }
       }

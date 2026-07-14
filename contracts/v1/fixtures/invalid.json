@@ -40,6 +40,7 @@
       "review_id": "fixture-review-0001",
       "session_id": "fixture-session-0001",
       "reviewer": "fixture",
+      "status": "reviewed",
       "summary": "A reversible reading.",
       "annotations": [
         {

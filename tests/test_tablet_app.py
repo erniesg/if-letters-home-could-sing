@@ -169,6 +169,12 @@ class AppLoadSourceTests(unittest.TestCase):
             self.assertTrue(
                 (output / "backend" / "runtime" / "contracts" / "review.example.json").is_file()
             )
+            self.assertTrue(
+                (output / "backend" / "runtime" / "contracts" / "v1" / "schemas" / "review.schema.json").is_file()
+            )
+            self.assertTrue(
+                (output / "backend" / "runtime" / "experience_core" / "reviewer.py").is_file()
+            )
 
     @unittest.skipUnless(
         UNIX_SEQPACKET_SUPPORTED,

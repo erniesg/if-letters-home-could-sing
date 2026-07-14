@@ -15,6 +15,8 @@ Rectangle {
     property string firstInkAt: ""
     property var strokes: []
     property var annotations: []
+    property string reviewStatus: ""
+    property string reviewSummary: ""
     property bool emptyConfirmationVisible: false
     property bool marginaliaVisible: true
     property bool ferrariProfile: Math.max(width, height) / Math.min(width, height) > 1.55
@@ -40,8 +42,11 @@ Rectangle {
         firstInkAt = payload.firstInkAt || ""
         strokes = payload.strokes || []
         annotations = payload.annotations || []
+        reviewStatus = payload.reviewStatus || ""
+        reviewSummary = payload.reviewSummary || ""
         inkLayer.strokes = strokes
         marginaliaLayer.annotations = annotations
+        marginaliaLayer.summary = reviewSummary
     }
 
     function addPoint(mouse) {
@@ -273,6 +278,8 @@ Rectangle {
             font.pixelSize: 27
             text: errorCode === "gateway_offline"
                   ? "Offline — your ink is safe on this page"
+                  : errorCode === "reviewer_unavailable" || errorCode === "invalid_review" || errorCode === "reviewer_mutated_input"
+                  ? "A reading is unavailable — your original ink is safe"
                   : "Heart rate unavailable — reply is still available"
             wrapMode: Text.WordWrap
             elide: Text.ElideNone

@@ -27,3 +27,9 @@ Version 1 schemas live in `contracts/v1/schemas`. Session state uses caller-supp
 The participant's strokes are frozen values after acceptance and cannot be added after submit. Review annotations are carried by the separate review schema and never replace or rewrite the stroke array. Generated and fixture letter provenance is explicitly fictional; the closed provenance schema rejects accession-number claims and copied archival identity fields.
 
 Changing a field's meaning, state value, or transition requires a new schema version. Additive adapter metadata must not be inserted into these closed payloads without a versioned contract change.
+
+## Reply review boundary
+
+`ReviewRequest` gives a reviewer detached, immutable stroke vectors together with a deterministic SVG rendering of the same page. `review_reply` rejects provider input mutation, mismatched session or review identifiers, and any output that does not satisfy the bounded version 1 review schema. The required provider is `FixtureReplyReviewer`; it covers ordinary, empty, non-Chinese, mixed-language, illegible, and provider-error paths without network access.
+
+The checked-in policy is [`fixtures/reply-review.prompt.md`](fixtures/reply-review.prompt.md). It forbids scores, grades, a single correct answer, replacement ink, and fabricated full transcriptions. Unsupported readings return a summary without invented anchors, while validated annotations remain a separate toggleable overlay.

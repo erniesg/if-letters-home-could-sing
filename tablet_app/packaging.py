@@ -77,7 +77,7 @@ def build_bundle(output: Path, rcc: str) -> None:
         ignore=shutil.ignore_patterns("__pycache__"),
     )
     runtime_contracts = output / "backend" / "runtime" / "contracts"
-    runtime_contracts.mkdir()
+    shutil.copytree(ROOT / "contracts" / "v1", runtime_contracts / "v1")
     shutil.copy2(
         ROOT / "contracts" / "review.example.json",
         runtime_contracts / "review.example.json",
