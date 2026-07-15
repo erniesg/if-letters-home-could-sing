@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://if-letters-home-could-sing.invalid/contracts/v1/letter-provenance.schema.json",
+  "title": "Fictional letter provenance",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "letter_fixture_id", "kind", "fictional", "notice"],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "letter_fixture_id": {"type": "string", "minLength": 1},
+    "kind": {"enum": ["fixture", "generated"]},
+    "fictional": {"const": true},
+    "notice": {"const": "A fictional letter generated for this encounter"}
+  }
+}

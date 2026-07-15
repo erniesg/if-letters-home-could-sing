@@ -1,0 +1,493 @@
+; Ferrari phase 2. Prewarm and clone native stationery, bind its pages, then open it.
+; Ferrari Sidebar.qml SHA-256: 5cfd661e6c68c343513d9ca034042ee3f5cdc3ab0df77ea0396838c77135adc0
+; Sanitized Sidebar fixture SHA-256: dba999d3dbadf0a2c61506398a11f5ae485d637e15036d9dd508db2021df0fca
+; Ferrari CreateNotebook.qml SHA-256: 808163f296c9f272710bd07082b868039b948983c051a28a54bea13380c0316d
+VERSION 3.28.0.162
+AFFECT [[4911547370760691430]]
+    TRAVERSE [[8397993708429497603]] > [[14125623155555875541]]#[[15885405667098360701]] > [[5882927607508357618]]#lettersHomeLauncher
+        LOCATE BEFORE ALL
+        INSERT {
+            property string sessionId: ""
+            property string documentId: ""
+            property string seedDocumentId: ""
+            property string seedIncomingPageId: ""
+            property string seedReplyPageId: ""
+            property bool seedForLaunch: false
+            property bool seedRequestInFlight: false
+            property bool seedCreating: false
+
+            function currentFolderId() {
+                const activeContext = NavigationManager.activeContext;
+                return activeContext && activeContext.explorer
+                    ? activeContext.explorer.currentFolderId : "";
+            }
+
+            function failLaunch(reason) {
+                lettersHomeLaunchWatchdog.stop();
+                console.warn("[LettersHome] native launch failed", reason);
+                lettersHomeLauncher.sessionId = "";
+                lettersHomeLauncher.documentId = "";
+                lettersHomeLauncher.seedForLaunch = false;
+                lettersHomeLauncher.text = "Letters Home";
+                lettersHomeLauncher.enabled = true;
+            }
+
+            function postBinding(createdId, incomingPageId, replyPageId) {
+                if (!incomingPageId || !replyPageId) {
+                    failLaunch("native_page_ids_unavailable");
+                    return;
+                }
+                const bindRequest =   new   XMLHttpRequest();
+                bindRequest.open("POST", "http://10.11.99.16:8765/v1/sessions/bind");
+                bindRequest.setRequestHeader("Content-Type", "application/json");
+                bindRequest.onreadystatechange = function() {
+                    if (bindRequest.readyState !== XMLHttpRequest.DONE) {
+                        return;
+                    }
+                    try {
+                        if (bindRequest.status !== 200) {
+                            lettersHomeLauncher.failLaunch("native_bind_failed");
+                            return;
+                        }
+                        lettersHomeLaunchWatchdog.stop();
+                        lettersHomeLauncher.text = "Letters Home";
+                        lettersHomeLauncher.enabled = true;
+                        lettersHomeLauncher.seedForLaunch = false;
+                        root.toggle();
+                        root.windowNavigator.open("legacydevice/window/main", {
+                            documentId: lettersHomeLauncher.documentId
+                        });
+                    } catch (error) {
+                        lettersHomeLauncher.failLaunch("native_open_callback_failed");
+                    }
+                };
+                bindRequest.send(JSON.stringify({
+                    session_id: lettersHomeLauncher.sessionId,
+                    document_id: createdId,
+                    incoming_page_id: incomingPageId,
+                    reply_page_id: replyPageId
+                }));
+            }
+
+            function openSeedClone() {
+                const folderId = currentFolderId();
+                if (!folderId || !seedDocumentId || !sessionId) {
+                    failLaunch("native_seed_clone_inputs_missing");
+                    return;
+                }
+                root.windowNavigator.open("library-ui/window/create-notebook", {
+                    currentFolderId: folderId,
+                    lettersHomeClone: true,
+                    lettersHomeSeedDocumentId: seedDocumentId,
+                    lettersHomeSeedIncomingPageId: seedIncomingPageId,
+                    lettersHomeSeedReplyPageId: seedReplyPageId,
+                    lettersHomeDocumentName: "Letters Home " + sessionId,
+                    onCreated: function(createdId, incomingPageId, replyPageId) {
+                        try {
+                            if (!createdId || !incomingPageId || !replyPageId) {
+                                lettersHomeLauncher.failLaunch("native_seed_clone_failed");
+                                return;
+                            }
+                            lettersHomeLauncher.documentId = createdId;
+                            lettersHomeLauncher.postBinding(
+                                createdId,
+                                incomingPageId,
+                                replyPageId
+                            );
+                        } catch (error) {
+                            lettersHomeLauncher.failLaunch("native_seed_clone_callback_failed");
+                        }
+                    },
+                    onFailed: function(reason) {
+                        lettersHomeLauncher.failLaunch(reason || "native_seed_clone_failed");
+                        if (reason === "native_seed_invalid") {
+                            lettersHomeLauncher.seedDocumentId = "";
+                            lettersHomeLauncher.seedIncomingPageId = "";
+                            lettersHomeLauncher.seedReplyPageId = "";
+                            lettersHomeDeferredSeedTimer.restart();
+                        }
+                    }
+                });
+            }
+
+            function bindCreatedSeed(createdId, incomingPageId, replyPageId) {
+                if (!incomingPageId || !replyPageId) {
+                    if (seedForLaunch) {
+                        failLaunch("native_seed_page_ids_unavailable");
+                    }
+                    return;
+                }
+                const request =   new   XMLHttpRequest();
+                request.open("POST", "http://10.11.99.16:8765/v1/notebook-seed/bind");
+                request.setRequestHeader("Content-Type", "application/json");
+                request.onreadystatechange = function() {
+                    if (request.readyState !== XMLHttpRequest.DONE) {
+                        return;
+                    }
+                    try {
+                        if (request.status !== 200) {
+                            if (lettersHomeLauncher.seedForLaunch) {
+                                lettersHomeLauncher.failLaunch("native_seed_bind_failed");
+                            }
+                            return;
+                        }
+                        if (lettersHomeLauncher.seedForLaunch) {
+                            lettersHomeLauncher.openSeedClone();
+                        }
+                    } catch (error) {
+                        if (lettersHomeLauncher.seedForLaunch) {
+                            lettersHomeLauncher.failLaunch("native_seed_bind_callback_failed");
+                        }
+                    }
+                };
+                request.send(JSON.stringify({
+                    document_id: createdId,
+                    incoming_page_id: incomingPageId,
+                    reply_page_id: replyPageId
+                }));
+            }
+
+            function createSeed(forLaunch) {
+                lettersHomeLauncher.seedForLaunch = lettersHomeLauncher.seedForLaunch || forLaunch;
+                if (seedCreating) {
+                    return;
+                }
+                const folderId = currentFolderId();
+                if (!folderId) {
+                    if (seedForLaunch) {
+                        failLaunch("native_parent_folder_unavailable");
+                    }
+                    return;
+                }
+                seedCreating = true;
+                root.windowNavigator.open("library-ui/window/create-notebook", {
+                    currentFolderId: folderId,
+                    lettersHomeSeed: true,
+                    onCreated: function(createdId, incomingPageId, replyPageId) {
+                        lettersHomeLauncher.seedCreating = false;
+                        lettersHomeLauncher.seedDocumentId = createdId || "";
+                        lettersHomeLauncher.seedIncomingPageId = incomingPageId || "";
+                        lettersHomeLauncher.seedReplyPageId = replyPageId || "";
+                        if (!createdId || !incomingPageId || !replyPageId) {
+                            if (lettersHomeLauncher.seedForLaunch) {
+                                lettersHomeLauncher.failLaunch("native_seed_create_failed");
+                            }
+                            return;
+                        }
+                        lettersHomeLauncher.bindCreatedSeed(
+                            createdId,
+                            incomingPageId,
+                            replyPageId
+                        );
+                    },
+                    onFailed: function(reason) {
+                        lettersHomeLauncher.seedCreating = false;
+                        if (lettersHomeLauncher.seedForLaunch) {
+                            lettersHomeLauncher.failLaunch(reason || "native_seed_create_failed");
+                        }
+                    }
+                });
+            }
+
+            function requestSeed(forLaunch) {
+                seedForLaunch = seedForLaunch || forLaunch;
+                if (seedRequestInFlight) {
+                    return;
+                }
+                seedRequestInFlight = true;
+                const request =   new   XMLHttpRequest();
+                request.open("GET", "http://10.11.99.16:8765/v1/notebook-seed");
+                request.onreadystatechange = function() {
+                    if (request.readyState !== XMLHttpRequest.DONE) {
+                        return;
+                    }
+                    lettersHomeLauncher.seedRequestInFlight = false;
+                    try {
+                        if (request.status !== 200) {
+                            if (lettersHomeLauncher.seedForLaunch) {
+                                lettersHomeLauncher.failLaunch("mac_bridge_unavailable");
+                            }
+                            return;
+                        }
+                        const response = JSON.parse(request.responseText);
+                        if (response.status === "ready" && response.document_id) {
+                            lettersHomeLauncher.seedDocumentId = response.document_id;
+                            lettersHomeLauncher.seedIncomingPageId = response.incoming_page_id || "";
+                            lettersHomeLauncher.seedReplyPageId = response.reply_page_id || "";
+                            if (lettersHomeLauncher.seedForLaunch) {
+                                lettersHomeLauncher.openSeedClone();
+                            }
+                            return;
+                        }
+                        lettersHomeLauncher.createSeed(lettersHomeLauncher.seedForLaunch);
+                    } catch (error) {
+                        if (lettersHomeLauncher.seedForLaunch) {
+                            lettersHomeLauncher.failLaunch("native_seed_callback_failed");
+                        }
+                    }
+                };
+                request.send();
+            }
+
+            Timer {
+                id: lettersHomeSeedWarmTimer
+                interval: 1200
+                repeat: false
+                running: true
+                onTriggered: lettersHomeLauncher.requestSeed(false)
+            }
+
+            Timer {
+                id: lettersHomeDeferredSeedTimer
+                interval: 250
+                repeat: false
+                onTriggered: lettersHomeLauncher.createSeed(false)
+            }
+
+            Timer {
+                id: lettersHomeLaunchWatchdog
+                interval: 2000
+                repeat: false
+                onTriggered: lettersHomeLauncher.failLaunch("native_launch_timeout")
+            }
+
+        }
+
+        REPLACE [[254542236275632405]] WITH {
+            onClicked: {
+                lettersHomeLauncher.enabled = false;
+                lettersHomeLauncher.text = "Preparing letter…";
+                lettersHomeLauncher.sessionId = "";
+                lettersHomeLauncher.documentId = "";
+                lettersHomeLauncher.seedForLaunch = true;
+                lettersHomeLaunchWatchdog.restart();
+                const request =   new   XMLHttpRequest();
+                request.open("POST", "http://10.11.99.16:8765/v1/sessions/start");
+                request.setRequestHeader("Content-Type", "application/json");
+                request.onreadystatechange = function() {
+                    if (request.readyState !== XMLHttpRequest.DONE) {
+                        return;
+                    }
+                    try {
+                        if (request.status !== 200) {
+                            lettersHomeLauncher.failLaunch("mac_bridge_unavailable");
+                            return;
+                        }
+                        const response = JSON.parse(request.responseText);
+                        if (!response.session_id) {
+                            lettersHomeLauncher.failLaunch("session_id_missing");
+                            return;
+                        }
+                        lettersHomeLauncher.sessionId = response.session_id;
+                        lettersHomeLauncher.requestSeed(true);
+                    } catch (error) {
+                        lettersHomeLauncher.failLaunch("native_start_callback_failed");
+                    }
+                };
+                request.send(JSON.stringify({ profile_id: "ferrari_3.28.0.162" }));
+            }
+        }
+    END TRAVERSE
+END AFFECT
+
+AFFECT [[8651031636888757197]]
+    TRAVERSE [[7711468349764991]]
+        LOCATE BEFORE [[477062473974076915]]
+        INSERT {
+            property var lettersHomeOnFailed: null
+            property bool lettersHomeSeed: false
+            property bool lettersHomeClone: false
+            property string lettersHomeSeedDocumentId: ""
+            property string lettersHomeSeedIncomingPageId: ""
+            property string lettersHomeSeedReplyPageId: ""
+            property string lettersHomeDocumentName: ""
+            property string lettersHomeCloneDocumentId: ""
+            property bool lettersHomePagesMoved: false
+            property int lettersHomeCloneAttempts: 0
+
+            function failLettersHome(reason) {
+                lettersHomeCloneTimer.stop();
+                console.warn("[LettersHome] notebook factory failed", reason);
+                root.lettersHomeOnFailed?.(reason);
+                root.windowNavigator.close();
+            }
+
+            function createLettersHomeSeed() {
+                try {
+                    const id = LibraryController.createDocument(
+                        root.currentFolderId,
+                        "Letters Home Stationery"
+                    );
+                    if (!id) {
+                        failLettersHome("native_seed_create_failed");
+                        return;
+                    }
+                    const document = root.library.entryForId(id);
+                    if (!document) {
+                        failLettersHome("native_seed_entry_unavailable");
+                        return;
+                    }
+                    LibraryController.setOrientation(document.id, Qt.Vertical);
+                    DocumentController.setTemplateForPage(
+                        document.id,
+                        document.lastOpenedPage,
+                        "letters-home-ferrari",
+                        DeviceScreenInfo.paperSize
+                    );
+                    DocumentController.addPageWithTemplateAndPageSize(
+                        document.id,
+                        1,
+                        "letters-home-ferrari",
+                        DeviceScreenInfo.paperSize,
+                        function() {
+                            try {
+                                const ready = root.library.entryForId(document.id);
+                                const incomingPageId = ready ? ready.idForPage(0) : "";
+                                const replyPageId = ready ? ready.idForPage(1) : "";
+                                if (!ready || ready.pageCount !== 2
+                                        || !incomingPageId || !replyPageId) {
+                                    root.failLettersHome("native_seed_not_ready");
+                                    return;
+                                }
+                                root.onCreated?.(
+                                    ready.id,
+                                    incomingPageId,
+                                    replyPageId
+                                );
+                                root.windowNavigator.close();
+                            } catch (error) {
+                                root.failLettersHome("native_seed_create_callback_failed");
+                            }
+                        }
+                    );
+                } catch (error) {
+                    failLettersHome("native_seed_create_exception");
+                }
+            }
+
+            function cloneLettersHomeSeed() {
+                try {
+                    const seed = root.library.entryForId(root.lettersHomeSeedDocumentId);
+                    if (!seed || seed.pageCount !== 2
+                            || seed.idForPage(0) !== root.lettersHomeSeedIncomingPageId
+                            || seed.idForPage(1) !== root.lettersHomeSeedReplyPageId) {
+                        failLettersHome("native_seed_invalid");
+                        return;
+                    }
+                    root.lettersHomeCloneAttempts = 0;
+                    root.lettersHomeCloneDocumentId = "";
+                    root.lettersHomePagesMoved = false;
+                    DocumentController.copyPages(seed.id, [0, 1], seed.id, 2);
+                    lettersHomeCloneTimer.start();
+                } catch (error) {
+                    failLettersHome("native_seed_copy_exception");
+                }
+            }
+
+            Timer {
+                id: lettersHomeCloneTimer
+                interval: 50
+                repeat: true
+                onTriggered: {
+                    root.lettersHomeCloneAttempts += 1;
+                    if (root.lettersHomePagesMoved) {
+                        const clone = root.library.entryForId(root.lettersHomeCloneDocumentId);
+                        const incomingPageId = clone ? clone.idForPage(0) : "";
+                        const replyPageId = clone ? clone.idForPage(1) : "";
+                        if (clone && clone.pageCount === 2
+                                && incomingPageId && replyPageId) {
+                            stop();
+                            root.onCreated?.(clone.id, incomingPageId, replyPageId);
+                            root.windowNavigator.close();
+                            return;
+                        }
+                    }
+                    const seed = root.library.entryForId(root.lettersHomeSeedDocumentId);
+                    if (!root.lettersHomePagesMoved && seed && seed.pageCount >= 4) {
+                        try {
+                            const id = LibraryController.createDocumentFromExisting(
+                                root.currentFolderId.toString(),
+                                root.lettersHomeDocumentName,
+                                seed.id,
+                                [2, 3]
+                            );
+                            if (!id) {
+                                root.failLettersHome("native_seed_clone_failed");
+                                return;
+                            }
+                            root.lettersHomeCloneDocumentId = id;
+                            root.lettersHomePagesMoved = true;
+                            root.lettersHomeCloneAttempts = 0;
+                        } catch (error) {
+                            root.failLettersHome("native_seed_clone_exception");
+                        }
+                        return;
+                    }
+                    if (root.lettersHomeCloneAttempts >= 20) {
+                        root.failLettersHome("native_seed_copy_timeout");
+                    }
+                }
+            }
+        }
+
+        REPLACE [[7713401573498017]] WITH {
+            onOpened: (args) => {
+                const {
+                    currentFolderId,
+                    onCreated,
+                    onFailed,
+                    lettersHomeSeed,
+                    lettersHomeClone,
+                    lettersHomeSeedDocumentId,
+                    lettersHomeSeedIncomingPageId,
+                    lettersHomeSeedReplyPageId,
+                    lettersHomeDocumentName
+                } = args || {};
+
+                if (!SystemMonitor.enoughFreeSpaceForCreating) {
+                    if (lettersHomeSeed || lettersHomeClone) {
+                        onFailed?.("native_not_enough_space");
+                    } else {
+                        root.notificationQueue.enqueue({
+                            "text": qsTr("Not enough free space to create document")
+                        });
+                    }
+                    root.windowNavigator.close();
+                    return;
+                }
+
+                if (!currentFolderId) {
+                    console.error("create-notebook window opened without currentFolderId");
+                    onFailed?.("native_parent_folder_unavailable");
+                    root.windowNavigator.close();
+                    return;
+                }
+
+                root.onCreated = onCreated || null;
+                root.lettersHomeOnFailed = onFailed || null;
+                root.currentFolderId = currentFolderId;
+                root.lettersHomeSeed = lettersHomeSeed === true;
+                root.lettersHomeClone = lettersHomeClone === true;
+                root.lettersHomeSeedDocumentId = lettersHomeSeedDocumentId || "";
+                root.lettersHomeSeedIncomingPageId = lettersHomeSeedIncomingPageId || "";
+                root.lettersHomeSeedReplyPageId = lettersHomeSeedReplyPageId || "";
+                root.lettersHomeDocumentName = lettersHomeDocumentName || "";
+
+                if (root.lettersHomeSeed) {
+                    Qt.callLater(function() { root.createLettersHomeSeed(); });
+                    return;
+                }
+                if (root.lettersHomeClone) {
+                    if (!root.lettersHomeSeedDocumentId
+                            || !root.lettersHomeSeedIncomingPageId
+                            || !root.lettersHomeSeedReplyPageId
+                            || !root.lettersHomeDocumentName) {
+                        root.failLettersHome("native_seed_clone_inputs_missing");
+                        return;
+                    }
+                    Qt.callLater(function() { root.cloneLettersHomeSeed(); });
+                }
+            }
+        }
+    END TRAVERSE
+END AFFECT

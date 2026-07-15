@@ -1,0 +1,10 @@
+{
+  "schema_version": "1",
+  "session_id": "fixture-session-0001",
+  "consent_version": "consent-v1",
+  "biometric_decision": "granted",
+  "biometric_decided_at": "2026-07-14T00:00:02Z",
+  "research_decision": "granted",
+  "research_decided_at": "2026-07-14T00:00:04Z",
+  "withdrawn_at": null
+}

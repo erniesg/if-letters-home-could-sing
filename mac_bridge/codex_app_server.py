@@ -1,0 +1,651 @@
+"""Persisted Codex task client over the local app-server JSON-RPC protocol."""
+
+from __future__ import annotations
+
+import json
+import os
+import shutil
+import subprocess
+import tempfile
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Callable, Iterable, Mapping, Protocol
+
+from .contracts import (
+    MIN_NOTEBOOK_LETTER,
+    NOTEBOOK_REVIEW_OUTPUT_SCHEMA,
+    Letter,
+    NotebookReview,
+    REVIEW_OUTPUT_SCHEMA,
+    Review,
+    parse_letter_text,
+    parse_notebook_review,
+    parse_review,
+)
+from .letter_grid import FERRARI_GRID, SentenceStream
+
+
+DEFAULT_REVIEWER_PROMPT = """You are reading a handwritten contemporary huipi on a fictional qiao pi correspondence.
+Act as a kind Chinese-language teacher and attentive correspondent. Ground every note in what is actually visible.
+Silently inspect every visible handwritten glyph character by character before writing the review. Check radicals,
+stroke placement, homophones, and the surrounding phrase; do not stop after understanding the overall meaning.
+For each high-confidence wrong glyph, add one item to the corrections array; set observed_text and suggested_text
+to exactly one Chinese character and return a tight normalized bounding box around only that glyph. Put broader
+language, tone, and uncertain-reading observations in annotations, never corrections. Anchor coordinates use a top-left origin: x and y
+locate the box's top-left corner, then width and height give its size as fractions of the full image.
+Offer concise corrections, uncertain readings, tone guidance, affirmations, one reflective question, and a short
+reciprocal Chinese response letter that responds to what is actually legible.
+Never score or grade. Never invent a full transcription. Mark uncertain handwriting as uncertain.
+The participant's original ink is immutable. Return only the requested JSON object."""
+
+NOTEBOOK_RESPONSE_PROMPT = (
+    "Write only a 150 to 168 character fictional Chinese reciprocal letter "
+    "responding to the legible huipi. Never exceed 180 including punctuation."
+)
+
+
+class CodexResponseTurnError(RuntimeError):
+    """Raised after marginalia is durable but the reciprocal turn fails."""
+
+
+class RpcChannel(Protocol):
+    def request(self, method: str, params: Mapping[str, Any]) -> Mapping[str, Any]: ...
+
+    def notify(self, method: str, params: Mapping[str, Any]) -> None: ...
+
+    def events(self) -> Iterable[Mapping[str, Any]]: ...
+
+
+def resolve_codex_executable(candidates: Iterable[Path]) -> Path:
+    """Select the first executable candidate without assuming one exists in CI."""
+
+    for candidate in candidates:
+        candidate = Path(candidate)
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    raise RuntimeError("codex_app_server_unavailable")
+
+
+def default_codex_command() -> tuple[str, ...]:
+    """Use the desktop-bundled Codex first so protocol and signed-in model stay aligned."""
+
+    executable = resolve_codex_executable(
+        (
+            Path("/Applications/ChatGPT.app/Contents/Resources/codex"),
+            Path(shutil.which("codex") or ""),
+        )
+    )
+    return (str(executable), "app-server", "--stdio")
+
+
+class SubprocessJsonRpcChannel:
+    """Line-delimited JSON-RPC connection to one local `codex app-server`."""
+
+    def __init__(self, command: tuple[str, ...] | None = None):
+        command = command or default_codex_command()
+        self.process = subprocess.Popen(
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            encoding="utf-8",
+            bufsize=1,
+        )
+        self._next_id = 1
+        self._buffered_events: list[Mapping[str, Any]] = []
+
+    def _send(self, payload: Mapping[str, Any]) -> None:
+        if self.process.stdin is None:
+            raise RuntimeError("codex app-server stdin is unavailable")
+        self.process.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        self.process.stdin.flush()
+
+    def _read(self) -> Mapping[str, Any]:
+        if self.process.stdout is None:
+            raise RuntimeError("codex app-server stdout is unavailable")
+        line = self.process.stdout.readline()
+        if not line:
+            raise RuntimeError("codex app-server closed before completing the task")
+        payload = json.loads(line)
+        if not isinstance(payload, Mapping):
+            raise RuntimeError("codex app-server returned an invalid message")
+        return payload
+
+    def request(self, method: str, params: Mapping[str, Any]) -> Mapping[str, Any]:
+        request_id = self._next_id
+        self._next_id += 1
+        self._send({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params})
+        while True:
+            payload = self._read()
+            if payload.get("id") == request_id:
+                if "error" in payload:
+                    error = payload["error"]
+                    message = error.get("message", str(error)) if isinstance(error, Mapping) else str(error)
+                    raise RuntimeError(message)
+                result = payload.get("result", {})
+                if not isinstance(result, Mapping):
+                    raise RuntimeError(f"{method} returned an invalid result")
+                return result
+            if "method" in payload:
+                self._buffered_events.append(payload)
+
+    def notify(self, method: str, params: Mapping[str, Any]) -> None:
+        self._send({"jsonrpc": "2.0", "method": method, "params": params})
+
+    def events(self) -> Iterable[Mapping[str, Any]]:
+        while self._buffered_events:
+            yield self._buffered_events.pop(0)
+        while True:
+            yield self._read()
+
+    def close(self) -> None:
+        if self.process.stdin:
+            self.process.stdin.close()
+        if self.process.poll() is None:
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+
+
+@dataclass(frozen=True)
+class CodexReviewResult:
+    thread_id: str
+    review: Review
+
+
+@dataclass(frozen=True)
+class CodexLetterResult:
+    thread_id: str
+    letter: Letter
+
+
+@dataclass(frozen=True)
+class NotebookReviewResult:
+    thread_id: str
+    review: NotebookReview
+    response_letter: Letter
+
+
+def incoming_letter_prompt(conversation_context: str) -> str:
+    """Build the bounded fictional-letter request used by the incoming turn."""
+
+    context = conversation_context.strip() or (
+        "care across distance, health, education, remittance received, and returning home"
+    )
+    return f"""Write one fictional contemporary Chinese family letter inspired by the care and reciprocity of qiao pi.
+It will be typeset in vertical Chinese columns, top-to-bottom and right-to-left, on a portrait paper page.
+Use 150 to 168 Chinese characters; never exceed 180 including punctuation. Return only the letter body: no markdown, title, commentary, signature, seal, or JSON.
+Let the emotional content correspond to this conversation context without copying it verbatim:
+{context}
+
+Do not use a real personal name, accession number, signature, seal, museum claim, or authenticity claim.
+The letter is visibly fictional."""
+
+
+class CodexAppServerClient:
+    """Create one visible, non-ephemeral Codex task for a durable reply submit."""
+
+    def __init__(
+        self,
+        *,
+        channel: RpcChannel | None = None,
+        cwd: Path,
+        reviewer_prompt: str = DEFAULT_REVIEWER_PROMPT,
+    ):
+        self.channel = channel or SubprocessJsonRpcChannel()
+        self._owns_channel = channel is None
+        self.cwd = Path(cwd).resolve()
+        self.reviewer_prompt = reviewer_prompt.strip()
+        self.model: str | None = None
+
+    def _initialize(self) -> None:
+        self.channel.request(
+            "initialize",
+            {
+                "clientInfo": {
+                    "name": "if-letters-home-could-sing",
+                    "title": "Letters Home bridge",
+                    "version": "1",
+                }
+            },
+        )
+        self.channel.notify("initialized", {})
+        catalog = self.channel.request(
+            "model/list",
+            {"includeHidden": False, "limit": 100},
+        )
+        models = catalog.get("data")
+        if not isinstance(models, list):
+            raise RuntimeError("Codex model catalog is unavailable")
+        compatible = [
+            model
+            for model in models
+            if isinstance(model, Mapping)
+            and "image" in model.get("inputModalities", [])
+            and isinstance(model.get("model") or model.get("id"), str)
+        ]
+        selected = next((model for model in compatible if model.get("isDefault")), None)
+        selected = selected or (compatible[0] if compatible else None)
+        if selected is None:
+            raise RuntimeError("Codex has no image-capable model")
+        self.model = selected.get("model") or selected["id"]
+
+    def _start_thread(self, *, session_id: str, purpose: str, developer_instructions: str) -> str:
+        if not self.model:
+            raise RuntimeError("Codex client was not initialized")
+        started = self.channel.request(
+            "thread/start",
+            {
+                "cwd": str(self.cwd),
+                "ephemeral": False,
+                "sandbox": "read-only",
+                "approvalPolicy": "never",
+                "model": self.model,
+                "threadSource": f"letters-home-{purpose}",
+                "personality": "pragmatic",
+                "developerInstructions": developer_instructions,
+            },
+        )
+        thread = started.get("thread")
+        thread_id = thread.get("id") if isinstance(thread, Mapping) else None
+        if not isinstance(thread_id, str) or not thread_id:
+            raise RuntimeError("thread/start did not return a Codex thread id")
+        self.channel.request(
+            "thread/name/set",
+            {
+                "threadId": thread_id,
+                "name": f"Letters Home {purpose} · {session_id}",
+            },
+        )
+        return thread_id
+
+    @staticmethod
+    def _detail_tiles(reply_image: Path, directory: Path) -> tuple[Path, ...]:
+        """Create private overlapping close-ups so small handwriting stays legible."""
+
+        try:
+            from PIL import Image
+
+            with Image.open(reply_image) as source:
+                source = source.convert("RGB")
+                width, height = source.size
+                overlap_x = round(width * 0.08)
+                overlap_y = round(height * 0.08)
+                middle_x, middle_y = width // 2, height // 2
+                regions = (
+                    ("top-left", (0, 0, middle_x + overlap_x, middle_y + overlap_y)),
+                    ("top-right", (middle_x - overlap_x, 0, width, middle_y + overlap_y)),
+                    ("bottom-left", (0, middle_y - overlap_y, middle_x + overlap_x, height)),
+                    ("bottom-right", (middle_x - overlap_x, middle_y - overlap_y, width, height)),
+                )
+                tiles = []
+                for name, box in regions:
+                    tile = source.crop(box)
+                    scale = min(2.0, 2048 / max(tile.size))
+                    if scale > 1:
+                        tile = tile.resize(
+                            (round(tile.width * scale), round(tile.height * scale)),
+                            Image.Resampling.LANCZOS,
+                        )
+                    path = directory / f"{name}.png"
+                    tile.save(path, format="PNG", optimize=True)
+                    tiles.append(path)
+                return tuple(tiles)
+        except (ImportError, OSError, ValueError):
+            return ()
+
+    def generate_letter(
+        self,
+        *,
+        session_id: str,
+        conversation_context: str,
+        on_delta: Callable[[str], None] | None = None,
+    ) -> CodexLetterResult:
+        """Create one visible Codex task and stream its fictional letter text."""
+
+        channel = self.channel
+        try:
+            self._initialize()
+            thread_id = self._start_thread(
+                session_id=session_id,
+                purpose="incoming",
+                developer_instructions=(
+                    "Do not use shell, network, file-write, or image-generation tools. "
+                    "Return only the requested fictional Chinese letter text."
+                ),
+            )
+            prompt = incoming_letter_prompt(conversation_context)
+            started_turn = channel.request(
+                "turn/start",
+                {
+                    "threadId": thread_id,
+                    "input": [{"type": "text", "text": prompt}],
+                },
+            )
+            turn = started_turn.get("turn")
+            turn_id = turn.get("id") if isinstance(turn, Mapping) else None
+            if not isinstance(turn_id, str) or not turn_id:
+                raise RuntimeError("turn/start did not return a Codex turn id")
+            final_text = None
+            for event in channel.events():
+                method = event.get("method")
+                params = event.get("params")
+                if not isinstance(params, Mapping) or params.get("threadId") != thread_id:
+                    continue
+                if method == "item/agentMessage/delta" and params.get("turnId") == turn_id:
+                    delta = params.get("delta")
+                    if isinstance(delta, str) and delta and on_delta is not None:
+                        on_delta(delta)
+                if method == "item/completed" and params.get("turnId") == turn_id:
+                    item = params.get("item")
+                    if (
+                        isinstance(item, Mapping)
+                        and item.get("type") == "agentMessage"
+                        and item.get("phase") in {None, "final_answer"}
+                        and isinstance(item.get("text"), str)
+                    ):
+                        final_text = item["text"]
+                if method == "turn/completed":
+                    completed = params.get("turn")
+                    if not isinstance(completed, Mapping) or completed.get("id") != turn_id:
+                        continue
+                    if completed.get("status") != "completed":
+                        error = completed.get("error")
+                        message = error.get("message", str(error)) if isinstance(error, Mapping) else str(error)
+                        raise RuntimeError(message or "Codex incoming-letter turn failed")
+                    break
+            if final_text is None:
+                raise RuntimeError("Codex incoming-letter turn completed without text")
+            return CodexLetterResult(thread_id, parse_letter_text(final_text))
+        finally:
+            if self._owns_channel and hasattr(channel, "close"):
+                channel.close()
+
+    @staticmethod
+    def _turn_id(started_turn: Mapping[str, Any]) -> str:
+        turn = started_turn.get("turn")
+        turn_id = turn.get("id") if isinstance(turn, Mapping) else None
+        if not isinstance(turn_id, str) or not turn_id:
+            raise RuntimeError("turn/start did not return a Codex turn id")
+        return turn_id
+
+    @staticmethod
+    def _wait_for_turn(
+        events,
+        *,
+        thread_id: str,
+        turn_id: str,
+        on_delta: Callable[[str], None] | None = None,
+        response_turn: bool = False,
+    ) -> str:
+        final_text = None
+        for event in events:
+            method = event.get("method")
+            params = event.get("params")
+            if not isinstance(params, Mapping) or params.get("threadId") != thread_id:
+                continue
+            if method == "item/agentMessage/delta" and params.get("turnId") == turn_id:
+                delta = params.get("delta")
+                if isinstance(delta, str) and delta and on_delta is not None:
+                    on_delta(delta)
+            if method == "item/completed" and params.get("turnId") == turn_id:
+                item = params.get("item")
+                if (
+                    isinstance(item, Mapping)
+                    and item.get("type") == "agentMessage"
+                    and item.get("phase") in {None, "final_answer"}
+                    and isinstance(item.get("text"), str)
+                ):
+                    final_text = item["text"]
+            if method != "turn/completed":
+                continue
+            completed = params.get("turn")
+            if not isinstance(completed, Mapping) or completed.get("id") != turn_id:
+                continue
+            if completed.get("status") != "completed":
+                error = completed.get("error")
+                message = (
+                    error.get("message", str(error))
+                    if isinstance(error, Mapping)
+                    else str(error)
+                )
+                if response_turn:
+                    raise CodexResponseTurnError(message or "Codex response turn failed")
+                raise RuntimeError(message or "Codex review turn failed")
+            break
+        if final_text is None:
+            label = "response" if response_turn else "review"
+            error = f"Codex {label} turn completed without text"
+            if response_turn:
+                raise CodexResponseTurnError(error)
+            raise RuntimeError(error)
+        return final_text
+
+    @staticmethod
+    def _fit_response_letter(text: str) -> Letter:
+        parsed = parse_letter_text(text, minimum=MIN_NOTEBOOK_LETTER)
+        stream = SentenceStream(FERRARI_GRID, minimum=MIN_NOTEBOOK_LETTER)
+        stream.append(parsed.body)
+        return Letter(stream.finalize())
+
+    def review_and_respond(
+        self,
+        *,
+        session_id: str,
+        reply_image: Path,
+        conversation_context: str,
+        on_review: Callable[[str, NotebookReview], None] | None = None,
+        on_response_delta: Callable[[str], None] | None = None,
+        on_turn_started: Callable[[str, str, str], None] | None = None,
+    ) -> NotebookReviewResult:
+        """Review once, then answer in a second turn of the same visible task."""
+
+        reply_image = Path(reply_image).resolve()
+        if not reply_image.is_file():
+            raise ValueError("reply image does not exist")
+        channel = self.channel
+        detail_directory = tempfile.TemporaryDirectory(prefix="letters-home-details-")
+        try:
+            self._initialize()
+            thread_id = self._start_thread(
+                session_id=session_id,
+                purpose="review",
+                developer_instructions=(
+                    "Do not use shell, network, or file-write tools. Analyze the attached reply image, "
+                    "return the requested structured review, then write one reciprocal letter when asked."
+                ),
+            )
+            detail_tiles = self._detail_tiles(reply_image, Path(detail_directory.name))
+            review_prompt = (
+                f"{self.reviewer_prompt}\n\n"
+                "Return marginalia only; do not embed the reciprocal response letter in this object.\n\n"
+                "Conversation context for reciprocity only; do not quote it as if handwritten:\n"
+                f"{conversation_context.strip() or 'No prior context supplied.'}"
+            )
+            review_input = [
+                {"type": "text", "text": review_prompt},
+                {"type": "localImage", "path": str(reply_image), "detail": "original"},
+            ]
+            review_input.extend(
+                {"type": "localImage", "path": str(path), "detail": "original"}
+                for path in detail_tiles
+            )
+            review_started = channel.request(
+                "turn/start",
+                {
+                    "threadId": thread_id,
+                    "input": review_input,
+                    "outputSchema": NOTEBOOK_REVIEW_OUTPUT_SCHEMA,
+                },
+            )
+            review_turn_id = self._turn_id(review_started)
+            if on_turn_started is not None:
+                on_turn_started("review", thread_id, review_turn_id)
+            events = iter(channel.events())
+            review_text = self._wait_for_turn(
+                events,
+                thread_id=thread_id,
+                turn_id=review_turn_id,
+            )
+            try:
+                review_payload = json.loads(review_text)
+            except json.JSONDecodeError as error:
+                raise RuntimeError("Codex notebook review was not valid JSON") from error
+            review = parse_notebook_review(review_payload)
+            if on_review is not None:
+                on_review(thread_id, review)
+
+            response_started = channel.request(
+                "turn/start",
+                {
+                    "threadId": thread_id,
+                    "input": [{"type": "text", "text": NOTEBOOK_RESPONSE_PROMPT}],
+                },
+            )
+            response_turn_id = self._turn_id(response_started)
+            if on_turn_started is not None:
+                on_turn_started("response", thread_id, response_turn_id)
+            response_text = self._wait_for_turn(
+                events,
+                thread_id=thread_id,
+                turn_id=response_turn_id,
+                on_delta=on_response_delta,
+                response_turn=True,
+            )
+            response_letter = self._fit_response_letter(response_text)
+            return NotebookReviewResult(thread_id, review, response_letter)
+        finally:
+            detail_directory.cleanup()
+            if self._owns_channel and hasattr(channel, "close"):
+                channel.close()
+
+    def respond_in_thread(
+        self,
+        *,
+        thread_id: str,
+        on_response_delta: Callable[[str], None] | None = None,
+        on_turn_started: Callable[[str, str, str], None] | None = None,
+    ) -> Letter:
+        """Retry only the reciprocal turn after marginalia is already durable."""
+
+        channel = self.channel
+        try:
+            self._initialize()
+            started = channel.request(
+                "turn/start",
+                {
+                    "threadId": thread_id,
+                    "input": [{"type": "text", "text": NOTEBOOK_RESPONSE_PROMPT}],
+                },
+            )
+            turn_id = self._turn_id(started)
+            if on_turn_started is not None:
+                on_turn_started("response", thread_id, turn_id)
+            text = self._wait_for_turn(
+                iter(channel.events()),
+                thread_id=thread_id,
+                turn_id=turn_id,
+                on_delta=on_response_delta,
+                response_turn=True,
+            )
+            return self._fit_response_letter(text)
+        finally:
+            if self._owns_channel and hasattr(channel, "close"):
+                channel.close()
+
+    def review_reply(
+        self,
+        *,
+        session_id: str,
+        reply_image: Path,
+        conversation_context: str,
+    ) -> CodexReviewResult:
+        reply_image = Path(reply_image).resolve()
+        if not reply_image.is_file():
+            raise ValueError("reply image does not exist")
+        channel = self.channel
+        detail_directory = tempfile.TemporaryDirectory(prefix="letters-home-details-")
+        try:
+            self._initialize()
+            thread_id = self._start_thread(
+                session_id=session_id,
+                purpose="review",
+                developer_instructions=(
+                    "Do not use shell, network, or file-write tools. Analyze the attached reply image "
+                    "and return only JSON matching the supplied output schema."
+                ),
+            )
+            detail_tiles = self._detail_tiles(reply_image, Path(detail_directory.name))
+            detail_note = ""
+            if detail_tiles:
+                detail_note = (
+                    "\n\nAfter the full page, four overlapping close-ups appear in this exact order: "
+                    "top-left, top-right, bottom-left, bottom-right. Inspect every close-up before deciding. "
+                    "They are details of the same page, not additional letters. Return every anchor in "
+                    "full-page coordinates, never tile-local coordinates."
+                )
+            prompt = (
+                f"{self.reviewer_prompt}\n\n"
+                "Conversation context for reciprocity only; do not quote it as if handwritten:\n"
+                f"{conversation_context.strip() or 'No prior context supplied.'}"
+                f"{detail_note}"
+            )
+            turn_input = [
+                {"type": "text", "text": prompt},
+                {"type": "localImage", "path": str(reply_image), "detail": "original"},
+            ]
+            turn_input.extend(
+                {"type": "localImage", "path": str(path), "detail": "original"}
+                for path in detail_tiles
+            )
+            started_turn = channel.request(
+                "turn/start",
+                {
+                    "threadId": thread_id,
+                    "input": turn_input,
+                    "outputSchema": REVIEW_OUTPUT_SCHEMA,
+                },
+            )
+            turn = started_turn.get("turn")
+            turn_id = turn.get("id") if isinstance(turn, Mapping) else None
+            if not isinstance(turn_id, str) or not turn_id:
+                raise RuntimeError("turn/start did not return a Codex turn id")
+
+            final_text = None
+            for event in channel.events():
+                method = event.get("method")
+                params = event.get("params")
+                if not isinstance(params, Mapping) or params.get("threadId") != thread_id:
+                    continue
+                if method == "item/completed" and params.get("turnId") == turn_id:
+                    item = params.get("item")
+                    if (
+                        isinstance(item, Mapping)
+                        and item.get("type") == "agentMessage"
+                        and item.get("phase") in {None, "final_answer"}
+                        and isinstance(item.get("text"), str)
+                    ):
+                        final_text = item["text"]
+                if method == "turn/completed":
+                    completed = params.get("turn")
+                    if not isinstance(completed, Mapping) or completed.get("id") != turn_id:
+                        continue
+                    if completed.get("status") != "completed":
+                        error = completed.get("error")
+                        message = error.get("message", str(error)) if isinstance(error, Mapping) else str(error)
+                        raise RuntimeError(message or "Codex review turn failed")
+                    break
+            if final_text is None:
+                raise RuntimeError("Codex review completed without a final structured response")
+            try:
+                payload = json.loads(final_text)
+            except json.JSONDecodeError as error:
+                raise RuntimeError("Codex review was not valid JSON") from error
+            return CodexReviewResult(thread_id, parse_review(payload))
+        finally:
+            detail_directory.cleanup()
+            if self._owns_channel and hasattr(channel, "close"):
+                channel.close()

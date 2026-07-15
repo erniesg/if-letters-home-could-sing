@@ -1,17 +1,22 @@
-# Spike the stock toolbar letter launcher with exact-version QMLDiff
+# Spike the main hamburger-sidebar letter launcher with exact-version QMLDiff
 
 depends-on: 003
 labels: rucksack-needs-human
 
 ## Goal
 
-Identify the exact Xochitl/QRR toolbar resource and build a hash-pinned QMLDiff patch that adds one inert letter icon, then launches the AppLoad experience, without conflicting with existing CJK QMDs.
+Identify the exact Xochitl/QRR main hamburger/library-sidebar resource and
+build a hash-pinned QMLDiff patch that adds one inert `Letters Home` item below
+`Import files`, then launches the AppLoad experience, without conflicting with
+existing CJK QMDs. The open-document editing toolbar is explicitly out of
+scope.
 
 ## Acceptance tests
 
 - Record exact Ferrari/Chiappa model, OS, source resource path, source hash, active QMD order, and AppLoad/Xovi versions.
 - Build fixture-based patch tests for matching Ferrari/Chiappa resources, wrong model, wrong OS, wrong hash, duplicate install, missing AppLoad, and unrelated active mods.
-- Prove the output patch changes only the intended toolbar subtree and composes deterministically with the current CJK font/language patches.
+- Prove the output patch changes only the intended sidebar subtree and composes deterministically with the current CJK font/language patches.
+- Reject `/qml/DocumentView.qml` and `toolbarProvider.editingTools` as launcher locators.
 - First hardware step is an inert icon/button; launch action is enabled only after visual/stability confirmation.
 - Uninstall restores byte-identical pre-install resources and leaves CJK patches working.
 - Do not use the stock screenshot helper under Xovi.
@@ -50,7 +55,9 @@ Develop entirely against backed-up fixtures, prove an inert icon first, then run
 
 ## Trade-offs
 
-Patching the stock toolbar gives the desired native entry point but is the most version-fragile part of the system. An AppLoad-only launcher is the safe fallback.
+Patching the stock main sidebar gives the desired native entry point but is the
+most version-fragile part of the system. An AppLoad-only launcher is the safe
+fallback.
 
 ## Free-form response
 

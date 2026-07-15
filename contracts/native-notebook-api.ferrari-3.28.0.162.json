@@ -1,0 +1,37 @@
+{
+  "hashtab_sha256": "ebbb415d5e875a67a84416c3029e6ce7e94861a32bb8d390fd01fe0403d492cd",
+  "os_version": "3.28.0.162",
+  "resources": {
+    "sidebar": "[[4911547370760691430]]",
+    "document_view": "[[1224665461898798997]]",
+    "create_notebook": "[[8651031636888757197]]",
+    "create_notebook_window": "[[16344100773210839301]]",
+    "pages": "[[4530443761526121003]]",
+    "pages_actions": "[[11797611520953530268]]"
+  },
+  "recovered_source_sha256": {
+    "create_notebook": "808163f296c9f272710bd07082b868039b948983c051a28a54bea13380c0316d",
+    "create_notebook_window": "1dd2b9271903d41a7b0c0cd7302811f837217e4a7834ef5228baaead55a71389",
+    "document_view": "a2102689b1feb4604e98ece588ee4606a64a7b0599bda2a3e8fac431f0fa74a5",
+    "pages": "4fbc71a9cbd033b9324131bdc052cfd9bf0f8428038d9db1a3d6dc0a227e7c4e",
+    "pages_actions": "c920f49ff948a4ecff63ff9da8c62b5ea5249623d8f777d8551aa4ea299c8a9d",
+    "sidebar": "5cfd661e6c68c343513d9ca034042ee3f5cdc3ab0df77ea0396838c77135adc0"
+  },
+  "symbols": {
+    "DocumentController.addPageWithTemplateAndPageSize": "[[14285801537390842371]]",
+    "DocumentController.copyPages": "[[12188519148798835813]]",
+    "DocumentController.setTemplateForPage": "[[7540657167845513638]]",
+    "LibraryController.createDocument": "[[16080285492618834883]]",
+    "LibraryController.createDocumentFromExisting": "[[4393738620531550914]]",
+    "NavigationManager.activeContext.explorer.currentFolderId": "[[7073776824345929404]]",
+    "createNotebook": "[[11689254259907176254]]",
+    "createNotebookFromExistingPages": "[[5450413349604854157]]",
+    "currentFolderId": "[[1536661485978992373]]",
+    "documentName": "[[15793094956877606249]]",
+    "document.idForPage": "[[532004573879022759]]",
+    "library-ui/window/create-notebook": "[[5959403860571066977]]",
+    "onNotebookClicked": "[[15540280890624773142]]",
+    "root.createNotebook": "[[13558404569428295472]]"
+  },
+  "target": "ferrari"
+}

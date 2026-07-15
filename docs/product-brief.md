@@ -10,9 +10,13 @@ The participant's reply is a contemporary **huipi** (回批): the return message
 
 ### Page 1 — Incoming letter
 
-- A letter icon appears in the stock reMarkable toolbar.
-- Tapping it launches the correspondence experience without changing the current notebook.
-- A fictional qiao pi-inspired letter is shown as a paper image.
+- A `Letters Home` envelope entry appears in the main hamburger sidebar beside
+  the library destinations such as `My files`.
+- Tapping it asks the paired Mac to prepare a native correspondence document,
+  then opens that document in the stock reMarkable reader/writer interface.
+- The experience never replaces the stock pen-and-eraser toolbar, close action,
+  swipe-down menu, or page gestures.
+- A fictional qiao pi-inspired Chinese letter arrives in vertical text batches on the first page of one native notebook. The paired Mac retains the bounded session text so the overlay can be rehydrated without importing a replacement document.
 - It is labelled `A fictional letter generated for this encounter` in the UI or accessible provenance panel.
 - It may be informed by themes such as remittance received, education, health, care, distance, and requests to visit, but it must not reproduce a museum accession, signature, handwriting, seal, or claim a real author.
 - The reader can swipe forward but cannot accidentally submit from this page.
@@ -26,14 +30,22 @@ The participant's reply is a contemporary **huipi** (回批): the return message
 - Heart-rate connection status is present but unobtrusive: connected, reconnecting, unavailable, or declined.
 - A participant can finish without WHOOP.
 - Submit requires a deliberate action and a confirmation when the page is empty.
+- Submission creates a visible persisted Codex task on the paired Mac and keeps
+  the same notebook open while its marginalia and response pages become ready.
 
-### Page 3 — Marginalia
+### Page 3 — Marked copy
 
 - The original ink remains visually primary and unmodified.
-- AI comments appear as a reversible overlay or in the margin, never by rewriting the participant's strokes.
+- Xochitl first copies the huipi inside the same notebook. A reversible overlay on that full-size page 3 shows red ellipses around only high-confidence wrong glyphs, with the correct glyph immediately beside each mark. The original page 2 remains untouched.
 - Feedback is concise, specific, and kind. It can point out likely character/word corrections, ambiguous reading, tone, and a reflective question.
 - Uncertain readings are marked as uncertain; the system does not fabricate a transcription.
 - The page is called `Marginalia` or `A reading of your reply`, not `Score`, `Grade`, or `Correct answer`.
+
+### Page 4 — A letter in response
+
+- The correspondent answers what was actually legible in the participant's huipi.
+- The reply uses the same vertical typesetting and portrait paper system as page 1.
+- The response is constrained to the `10×18` portrait grid and one page. The compact teacher note expands only to its content on page 3; the flow never creates a mostly empty page 5.
 
 ## Experience principles
 
@@ -50,7 +62,7 @@ The participant's reply is a contemporary **huipi** (回批): the return message
 - Legible hierarchy on Gallery 3 colour e-ink, with no low-contrast decorative text.
 - No generic parchment, wax seals, imperial motifs, nationalist slogans, or cinematic sepia haze.
 - Use archival references for material vocabulary, not for copying handwriting, names, stamps, or composition.
-- Blank and review pages should share the incoming letter's paper field so the three pages feel like one correspondence packet.
+- Blank, marked-copy, and response pages share the incoming letter's paper field so the packet feels like one correspondence.
 
 ## Non-goals for the first vertical slice
 

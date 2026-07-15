@@ -1,0 +1,403 @@
+; Ferrari DocumentView extension. Stock toolbar, pen handling, close, and swipes stay intact.
+; Ferrari DocumentView.qml SHA-256: a2102689b1feb4604e98ece588ee4606a64a7b0599bda2a3e8fac431f0fa74a5
+VERSION 3.28.0.162
+AFFECT [[1224665461898798997]]
+    TRAVERSE FocusScope > Item#_uiContainer
+        LOCATE BEFORE Toolbar#toolbar
+        INSERT {
+            Item {
+                id: lettersHomeLayer
+                objectName: "letters-home-native-layer"
+                anchors.fill: parent
+                clip: true
+                visible: isLettersHome
+
+                readonly property bool isLettersHome: root.document
+                    && root.document.visibleName.indexOf("Letters Home ") === 0
+                readonly property string sessionKey: isLettersHome
+                    ? root.document.visibleName.substring("Letters Home ".length) : ""
+                property int version: -1
+                property var sessionState: ({})
+                readonly property string phase: sessionState.phase || ""
+                readonly property string incomingPageId: sessionState.page_ids?.incoming || ""
+                readonly property string replyPageId: sessionState.page_ids?.reply || ""
+                readonly property string markedPageId: sessionState.page_ids?.marked || pendingMarkedPageId
+                readonly property string responsePageId: sessionState.page_ids?.response || pendingResponsePageId
+                readonly property var incomingGlyphs: sessionState.incoming
+                    && sessionState.incoming.glyphs ? sessionState.incoming.glyphs : []
+                readonly property var responseGlyphs: sessionState.response
+                    && sessionState.response.glyphs ? sessionState.response.glyphs : []
+                readonly property var reviewCorrections: sessionState.review?.corrections || []
+                readonly property var reviewAnnotations: sessionState.review?.annotations || []
+
+                property bool inkPosted: false
+                property bool submitting: false
+                property bool awaitingCopy: false
+                property string pendingMarkedPageId: ""
+                property string pendingResponsePageId: ""
+                property string guardPageId: ""
+                property bool guardActive: false
+                property bool participantNavigated: false
+                property bool reviewNotified: false
+                property int visibleIncomingGlyphCount: 0
+                property int visibleResponseGlyphCount: 0
+
+                onSessionKeyChanged: {
+                    version = -1;
+                    sessionState = ({});
+                    inkPosted = false;
+                    submitting = false;
+                    awaitingCopy = false;
+                    pendingMarkedPageId = "";
+                    pendingResponsePageId = "";
+                    guardPageId = "";
+                    guardActive = false;
+                    participantNavigated = false;
+                    reviewNotified = false;
+                    visibleIncomingGlyphCount = 0;
+                    visibleResponseGlyphCount = 0;
+                }
+
+                function notify(message) {
+                    root.notificationQueue.enqueue({
+                        text: message,
+                        timeout: 5000
+                    });
+                }
+
+                function poll() {
+                    if (!isLettersHome || !sessionKey) {
+                        return;
+                    }
+                    const request = new XMLHttpRequest();
+                    request.open("GET", "http://10.11.99.16:8765/v1/sessions/" + sessionKey);
+                    request.onreadystatechange = function() {
+                        if (request.readyState !== XMLHttpRequest.DONE || request.status !== 200) {
+                            return;
+                        }
+                        const response = JSON.parse(request.responseText);
+                        if (response.version !== lettersHomeLayer.version) {
+                            lettersHomeLayer.version = response.version;
+                            lettersHomeLayer.sessionState = response;
+                        }
+                        if (!lettersHomeLayer.reviewNotified && response.review
+                                && response.review.summary) {
+                            lettersHomeLayer.reviewNotified = true;
+                            lettersHomeLayer.notify("A reply has arrived");
+                        }
+                        const responseStarted = response.response
+                            && response.response.glyphs
+                            && response.response.glyphs.length > 0
+                            && (response.phase === "response-streaming"
+                                || response.phase === "complete");
+                        if (responseStarted
+                                && lettersHomeLayer.guardActive
+                                && !lettersHomeLayer.participantNavigated
+                                && root.currentPageId === lettersHomeLayer.guardPageId) {
+                            lettersHomeLayer.guardActive = false;
+                            root.openPage(3, DocumentView.ScrollPosition.SaveAndRestore);
+                        }
+                    };
+                    request.send();
+                }
+
+                function postFirstInk() {
+                    const request = new XMLHttpRequest();
+                    request.open("POST", "http://10.11.99.16:8765/v1/sessions/ink-start");
+                    request.setRequestHeader("Content-Type", "application/json");
+                    request.onreadystatechange = function() {
+                        if (request.readyState === XMLHttpRequest.DONE && request.status !== 200) {
+                            console.warn("[LettersHome] first ink marker failed", request.status);
+                            lettersHomeLayer.inkPosted = false;
+                        }
+                    };
+                    request.send(JSON.stringify({
+                        session_id: sessionKey,
+                        document_id: root.document.id,
+                        reply_page_id: replyPageId,
+                        observed_at: Date.now() / 1000
+                    }));
+                }
+
+                function submit() {
+                    if (submitting || root.currentPageId !== replyPageId) {
+                        return;
+                    }
+                    submitting = true;
+                    if (pendingMarkedPageId && pendingResponsePageId) {
+                        postSubmission();
+                        return;
+                    }
+                    awaitingCopy = true;
+                    DocumentController.copyPages(root.document.id, [1], root.document.id, 2);
+                }
+
+                function addResponsePage() {
+                    DocumentController.addPageWithTemplateAndPageSize(
+                        root.document.id,
+                        3,
+                        "letters-home-ferrari",
+                        Qt.size(954, 1696),
+                        function() {
+                            pendingMarkedPageId = root.document.idForPage(2);
+                            pendingResponsePageId = root.document.idForPage(3);
+                            if (!pendingMarkedPageId || !pendingResponsePageId) {
+                                submitting = false;
+                                notify("Reply not sent. Your ink is safe; try again.");
+                                return;
+                            }
+                            postSubmission();
+                        }
+                    );
+                }
+
+                function postSubmission() {
+                    guardPageId = pendingMarkedPageId;
+                    participantNavigated = false;
+                    guardActive = true;
+                    root.openPage(2, DocumentView.ScrollPosition.SaveAndRestore);
+                    const request = new XMLHttpRequest();
+                    request.open("POST", "http://10.11.99.16:8765/v1/sessions/submit");
+                    request.setRequestHeader("Content-Type", "application/json");
+                    request.onreadystatechange = function() {
+                        if (request.readyState !== XMLHttpRequest.DONE) {
+                            return;
+                        }
+                        lettersHomeLayer.submitting = false;
+                        if (request.status === 200) {
+                            lettersHomeLayer.notify("Your letter is being reviewed");
+                            lettersHomeLayer.poll();
+                            return;
+                        }
+                        lettersHomeLayer.guardActive = false;
+                        console.warn("[LettersHome] submit failed", request.status);
+                        lettersHomeLayer.notify("Reply not sent. Your ink is safe; try again.");
+                    };
+                    request.send(JSON.stringify({
+                        session_id: sessionKey,
+                        document_id: root.document.id,
+                        reply_page_id: replyPageId,
+                        reply_page_index: 1,
+                        marked_page_id: pendingMarkedPageId,
+                        response_page_id: pendingResponsePageId,
+                        profile_id: "ferrari_3.28.0.162",
+                        conversation_context: ""
+                    }));
+                }
+
+                Timer {
+                    interval: 750
+                    repeat: true
+                    triggeredOnStart: true
+                    running: lettersHomeLayer.isLettersHome
+                    onTriggered: lettersHomeLayer.poll()
+                }
+
+                Timer {
+                    interval: 90
+                    repeat: true
+                    running: lettersHomeLayer.isLettersHome
+                        && root.currentPageId === lettersHomeLayer.incomingPageId
+                        && lettersHomeLayer.visibleIncomingGlyphCount
+                            < lettersHomeLayer.incomingGlyphs.length
+                    onTriggered: {
+                        if (lettersHomeLayer.visibleIncomingGlyphCount
+                                < lettersHomeLayer.incomingGlyphs.length) {
+                            lettersHomeLayer.visibleIncomingGlyphCount += 1;
+                        }
+                    }
+                }
+
+                Timer {
+                    interval: 90
+                    repeat: true
+                    running: lettersHomeLayer.isLettersHome
+                        && root.currentPageId === lettersHomeLayer.responsePageId
+                        && lettersHomeLayer.visibleResponseGlyphCount
+                            < lettersHomeLayer.responseGlyphs.length
+                    onTriggered: {
+                        if (lettersHomeLayer.visibleResponseGlyphCount
+                                < lettersHomeLayer.responseGlyphs.length) {
+                            lettersHomeLayer.visibleResponseGlyphCount += 1;
+                        }
+                    }
+                }
+
+                Connections {
+                    target: root.penHandler
+                    enabled: lettersHomeLayer.isLettersHome && !lettersHomeLayer.inkPosted
+                    function onStrokeCompleted() {
+                        if (root.currentPageId === lettersHomeLayer.replyPageId) {
+                            lettersHomeLayer.inkPosted = true;
+                            lettersHomeLayer.postFirstInk();
+                        }
+                    }
+                }
+
+                Connections {
+                    target: root.document
+                    function onPagesAdded(pageIndexes) {
+                        if (!lettersHomeLayer.awaitingCopy) {
+                            return;
+                        }
+                        lettersHomeLayer.awaitingCopy = false;
+                        if (!root.document || root.document.pageCount < 3) {
+                            lettersHomeLayer.submitting = false;
+                            lettersHomeLayer.notify("Reply not sent. Your ink is safe; try again.");
+                            return;
+                        }
+                        lettersHomeLayer.addResponsePage();
+                    }
+                }
+
+                Connections {
+                    target: root
+                    function onCurrentPageChanged() {
+                        if (lettersHomeLayer.guardActive
+                                && root.currentPageId !== lettersHomeLayer.guardPageId) {
+                            lettersHomeLayer.participantNavigated = true;
+                        }
+                    }
+                }
+
+                Repeater {
+                    model: root.currentPageId === lettersHomeLayer.incomingPageId
+                        ? lettersHomeLayer.incomingGlyphs.slice(0, lettersHomeLayer.visibleIncomingGlyphCount) : []
+                    Text {
+                        x: modelData.x * lettersHomeLayer.width / 954 - width / 2
+                        y: modelData.y * lettersHomeLayer.height / 1696 - height / 2
+                        text: modelData.glyph
+                        color: "#263d52"
+                        font.pixelSize: 34
+                        antialiasing: false
+                    }
+                }
+
+                Text {
+                    visible: root.currentPageId === lettersHomeLayer.incomingPageId
+                    x: 72
+                    y: lettersHomeLayer.height - 52
+                    text: "A fictional letter generated for this encounter"
+                    color: "#786f63"
+                    font.pixelSize: 16
+                    antialiasing: false
+                }
+
+                Repeater {
+                    model: root.currentPageId === lettersHomeLayer.responsePageId
+                        ? lettersHomeLayer.responseGlyphs.slice(0, lettersHomeLayer.visibleResponseGlyphCount) : []
+                    Text {
+                        x: modelData.x * lettersHomeLayer.width / 954 - width / 2
+                        y: modelData.y * lettersHomeLayer.height / 1696 - height / 2
+                        text: modelData.glyph
+                        color: "#263d52"
+                        font.pixelSize: 34
+                        antialiasing: false
+                    }
+                }
+
+                Repeater {
+                    model: root.currentPageId === lettersHomeLayer.markedPageId
+                        ? lettersHomeLayer.reviewCorrections : []
+                    Item {
+                        x: modelData.anchor.x * lettersHomeLayer.width
+                        y: modelData.anchor.y * lettersHomeLayer.height
+                        width: modelData.anchor.width * lettersHomeLayer.width
+                        height: modelData.anchor.height * lettersHomeLayer.height
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: Math.max(width, height) / 2
+                            color: "transparent"
+                            border.color: "#b52222"
+                            border.width: 3
+                        }
+                        Text {
+                            anchors.left: parent.right
+                            anchors.leftMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.suggested_text
+                            color: "#b52222"
+                            font.pixelSize: 30
+                            font.bold: true
+                        }
+                    }
+                }
+
+                Repeater {
+                    model: root.currentPageId === lettersHomeLayer.markedPageId
+                        ? lettersHomeLayer.reviewAnnotations : []
+                    Rectangle {
+                        x: modelData.anchor.x * lettersHomeLayer.width
+                        y: modelData.anchor.y * lettersHomeLayer.height
+                        width: modelData.anchor.width * lettersHomeLayer.width
+                        height: modelData.anchor.height * lettersHomeLayer.height
+                        radius: Math.max(width, height) / 2
+                        color: "transparent"
+                        border.color: "#756c62"
+                        border.width: 2
+                    }
+                }
+
+                Rectangle {
+                    id: lettersHomeReviewNote
+                    visible: root.currentPageId === lettersHomeLayer.markedPageId
+                        && !!lettersHomeLayer.sessionState.review?.summary
+                    x: 40
+                    y: lettersHomeLayer.height - height - 70
+                    width: Math.min(lettersHomeLayer.width * 0.58, 520)
+                    height: reviewNoteColumn.implicitHeight + 28
+                    color: "#f8f1e3"
+                    opacity: 0.94
+                    border.color: "#b52222"
+                    border.width: 1
+                    radius: 8
+
+                    Column {
+                        id: reviewNoteColumn
+                        x: 14
+                        y: 14
+                        width: parent.width - 28
+                        spacing: 8
+                        Text {
+                            width: parent.width
+                            text: lettersHomeLayer.sessionState.review?.summary || ""
+                            wrapMode: Text.Wrap
+                            color: "#4b4035"
+                            font.pixelSize: 22
+                        }
+                        Text {
+                            width: parent.width
+                            text: lettersHomeLayer.sessionState.review?.reflective_question || ""
+                            wrapMode: Text.Wrap
+                            color: "#6a2b2b"
+                            font.pixelSize: 20
+                        }
+                    }
+                }
+            }
+        }
+
+        LOCATE AFTER Toolbar#toolbar
+        INSERT {
+            ArkControls.Button {
+                id: lettersHomeSubmit
+                objectName: "letters-home-submit"
+                text: lettersHomeLayer.submitting ? "寄送中…" : "寄出"
+                visible: lettersHomeLayer.isLettersHome
+                    && root.currentPageId === lettersHomeLayer.replyPageId
+                    && !lettersHomeLayer.sessionState.submitted_at
+                enabled: visible && !lettersHomeLayer.submitting
+                    && lettersHomeLayer.phase === "ready"
+                width: 124
+                height: 56
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: toolbar.position === ToolbarPositioner.Position.Right
+                    && toolbar.shown ? toolbar.innerWidth + 42 : 42
+                anchors.bottomMargin: toolbar.position === ToolbarPositioner.Position.Bottom
+                    && toolbar.shown ? toolbar.innerHeight + 54 : 54
+                onClicked: lettersHomeLayer.submit()
+            }
+        }
+    END TRAVERSE
+END AFFECT

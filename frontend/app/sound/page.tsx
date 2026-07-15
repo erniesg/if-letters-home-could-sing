@@ -69,7 +69,6 @@ export default function OperaTestPage() {
   const [manualHeartRate, setManualHeartRate] = useState(80);
 
   const handleHeartRateUpdate = (newRate: number) => {
-    console.log('Heart Rate Updated:', newRate);
     if (!isManualControl) {
       setHeartRate(newRate);
     }

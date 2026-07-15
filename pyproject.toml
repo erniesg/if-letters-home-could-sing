@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools==75.8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "if-letters-home-could-sing-experience"
+version = "0.1.0"
+description = "Portable contracts for the reMarkable correspondence experience"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = []
+
+[project.optional-dependencies]
+dev = []
+trusted-mac = [
+  "Pillow>=12,<13",
+  "pypdf>=6.7,<7",
+  "reportlab>=4.4,<5",
+]
+
+[project.scripts]
+letters-home-bridge = "mac_bridge.server:main"
+
+[tool.setuptools]
+packages = ["device_installer", "experience_core", "heart_rate", "mac_bridge", "tablet_app", "toolbar_launcher"]
+py-modules = []

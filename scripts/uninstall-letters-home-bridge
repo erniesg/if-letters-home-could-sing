@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+LABEL=com.erniesg.letters-home.bridge
+DOMAIN="gui/$(id -u)"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+STATE="$HOME/.local/share/letters-home"
+MARKER="$STATE/launch-agent.managed.sha256"
+CHECK_ONLY=0
+
+if [ "${1:-}" = "--check-only" ]; then
+    CHECK_ONLY=1
+    shift
+fi
+[ "$#" -eq 0 ] || { echo "unknown argument: $1" >&2; exit 2; }
+
+if [ ! -e "$PLIST" ] && [ ! -e "$MARKER" ]; then
+    echo "OK: launch agent is already absent"
+    exit 0
+fi
+[ -f "$PLIST" ] && [ -f "$MARKER" ] || { echo "unmanaged_launch_agent" >&2; exit 1; }
+CURRENT_HASH=$(shasum -a 256 "$PLIST" | awk '{print $1}')
+MANAGED_HASH=$(sed -n '1p' "$MARKER")
+[ "$CURRENT_HASH" = "$MANAGED_HASH" ] || { echo "unmanaged_launch_agent" >&2; exit 1; }
+
+if [ "$CHECK_ONLY" -eq 1 ]; then
+    echo "OK: launch agent is hash-owned and removable"
+    exit 0
+fi
+
+launchctl bootout "$DOMAIN/$LABEL" >/dev/null 2>&1 || true
+rm -f "$PLIST" "$MARKER"
+echo "OK: removed hash-owned $LABEL; logs and session data were preserved"

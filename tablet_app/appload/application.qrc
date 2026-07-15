@@ -1,0 +1,11 @@
+<RCC>
+  <qresource prefix="/">
+    <file alias="ui/Main.qml">ui/Main.qml</file>
+    <file alias="ui/StationeryLayer.qml">ui/StationeryLayer.qml</file>
+    <file alias="ui/InkLayer.qml">ui/InkLayer.qml</file>
+    <file alias="ui/MarginaliaLayer.qml">ui/MarginaliaLayer.qml</file>
+    <file alias="assets/incoming-qiaopi-ferrari-001.png">../../fixtures/generated/incoming-qiaopi-ferrari-001.png</file>
+    <file alias="assets/reply-chiappa.svg">../../fixtures/reply/reply-chiappa.svg</file>
+    <file alias="assets/reply-ferrari.svg">../../fixtures/reply/reply-ferrari.svg</file>
+  </qresource>
+</RCC>

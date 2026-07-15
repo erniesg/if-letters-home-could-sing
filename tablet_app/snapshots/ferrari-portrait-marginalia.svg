@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="954" height="1696" viewBox="0 0 954 1696">
+<rect width="954" height="1696" fill="#f1e8d5"/>
+<rect width="954" height="127" fill="#e5d9c2"/>
+<text x="42" y="79" fill="#2f2923" font-family="sans-serif" font-size="44" text-anchor="start">A reading of your reply</text>
+<text x="912" y="76" fill="#2f2923" font-family="sans-serif" font-size="32" text-anchor="end">Ferrari</text>
+<rect x="33" y="160" width="888" height="1333" rx="8" fill="#f6efdf" stroke="#8d7964" stroke-width="3"/>
+<g id="stationery-layer">
+<rect x="91" y="218" width="772" height="1217" fill="none" stroke="#a45149" stroke-width="3" opacity="0.62"/>
+<path d="M 477 160 V 1493" stroke="#796d5e" stroke-width="2" opacity="0.10"/>
+<path d="M 33 826 H 921" stroke="#796d5e" stroke-width="2" opacity="0.10"/>
+<path d="M 177 218 V 1435" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 263 218 V 1435" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 348 218 V 1435" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 434 218 V 1435" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 520 218 V 1435" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 606 218 V 1435" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 691 218 V 1435" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 777 218 V 1435" stroke="#a45149" stroke-width="2" opacity="0.24"/>
+<path d="M 91 340 H 863" stroke="#a45149" stroke-width="2" opacity="0.22"/>
+<path d="M 91 1313 H 863" stroke="#a45149" stroke-width="2" opacity="0.22"/>
+</g>
+<g id="ink-layer" fill="none" stroke="#33475b" stroke-linecap="round">
+<path d="M 211 560 L 246 613 L 299 693" stroke-width="5"/>
+</g>
+<g id="marginalia-layer">
+<rect x="193" y="480" width="107" height="80" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="193" y="466" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">Use 您 here so the respectful address stays consistent.</text>
+<rect x="575" y="720" width="71" height="53" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="575" y="706" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">I am not certain this character is 家; is that what you intended?</text>
+<rect x="459" y="840" width="178" height="80" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="459" y="826" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">Place 也 before 很想念您 so the sentence reads more naturally.</text>
+<rect x="246" y="1066" width="222" height="80" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="246" y="1052" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">请勿挂念 keeps this reassurance warm rather than abrupt.</text>
+<rect x="353" y="933" width="213" height="93" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="353" y="919" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">Your reassurance about the family feels clear and warm.</text>
+<rect x="140" y="1200" width="551" height="107" fill="none" stroke="#74362f" stroke-width="5" stroke-dasharray="10 8"/>
+<text x="140" y="1186" fill="#2f2923" font-family="sans-serif" font-size="25" text-anchor="start">What would you want the reader to know about the distance between you?</text>
+</g>
+<g id="controls-layer" data-min-touch-target="96">
+<rect x="641" y="1563" width="280" height="96" rx="10" fill="#2f2923" data-touch-target="true"/>
+<text x="781" y="1624" fill="#fffaf0" font-family="sans-serif" font-size="30" text-anchor="middle">Hide notes</text>
+<text x="42" y="1623" fill="#2f2923" font-family="sans-serif" font-size="27" text-anchor="start">Heart rate unavailable — reply is still available</text>
+</g>
+</svg>

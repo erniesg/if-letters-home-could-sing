@@ -15,8 +15,9 @@ This directory stores reviewable markdown issue specs for `erniesg/if-letters-ho
 | 007 | Toolbar QMLDiff spike | hardware, human gate | 003 | held |
 | 008 | Installer + device trials | hardware, human gate | 003, 005, 006, 007 | held |
 | 009 | Privacy + installation export | portable/trusted VM | 005, 006 | after 005/006 |
+| 010 | Native document + Mac Codex round trip | portable/trusted Mac/hardware | 004, 005, 007, 008 | human-held trial |
 
-The first autonomous run should use specs 001–006 and 009 only. Specs 007–008 stay held until the physical-device mutation plan is approved. Within 004 and 006, portable fixture/mock work may proceed; live provider calls remain human gates.
+The first autonomous run should use specs 001–006 and 009 only. Specs 007–008 and 010 stay held until the physical-device mutation plan is approved. Within 004, 006, and 010, portable fixture/mock work may proceed; live provider calls remain human gates.
 
 Issue bodies in this directory are the proposed GitHub bodies. Review them before running labels/seed commands. Seeding is idempotent by the stable spec marker but still creates or updates external issues.
 

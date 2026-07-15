@@ -1,0 +1,11 @@
+# Optional historical research/tooling dependencies. These are intentionally
+# outside the required product-contract lane and pinned for repeatable setup.
+paramiko==5.0.0
+libevdev==0.13.1
+screeninfo==0.8.1
+remarkable-mouse==7.2.0
+Pillow==12.3.0
+python-dotenv==1.2.2
+tqdm==4.68.4
+rarfile==4.3
+modal==1.5.2

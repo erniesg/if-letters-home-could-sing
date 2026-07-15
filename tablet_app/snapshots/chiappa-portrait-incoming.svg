@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1620" height="2160" viewBox="0 0 1620 2160">
+<rect width="1620" height="2160" fill="#f1e8d5"/>
+<rect width="1620" height="162" fill="#e5d9c2"/>
+<text x="42" y="97" fill="#2f2923" font-family="sans-serif" font-size="44" text-anchor="start">Incoming letter</text>
+<text x="1578" y="94" fill="#2f2923" font-family="sans-serif" font-size="32" text-anchor="end">Chiappa</text>
+<rect x="57" y="219" width="1506" height="1668" rx="8" fill="#f6efdf" stroke="#8d7964" stroke-width="3"/>
+<g id="incoming-layer">
+<image href="../../fixtures/generated/incoming-qiaopi-001.png" x="359" y="319" width="901" height="1201" preserveAspectRatio="xMidYMid meet"/>
+<text x="810" y="1833" fill="#2f2923" font-family="sans-serif" font-size="34" text-anchor="middle">A fictional letter generated for this encounter</text>
+</g>
+<g id="controls-layer" data-min-touch-target="96">
+<rect x="1142" y="2004" width="421" height="96" rx="10" fill="#2f2923" data-touch-target="true"/>
+<text x="1352" y="2065" fill="#fffaf0" font-family="sans-serif" font-size="30" text-anchor="middle">Swipe forward</text>
+<text x="42" y="2064" fill="#2f2923" font-family="sans-serif" font-size="27" text-anchor="start">Heart rate unavailable — reply is still available</text>
+</g>
+</svg>

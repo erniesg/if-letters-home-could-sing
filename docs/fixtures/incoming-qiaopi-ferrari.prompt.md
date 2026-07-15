@@ -1,0 +1,34 @@
+# Ferrari incoming qiao pi fixture prompt
+
+## Use case
+
+Fictional historical-material test fixture for the Paper Pro Move / Ferrari
+incoming-letter page. This is original generated concept art, not an archival
+reconstruction or museum record.
+
+## Exact generation prompt
+
+```text
+Use case: historical-scene
+Asset type: test fixture for the reMarkable Paper Pro Move (Ferrari) incoming-letter page
+Primary request: Create one original, clearly fictional qiao-pi-inspired Chinese family correspondence sheet. This is fictional concept art for a contemporary tablet experience, not an archival reconstruction or museum record.
+Scene/backdrop: A single sheet of warm, thin fibrous paper seen straight-on from above, nearly full-frame against a quiet neutral background.
+Subject: Restrained blue-grey handwritten Chinese correspondence suggesting that remittance was received, the family is safe, schooling or health is mentioned, and there is hope for a future visit. Keep any handwriting ordinary and internally fictional; do not imitate a known hand.
+Style/medium: Naturalistic historical-material study with subtle paper grain, gentle uneven age at the edges, restrained red vertical rules, and faint horizontal/vertical fold memory. Clean, quiet, intimate, and legible on colour e-ink.
+Composition/framing: Wide landscape canvas matching a 1696:960 aspect ratio. One paper sheet only, centered and almost full-frame, with a small quiet margin and modest negative space for a separate app provenance chip. No collage, mockup, surrounding objects, or presentation framing.
+Lighting/mood: Even soft ambient light, warm and intimate, no dramatic shadows or cinematic sepia haze.
+Color palette: Warm cream paper, muted red rules, restrained blue-grey or charcoal ink.
+Materials/textures: Fine fibrous paper, subtle fold creases and edge wear; no tears that obscure the correspondence.
+Constraints: The letter must be visibly fictional and must not copy any archival layout, handwriting, text, damage, number, stamp, or composition. No real author, no actual personal name, no signature, no seal, no accession or catalogue number, no legible real address, no museum/company/government logo, no authenticity claim, no watermark. No national flag, emblem, political slogan, decorative calligraphy, wax seal, envelope, receipt logo, or large display heading. If exact Chinese text is uncertain, use restrained coherent fictional handwriting texture rather than malformed large characters.
+Avoid: toolbar UI, tablet bezel, buttons, menus, icons, cursor, app chrome, provenance label burned into the image, English caption, hands, desk objects, pen, flowers, map, coins, scrolls, imperial motifs.
+```
+
+## Approval notes
+
+- Generated once with Codex's built-in image-generation capability; no archival
+  or local reference image was supplied.
+- Visually reviewed at native Ferrari dimensions. The accepted image contains
+  no real author or personal name, signature, seal, accession, watermark,
+  museum/company/government mark, or tablet toolbar UI.
+- The original built-in output remains outside Git. The checked-in fixture is a
+  deterministic Ferrari derivative described in its JSON sidecar.

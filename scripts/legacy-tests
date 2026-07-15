@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+"""Run the optional research suite only when its local setup is complete."""
+
+from importlib.util import find_spec
+from pathlib import Path
+import subprocess
+import sys
+
+
+ROOT = Path(__file__).resolve().parents[1]
+REQUIRED_MODULES = {
+    "Pillow": "PIL",
+    "pytest": "pytest",
+    "PyTorch": "torch",
+    "AWS test fixtures": "boto3",
+    "AWS mocks": "moto",
+    "legacy pipeline package": "pipeline",
+    "legacy training data package": "training.data",
+}
+REQUIRED_INPUTS = {
+    "Puzzle Pieces dataset": ROOT / "data" / "puzzle-pieces-picker",
+    "M5HisDoc dataset": ROOT / "data" / "M5HisDoc",
+    "HIT-OR3C dataset": ROOT / "data" / "character",
+    "legacy mapping outputs": ROOT / "data" / "processed",
+    "legacy font": ROOT / "data" / "fonts" / "BabelStoneHan.ttf",
+}
+
+
+def module_available(module: str) -> bool:
+    try:
+        return find_spec(module) is not None
+    except (ImportError, ModuleNotFoundError, ValueError):
+        return False
+
+
+def main() -> int:
+    missing_modules = [label for label, module in REQUIRED_MODULES.items() if not module_available(module)]
+    missing_inputs = [label for label, path in REQUIRED_INPUTS.items() if not path.exists()]
+
+    if missing_modules or missing_inputs:
+        print("legacy-python-test setup blocked (optional lane)", file=sys.stderr)
+        if missing_modules:
+            print("missing modules: " + ", ".join(missing_modules), file=sys.stderr)
+        if missing_inputs:
+            print("missing local inputs: " + ", ".join(missing_inputs), file=sys.stderr)
+        print("No private dataset, model checkpoint, or credential was copied into the repository.", file=sys.stderr)
+        return 2
+
+    return subprocess.run(
+        [sys.executable, "-m", "pytest", "legacy_tests"],
+        cwd=ROOT,
+        check=False,
+    ).returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

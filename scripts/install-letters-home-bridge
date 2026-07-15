@@ -1,0 +1,150 @@
+#!/bin/sh
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+LABEL=com.erniesg.letters-home.bridge
+DOMAIN="gui/$(id -u)"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+STATE="$HOME/.local/share/letters-home"
+MARKER="$STATE/launch-agent.managed.sha256"
+PYTHON=${LETTERS_HOME_PYTHON:-$(command -v python3)}
+CONTEXT=
+CHECK_ONLY=0
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --check-only)
+            CHECK_ONLY=1
+            shift
+            ;;
+        --python)
+            [ "$#" -ge 2 ] || { echo "missing --python value" >&2; exit 2; }
+            PYTHON=$2
+            shift 2
+            ;;
+        --conversation-context-file)
+            [ "$#" -ge 2 ] || { echo "missing --conversation-context-file value" >&2; exit 2; }
+            CONTEXT=$2
+            shift 2
+            ;;
+        *)
+            echo "unknown argument: $1" >&2
+            exit 2
+            ;;
+    esac
+done
+
+[ -n "$PYTHON" ] && [ -x "$PYTHON" ] || { echo "missing_runtime_dependency:python" >&2; exit 1; }
+PYTHON=$("$PYTHON" -c 'import os, sys; print(os.path.realpath(sys.executable))')
+[ -x "$PYTHON" ] || { echo "missing_runtime_dependency:python" >&2; exit 1; }
+if [ -n "$CONTEXT" ]; then
+    case "$CONTEXT" in /*) ;; *) echo "launch_agent_path_invalid" >&2; exit 1;; esac
+    [ -r "$CONTEXT" ] || { echo "conversation_context_unreadable" >&2; exit 1; }
+fi
+
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/letters-home-launch-agent.XXXXXX")
+NEW_PLIST="$WORK/$LABEL.plist"
+OLD_PLIST="$WORK/previous.plist"
+OLD_MARKER="$WORK/previous.sha256"
+HEALTH="$WORK/health.json"
+ROLLBACK_NEEDED=0
+HAD_OLD=0
+OLD_LOADED=0
+
+cleanup() {
+    rm -rf "$WORK"
+}
+
+rollback_install() {
+    launchctl bootout "$DOMAIN/$LABEL" >/dev/null 2>&1 || true
+    if [ "$HAD_OLD" -eq 1 ]; then
+        cp -p "$OLD_PLIST" "$PLIST"
+        cp -p "$OLD_MARKER" "$MARKER"
+        if [ "$OLD_LOADED" -eq 1 ]; then
+            launchctl bootstrap "$DOMAIN" "$PLIST" >/dev/null 2>&1 || true
+        fi
+    else
+        rm -f "$PLIST" "$MARKER"
+    fi
+}
+
+on_exit() {
+    status=$?
+    trap - EXIT HUP INT TERM
+    if [ "$status" -ne 0 ] && [ "$ROLLBACK_NEEDED" -eq 1 ]; then
+        rollback_install
+    fi
+    cleanup
+    exit "$status"
+}
+trap on_exit EXIT HUP INT TERM
+
+PYTHONPATH="$ROOT" "$PYTHON" -m mac_bridge.launch_agent check \
+    --repo-root "$ROOT" --python "$PYTHON"
+if [ -n "$CONTEXT" ]; then
+    PYTHONPATH="$ROOT" "$PYTHON" -m mac_bridge.launch_agent render \
+        --repo-root "$ROOT" --python "$PYTHON" --home "$HOME" \
+        --conversation-context-file "$CONTEXT" --output "$NEW_PLIST"
+else
+    PYTHONPATH="$ROOT" "$PYTHON" -m mac_bridge.launch_agent render \
+        --repo-root "$ROOT" --python "$PYTHON" --home "$HOME" \
+        --output "$NEW_PLIST"
+fi
+plutil -lint "$NEW_PLIST" >/dev/null
+NEW_HASH=$(shasum -a 256 "$NEW_PLIST" | awk '{print $1}')
+
+if [ -e "$PLIST" ] || [ -e "$MARKER" ]; then
+    [ -f "$PLIST" ] && [ -f "$MARKER" ] || { echo "unmanaged_launch_agent" >&2; exit 1; }
+    CURRENT_HASH=$(shasum -a 256 "$PLIST" | awk '{print $1}')
+    MANAGED_HASH=$(sed -n '1p' "$MARKER")
+    [ "$CURRENT_HASH" = "$MANAGED_HASH" ] || { echo "unmanaged_launch_agent" >&2; exit 1; }
+    HAD_OLD=1
+    cp -p "$PLIST" "$OLD_PLIST"
+    cp -p "$MARKER" "$OLD_MARKER"
+    if launchctl print "$DOMAIN/$LABEL" >/dev/null 2>&1; then
+        OLD_LOADED=1
+    fi
+fi
+
+if [ "$CHECK_ONLY" -eq 1 ]; then
+    echo "OK: launch agent dependencies, ownership, and plist are valid"
+    exit 0
+fi
+
+mkdir -p "$(dirname "$PLIST")" "$STATE"
+chmod 700 "$STATE"
+launchctl bootout "$DOMAIN/$LABEL" >/dev/null 2>&1 || true
+cp "$NEW_PLIST" "$PLIST.tmp.$$"
+chmod 600 "$PLIST.tmp.$$"
+mv "$PLIST.tmp.$$" "$PLIST"
+printf '%s\n' "$NEW_HASH" > "$MARKER.tmp.$$"
+chmod 600 "$MARKER.tmp.$$"
+mv "$MARKER.tmp.$$" "$MARKER"
+ROLLBACK_NEEDED=1
+
+launchctl bootstrap "$DOMAIN" "$PLIST"
+launchctl kickstart -k "$DOMAIN/$LABEL"
+
+READY=0
+attempt=0
+while [ "$attempt" -lt 20 ]; do
+    attempt=$((attempt + 1))
+    if curl --fail --silent --show-error --connect-timeout 1 --max-time 3 \
+        http://10.11.99.16:8765/health > "$HEALTH" 2>/dev/null \
+        && "$PYTHON" - "$HEALTH" <<'PY'
+import json
+import sys
+payload = json.load(open(sys.argv[1], encoding="utf-8"))
+required = ("listener", "tablet_readable", "renderer", "codex")
+raise SystemExit(0 if payload.get("status") == "ok" and all(payload.get(key) is True for key in required) else 1)
+PY
+    then
+        READY=1
+        break
+    fi
+    sleep 1
+done
+[ "$READY" -eq 1 ] || { echo "bridge_health_unavailable" >&2; exit 1; }
+
+ROLLBACK_NEEDED=0
+echo "OK: $LABEL is running and bidirectional health is green"

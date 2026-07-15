@@ -2,11 +2,31 @@
   "schema_version": "1",
   "session_id": "fixture-session-0001",
   "state": "marginalia",
-  "letter_fixture_id": "fictional-hainan-1954-001",
+  "letter_provenance": {
+    "schema_version": "1",
+    "letter_fixture_id": "fictional-hainan-1954-001",
+    "kind": "fixture",
+    "fictional": true,
+    "notice": "A fictional letter generated for this encounter"
+  },
   "created_at": "2026-07-14T00:00:00Z",
   "first_ink_at": "2026-07-14T00:00:12Z",
   "submitted_at": "2026-07-14T00:01:02Z",
+  "review_id": "fixture-review-0001",
+  "error_code": null,
+  "strokes": [
+    {
+      "schema_version": "1",
+      "stroke_id": "stroke-1",
+      "accepted_at": "2026-07-14T00:00:12Z",
+      "points": [
+        {"x": 0.2, "y": 0.3, "pressure": 0.5},
+        {"x": 0.3, "y": 0.4, "pressure": 0.6}
+      ]
+    }
+  ],
   "heart_rate": {
+    "schema_version": "1",
     "consent": "granted",
     "source": "mock",
     "samples": [
@@ -15,5 +35,6 @@
     ],
     "gaps": []
   },
-  "retention_deadline": "2026-07-21T00:01:02Z"
+  "retention_deadline": "2026-07-21T00:01:02Z",
+  "deletion_status": "active"
 }

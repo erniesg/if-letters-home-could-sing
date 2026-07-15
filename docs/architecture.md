@@ -2,126 +2,153 @@
 
 ## Decision
 
-Build a small, version-pinned AppLoad application and launch it from a QMLDiff-inserted toolbar icon. Do not write directly into reMarkable's proprietary notebook files for the first vertical slice.
+Each encounter is one stock Xochitl notebook, created in the user's current
+folder and opened through the normal `DocumentView`. It starts with two native
+pages and finishes with four:
 
-This keeps the stock notebook application responsible for notebooks while the experience owns only its three-page session. It also matches the existing Xovi/QMLDiff setup and provides a rollback boundary.
+1. incoming fictional letter;
+2. writable huipi;
+3. copied huipi with reversible marginalia;
+4. reciprocal response letter.
+
+QMLDiff adds the main-sidebar entry and non-interactive page overlays, but it
+does not replace Xochitl's pen toolbar, close action, swipe-down menu, page
+navigation, or gesture handlers. The paired Mac owns Codex and session state.
+It may export a read-only rendering of page 2 for review; it never imports a
+PDF, uploads a reviewed replacement, or edits Xochitl's document store.
 
 ```mermaid
 flowchart LR
-    A["Stock Xochitl toolbar"] -->|"letter icon"| B["QMLDiff launcher patch"]
-    B --> C["AppLoad QML experience"]
-    C --> D["Device backend"]
-    D -->|"HTTPS / WebSocket"| E["Session gateway"]
-    E --> F["Letter image adapter"]
-    E --> G["Reply review adapter"]
-    H["Phone / edge WHOOP BLE bridge"] -->|"live HR samples"| E
-    I["WHOOP OAuth v2"] -->|"optional aggregate context"| E
-    E --> J["Consent-scoped session store"]
+    A["Main Xochitl hamburger sidebar"] -->|"Letters Home"| B["Clone prewarmed native stationery"]
+    B --> C["Page 1 incoming overlay"]
+    B --> D["Page 2 stock ink"]
+    C <-->|"bounded polling"| E["Paired Mac bridge"]
+    D -->|"submit read-only export"| E
+    E --> F["Persisted Codex review task"]
+    F --> G["Page 3 reversible marginalia"]
+    F --> H["Page 4 streamed response"]
+    I["Optional phone or edge WHOOP BLE relay"] --> E
 ```
 
-## Components
+## Device contract
 
-### 1. Toolbar launcher
+### Exact Ferrari resources
 
-- QMLDiff patch against exact, hashed Xochitl/QRR resources for Ferrari and Chiappa on OS `3.28.0.162`.
-- Adds only an icon and AppLoad launch action.
-- Must coexist with the installed CJK font/language QMDs.
-- A missing or mismatched hash must fail closed without changing the device.
+Ferrari OS `3.28.0.162` is the only physically eligible target in this slice.
+The recovered source hashes, resource identifiers, and obfuscated method
+symbols are pinned in
+`contracts/native-notebook-api.ferrari-3.28.0.162.json`. The trial bundle
+copies that contract beside the QMLDiffs. A mismatched Xochitl binary, QRR
+hashtable, recovered source, target version, or active patch order must fail
+closed before mutation.
 
-The exact toolbar resource and insertion point are a reverse-engineering spike, not an assumption. Xochitl is proprietary and reMarkable does not promise patch compatibility between versions.
+The app-owned background is a deterministic KZip template package installed as
+`/home/root/.local/share/remarkable/templates/custom/letters-home-ferrari.rmt`,
+never in the read-only factory directory under `/usr/share`. Ferrari Xochitl
+requires root-level `manifest.json` and `image.png` members and accepts
+`image.svg` for the full-resolution vector background. On startup it copies the
+two image members into the writable `templates/import` cache and rebuilds that
+cache's `templates.json`; those generated app-owned images are hash-pinned for
+rollback too.
 
-### 2. Tablet application
+Chiappa remains a separate exact-version target. Matching-looking bytes or
+layout dimensions do not authorize reuse of the Ferrari contract.
 
-- Pure Qt Quick frontend compatible with AppLoad's supported Qt runtime.
-- Device backend follows AppLoad's Unix-socket frontend/backend protocol; Rust is preferred because the maintained example and client library use it.
-- Three explicit states: `incoming`, `reply`, `marginalia`.
-- Session state is recoverable after frontend restart and erased according to retention policy.
-- Stroke capture is behind a `StrokeSource` interface so host tests use deterministic fixtures while hardware input remains an integration adapter.
+### Notebook creation and binding
 
-### 3. Session gateway
+The bridge persists only the native document/page IDs of one app-owned,
+two-page blank `Letters Home Stationery` seed. A 1.2-second startup timer asks
+the stock creation window to build that seed when it is absent. The seed is a
+normal native notebook, never a PDF or a private document-store fixture.
 
-The tablet never contains OpenAI or WHOOP client secrets. The gateway owns:
+The sidebar QMLDiff:
 
-- image generation requests and caching;
-- stroke/transcript review requests;
-- WHOOP OAuth token exchange and refresh;
-- ingestion from the live BLE relay;
-- consent, retention, deletion, and installation export.
+- asks the private Mac bridge to start a session;
+- asks for the persisted seed IDs and opens the stock
+  `library-ui/window/create-notebook` route in silent mode;
+- never references `Library`, `LibraryController`, or `DocumentController`;
+- lets the exact `CreateNotebook.qml` scope copy the seed pages and move only
+  those copies into `Letters Home <session-id>`;
+- receives the clone document ID and both validated page IDs through the stock
+  route callback;
+- binds those ids to the session; and
+- opens the clone through `legacydevice/window/main` only after bind.
 
-Provider-facing code must sit behind interfaces with deterministic fakes:
+A two-second watchdog restores the sidebar label after any bridge, seed, clone,
+bind, or callback failure and leaves normal Xochitl navigation available. A
+damaged seed is rebuilt asynchronously for the next tap. It does not create or
+import a fallback PDF.
 
-- `LetterImageProvider`: `FixtureLetterImageProvider`, later `OpenAIImageProvider`;
-- `ReplyReviewer`: `FixtureReplyReviewer`, later an approved model-backed reviewer;
-- `HeartRateSource`: `MockHeartRateSource`, `BleRelayHeartRateSource`, `WhoopAggregateSource`.
+### Pages and interaction ownership
 
-### 4. Heart-rate capture
+The document-view QMLDiff adds one non-interactive layer before the stock
+toolbar:
 
-WHOOP's public cloud API exposes cycle/workout summaries such as average and maximum heart rate, not continuous live heart rate. WHOOP devices can broadcast the standard BLE Heart Rate Service. Because both target reMarkables lack Bluetooth, a phone or edge computer must listen to BLE and relay samples to the gateway.
+- Page 1 reveals cumulative, already-laid-out glyphs from the bridge one at a
+  time every 90 ms on a fixed
+  Ferrari `954×1696`, `10×18` vertical grid. Text runs top-to-bottom and
+  columns right-to-left. Polling is e-ink-safe and bounded.
+- Page 2 is an ordinary native ink page. Exactly one connection to the stock
+  pen handler records the first completed stroke. A floating `寄出` action is
+  positioned clear of either stock toolbar orientation and exists only here.
+- On submit, Xochitl copies page 2 to page 3 with
+  `DocumentController.copyPages`, then adds the templated page 4 with
+  `DocumentController.addPageWithTemplateAndPageSize`.
+- Page 3 paints only grounded correction geometry and a compact review note.
+  Red is reserved for high-confidence corrections; uncertain readings remain
+  neutral. Page 2 and its ink are never changed.
+- Page 4 reveals the cumulative reciprocal response with the same monotonic
+  one-glyph timer on the same `10×18` grid.
+  The response contract must fit one page.
 
-Capture semantics:
+The layer has no `MouseArea`, `TapHandler`, custom gesture window, or
+`toolbarProvider.editingTools` mutation. Auto-advance occurs at most once and
+only if the participant has not navigated away themselves.
 
-1. Create the session before page 1.
-2. Start the biometric window on the first accepted pen stroke, not on app launch.
-3. Store samples with source timestamp, gateway receipt timestamp, BPM, optional RR interval, source, and quality flags.
-4. Close the window atomically with reply submission.
-5. Preserve gaps and reconnect events; never invent samples or interpolate silently.
-6. Permit `declined` and `unavailable` sessions to complete normally.
+## Paired Mac bridge
 
-### 5. AI image and review
+The bridge binds only to the Mac side of the private USB link. A deterministic
+LaunchAgent (`com.erniesg.letters-home.bridge`) supervises it with an explicit
+Python interpreter and a minimal environment. Installation is hash-owned,
+rollback-safe, and accepted only after health confirms the listener, tablet
+route, renderer, and signed-in desktop Codex executable.
 
-- Use the Image API with `gpt-image-2` for the single-prompt incoming asset when the live provider is enabled.
-- Render profiles request model-valid dimensions and deterministically crop/pad to device dimensions.
-- Image prompts include provenance and anti-copy constraints.
-- The review service returns structured annotations, never a replacement image as its only output.
-- Annotation coordinates are normalised to page space and overlaid locally so the participant's original strokes remain intact.
+The active notebook path requires only the Python standard library,
+`pdftoppm`, and desktop Codex. Pillow, pypdf, and reportlab remain optional
+legacy compatibility dependencies and are not startup requirements.
 
-## Render profiles
+The bridge owns:
 
-| Device | Native landscape | Requested generation | Transform |
-|---|---:|---:|---|
-| Paper Pro / Chiappa | 2160 × 1620 | 2160 × 1616 | pad 2 px top and bottom |
-| Paper Pro Move / Ferrari | 1696 × 954 | 1696 × 960 | crop 3 px top and bottom |
+- restart-safe session and submit receipts containing identifiers only;
+- incoming-letter generation and cumulative stable text deltas;
+- read-only USB export of the open notebook and page-2 rasterization;
+- one persisted review task, followed by a response turn in the same task;
+- normalized review geometry and the bounded response-letter contract; and
+- optional consented heart-rate ingestion.
 
-Portrait orientation swaps the final native dimensions after transformation. Generation dimensions remain within GPT Image 2's documented custom-size constraints: edges divisible by 16, ratio at most 3:1, and total pixels within the supported range.
+Provider-facing code remains behind deterministic fakes for required tests.
+Participant ink, correspondence text, image bytes, biometric samples, provider
+payloads, and secrets must never enter logs, evidence, issues, or PR bodies.
 
-The machine-readable source is [`contracts/render-profiles.json`](../contracts/render-profiles.json).
+## Heart-rate boundary
 
-## Session data model
+Capture starts on the first accepted ink stroke and closes atomically at
+submit. Samples retain source time, receipt time, BPM, optional RR interval,
+source, quality, gaps, and reconnect events. No sample may be invented or
+silently interpolated. `declined` and `unavailable` sessions complete normally.
 
-Minimum fields:
+WHOOP cloud summaries are not a live beat stream. A future live installation
+therefore uses a consented phone or edge listener for the standard BLE Heart
+Rate Service; neither target tablet has Bluetooth.
 
-- pseudonymous `session_id`;
-- `letter_fixture_id` and generation provenance, not an archival accession claim;
-- `created_at`, `first_ink_at`, `submitted_at`;
-- ordered reply strokes or an encrypted object reference;
-- annotation payload and reviewer version;
-- heart-rate consent state, samples, gaps, and source;
-- retention deadline and deletion status.
+## Safety and installation boundary
 
-Do not store WHOOP email/profile fields by default. Do not put participant ink, heart-rate samples, OAuth tokens, prompts containing personal data, or provider responses into GitHub issues, PRs, CI logs, or Rucksack evidence.
+The current devices are backed up and pinned to OS `3.28.0.162`. Xovi is not
+boot-persistent, and the stock reMarkable screenshot helper must not run while
+Xovi is active. Hardware evidence uses a reviewed framebuffer/AppLoad method
+or direct owner observation.
 
-## Security and privacy boundary
-
-- Participant can proceed without biometric capture.
-- Notify purpose before connection; record consent version and withdrawal.
-- Separate optional research/installation retention from what is required to render page 3.
-- Encrypt transport and stored sensitive session objects; rotate identifiers between installations.
-- Provide deletion by session receipt and enforce a configured retention deadline.
-- Keep tokens in the trusted secret store, not `.env` files committed to the repository.
-- Do not expose the gateway directly from the VM until private networking and an approved publication boundary are verified.
-
-## Installation boundary
-
-The current devices are backed up and patched on exactly OS `3.28.0.162`. Xovi is not boot-persistent, and the stock screenshot helper must not be run under Xovi because it can restart Xochitl. Hardware evidence must use a reviewed framebuffer/AppLoad method and a manual rollback rehearsal.
-
-No autonomous worker may:
-
-- SSH to a physical tablet;
-- stop or restart Xochitl;
-- install or remove QMDs;
-- reboot a tablet;
-- enable developer mode;
-- run a live OpenAI/WHOOP request;
-- publish a participant endpoint;
-
-without an explicit human-approved issue gate.
+No autonomous worker may SSH to a physical tablet, install or remove QMDs or
+templates, restart Xochitl, reboot a tablet, enable developer mode, install the
+Mac LaunchAgent, make a live Codex/WHOOP request, or publish an endpoint without
+the explicit human-approved live-trial checkpoint.

@@ -44,10 +44,8 @@ function connectWebSocket() {
 
     socket.onmessage = function(event) {
         const data = JSON.parse(event.data);
-        console.log("Received message from server:", data);
         switch(data.type) {
             case 'new_strokes':
-                console.log("Received strokes:", data.data);
                 drawStrokes(data.data);
                 break;
             case 'connection_established':
@@ -86,14 +84,12 @@ function drawStrokes(strokes) {
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
 
-    strokes.forEach((stroke, index) => {
+    strokes.forEach((stroke) => {
         if (stroke.length > 1) {
-            console.log(`Drawing stroke ${index + 1}:`);
             ctx.beginPath();
             ctx.moveTo(stroke[0][0] * canvas.width, stroke[0][1] * canvas.height);
             for (let i = 1; i < stroke.length; i++) {
                 ctx.lineTo(stroke[i][0] * canvas.width, stroke[i][1] * canvas.height);
-                console.log(`  Point ${i + 1}: (${stroke[i][0]}, ${stroke[i][1]})`);
             }
             ctx.stroke();
         }

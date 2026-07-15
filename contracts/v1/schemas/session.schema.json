@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://if-letters-home-could-sing.invalid/contracts/v1/session.schema.json",
+  "title": "Correspondence experience session",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "session_id",
+    "state",
+    "letter_provenance",
+    "created_at",
+    "first_ink_at",
+    "submitted_at",
+    "review_id",
+    "error_code",
+    "strokes",
+    "heart_rate",
+    "retention_deadline",
+    "deletion_status"
+  ],
+  "properties": {
+    "schema_version": {"const": "1"},
+    "session_id": {"type": "string", "minLength": 1},
+    "state": {
+      "enum": ["incoming", "reply", "submitting", "submission_error", "review_error", "marginalia"]
+    },
+    "letter_provenance": {"$ref": "letter-provenance.schema.json"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "first_ink_at": {"type": ["string", "null"], "format": "date-time"},
+    "submitted_at": {"type": ["string", "null"], "format": "date-time"},
+    "review_id": {"type": ["string", "null"], "minLength": 1},
+    "error_code": {"type": ["string", "null"], "minLength": 1},
+    "strokes": {
+      "type": "array",
+      "items": {"$ref": "stroke.schema.json"}
+    },
+    "heart_rate": {"$ref": "heart-rate.schema.json"},
+    "retention_deadline": {"type": "string", "format": "date-time"},
+    "deletion_status": {"enum": ["active", "deleted"]}
+  }
+}

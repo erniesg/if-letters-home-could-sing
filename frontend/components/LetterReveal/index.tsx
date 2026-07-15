@@ -1,45 +1,59 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, type ComponentProps } from 'react';
 import gsap from 'gsap';
 import { useGSAP } from '@gsap/react';
 import * as THREE from 'three';
 import useScreenSize from '../../lib/stuff/useScreenSize';
 import { View } from '@react-three/drei';
 import { useControls } from 'leva';
+import '../../lib/stuff/EmergeMaterial';
 
 // Rest of your component remains the same
 
 const PIXELS =  [1, 1.5, 2, 2.5, 3, 1, 1.5, 2, 2.5, 3, 3.5, 4, 2, 2.5, 3, 3.5, 4, 4.5, 5, 5.5, 6, 3, 3.5, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 20, 100].map((v) => v/100)
 
 
-export default function LetterReveal({ ...props }) {
+type EmergeMaterial = THREE.ShaderMaterial & {
+  uProgress: number;
+  uType: number;
+};
+
+type EmergeMesh = THREE.Mesh<THREE.BufferGeometry, EmergeMaterial>;
+
+type LetterRevealProps = ComponentProps<typeof View> & {
+  url: string;
+  type: number;
+  isVisible?: boolean;
+};
+
+export default function LetterReveal({ url, type, isVisible: _isVisible, ...viewProps }: LetterRevealProps) {
 
     const { fillColor } = useControls({ fillColor: '#403fb7', })
 
-    const [refMesh, setRefMesh] = useState(null);
-    const [texture, setTexture] = useState(null);
-    const [textureSize, setTextureSize] = useState([0, 0]);
-    const [elementSize, setElementSize] = useState([0, 0]);
-    const ref = useRef();
+    const [refMesh, setRefMesh] = useState<EmergeMesh | null>(null);
+    const [texture, setTexture] = useState<THREE.Texture | null>(null);
+    const [textureSize, setTextureSize] = useState<[number, number]>([0, 0]);
+    const [elementSize, setElementSize] = useState<[number, number]>([0, 0]);
+    const ref = useRef<HTMLElement | THREE.Group>(null);
     const screenSize = useScreenSize();
     const [isIntersecting, setIsIntersecting] = useState(false);
 
     useEffect(() => {
-      new THREE.TextureLoader().loadAsync(props.url).then((data) => {
+      new THREE.TextureLoader().loadAsync(url).then((data) => {
         // data.colorSpace = THREE.LinearSRGBColorSpace;
         setTextureSize([data.source.data.width, data.source.data.height]);
         setTexture(data);
       });
-    }, []);
+    }, [url]);
 
     useEffect(() => {
 
       if(refMesh) {
         refMesh.material.uProgress = 0
-        refMesh.material.uType = props.type
+        refMesh.material.uType = type
       }
-    },[props.type])
+    },[refMesh, type])
 
     useGSAP(() => {
       if (refMesh?.material) {
@@ -49,33 +63,38 @@ export default function LetterReveal({ ...props }) {
           ease: "none",
         });
       }
-    }, [isIntersecting,props.type]);
+    }, [isIntersecting, type]);
 
     // scroll check
     // only set intersecting if refMesh is available, important
     // Thanks Cody Bennett for this issue!
     useLayoutEffect(() => {
-      if (refMesh) {
-        let bounds = ref.current.getBoundingClientRect();
+      const element = ref.current;
+      if (refMesh && element instanceof HTMLElement) {
+        const bounds = element.getBoundingClientRect();
         setElementSize([bounds.width, bounds.height]);
-        refMesh?.scale.set(bounds.width, bounds.height, 1);
+        refMesh.scale.set(bounds.width, bounds.height, 1);
         const observer = new IntersectionObserver(([entry]) => {
           setIsIntersecting(entry.isIntersecting);
         });
-        observer.observe(ref.current);
+        observer.observe(element);
+        return () => observer.disconnect();
       }
     }, [refMesh]);
 
     // resize
     useEffect(() => {
-      let bounds = ref.current.getBoundingClientRect();
-      setElementSize([bounds.width, bounds.height]);
-      refMesh?.scale.set(bounds.width, bounds.height, 1);
-    }, [screenSize]);
+      const element = ref.current;
+      if (refMesh && element instanceof HTMLElement) {
+        const bounds = element.getBoundingClientRect();
+        setElementSize([bounds.width, bounds.height]);
+        refMesh.scale.set(bounds.width, bounds.height, 1);
+      }
+    }, [refMesh, screenSize]);
 
     return (
-      <View {...props} ref={ref}>
-        <mesh ref={setRefMesh}>
+      <View {...viewProps} ref={ref}>
+        <mesh ref={(mesh) => setRefMesh(mesh as EmergeMesh | null)}>
           <emergeMaterial
             uFillColor={new THREE.Color(fillColor)}
             transparent={true}

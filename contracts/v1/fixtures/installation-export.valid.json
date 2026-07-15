@@ -1,0 +1,36 @@
+{
+  "schema_version": "1",
+  "export_id": "fixture-export-0001",
+  "session_id": "fixture-session-0001",
+  "consent_version": "consent-v1",
+  "relative_time_origin": "first-accepted-ink",
+  "duration_ms": 50000,
+  "heart_rate": {
+    "samples": [
+      {
+        "elapsed_ms": 80,
+        "bpm": 78,
+        "quality": ["good"],
+        "source_clock_offset_ms": -80
+      },
+      {
+        "elapsed_ms": 49075,
+        "bpm": 82,
+        "quality": ["good"],
+        "source_clock_offset_ms": -75
+      }
+    ],
+    "gaps": [
+      {
+        "started_elapsed_ms": 18000,
+        "ended_elapsed_ms": 23000,
+        "reason": "disconnect"
+      }
+    ]
+  },
+  "interaction_events": [
+    {"elapsed_ms": -10000, "event": "biometric-consent-granted"},
+    {"elapsed_ms": 0, "event": "first-ink"},
+    {"elapsed_ms": 50000, "event": "submit"}
+  ]
+}

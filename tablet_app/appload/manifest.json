@@ -1,0 +1,8 @@
+{
+  "name": "Letters Home",
+  "loadsBackend": true,
+  "entry": "/ui/Main.qml",
+  "id": "letters-home",
+  "supportsScaling": true,
+  "canHaveMultipleFrontends": false
+}
