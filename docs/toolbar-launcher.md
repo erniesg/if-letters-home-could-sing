@@ -4,7 +4,7 @@
 
 The AppLoad launch path described later in this historical spike is retired.
 `20-letters-home-launch.qmd` now calls the paired Mac at
-`10.11.99.2:8765/v1/sessions/start` and opens the returned document through
+`10.11.99.16:8765/v1/sessions/start` and opens the returned document through
 stock `legacydevice/window/main`. `30-letters-home-submit.qmd` targets exact
 Ferrari `DocumentView.qml` resource `[[1224665461898798997]]` (recovered source
 SHA-256 `a2102689b1feb4604e98ece588ee4606a64a7b0599bda2a3e8fac431f0fa74a5`)

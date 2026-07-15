@@ -120,7 +120,7 @@ class TargetContractTests(unittest.TestCase):
         self.assertNotIn("launchApplication", inert)
         self.assertNotIn("AppLoadLauncher", launch)
         self.assertNotIn("launchApplication", launch)
-        self.assertIn("http://10.11.99.2:8765/v1/sessions/start", launch)
+        self.assertIn("http://10.11.99.16:8765/v1/sessions/start", launch)
         self.assertIn("legacydevice/window/main", launch)
 
     def test_open_document_toolbar_fixture_is_not_a_launcher_target(self):
@@ -193,7 +193,7 @@ class FixturePatchTests(unittest.TestCase):
         )
         self.assertEqual(launched.phase, "launch")
         installed = launched.installed.decode("utf-8")
-        self.assertIn("http://10.11.99.2:8765/v1/sessions/start", installed)
+        self.assertIn("http://10.11.99.16:8765/v1/sessions/start", installed)
         self.assertIn("legacydevice/window/main", installed)
         self.assertNotIn("AppLoadLauncher", installed)
 

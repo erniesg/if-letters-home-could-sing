@@ -105,7 +105,7 @@ def _launcher_block(phase: str) -> str:
                 lettersHomeLauncher.enabled = false;
                 lettersHomeLauncher.text = "Preparing letter…";
                 const request = new XMLHttpRequest();
-                request.open("POST", "http://10.11.99.2:8765/v1/sessions/start");
+                request.open("POST", "http://10.11.99.16:8765/v1/sessions/start");
                 request.setRequestHeader("Content-Type", "application/json");
                 request.onreadystatechange = function() {
                     if (request.readyState !== XMLHttpRequest.DONE) {

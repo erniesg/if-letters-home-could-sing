@@ -73,7 +73,7 @@ def build_trial_bundle(output: Path, *, target_name: str) -> Path:
                 "resource_id": DOCUMENT_VIEW_RESOURCE_ID,
                 "recovered_source_sha256": DOCUMENT_VIEW_SOURCE_SHA256,
             },
-            "bridge": {"host": "10.11.99.2", "port": 8765},
+            "bridge": {"host": "10.11.99.16", "port": 8765},
             "qmds": entries,
             "requires_live_preflight": True,
             "mutation_authorized_by_manifest": False,

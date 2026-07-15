@@ -405,7 +405,7 @@ class InstallerFixtureTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     plan["proposed_destinations"]["mac_bridge"],
-                    "10.11.99.2:8765",
+                    "10.11.99.16:8765",
                 )
                 self.assertIn(
                     "stock legacydevice/window/main",

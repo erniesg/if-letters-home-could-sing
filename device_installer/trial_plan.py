@@ -10,7 +10,7 @@ from toolbar_launcher.targets import TARGETS
 
 
 HUMAN_DECISION_REQUIRED = 4
-MAC_BRIDGE_DESTINATION = "10.11.99.2:8765"
+MAC_BRIDGE_DESTINATION = "10.11.99.16:8765"
 
 
 def approval_plan(target_name: str) -> dict[str, object]:

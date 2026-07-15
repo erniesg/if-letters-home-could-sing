@@ -1,7 +1,8 @@
 # Paired Mac bridge runbook
 
 The bridge is the private handoff between a connected reMarkable and the signed-in
-Codex desktop installation on this Mac. It binds to `10.11.99.2:8765`, not the
+Codex desktop installation on this Mac. On the verified Ferrari USB link it
+binds to the observed Mac address `10.11.99.16:8765`, not the
 Wi-Fi interface, and writes only identifier-only submit receipts under
 `~/.local/share/letters-home/`.
 
@@ -36,7 +37,7 @@ scripts/letters-home-bridge \
 From the Mac, verify the USB-only listener:
 
 ```bash
-curl --fail http://10.11.99.2:8765/health
+curl --fail http://10.11.99.16:8765/health
 ```
 
 Tapping `Letters Home` now creates a persisted incoming-image Codex task, imports

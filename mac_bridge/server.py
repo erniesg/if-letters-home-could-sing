@@ -13,7 +13,8 @@ from .native_packet import NativePacketRenderer
 from .remarkable_usb import RemarkableUsbDocuments
 from .service import ReceiptStore, SessionRegistry, SessionStarter, SubmissionService
 
-DEFAULT_USB_BIND = "10.11.99.2"
+# Observed Mac-side address on the Ferrari USB /27 link (en11).
+DEFAULT_USB_BIND = "10.11.99.16"
 
 
 class CodexLetterRunner:

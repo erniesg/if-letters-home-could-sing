@@ -474,7 +474,7 @@ class SubmissionServiceTests(unittest.TestCase):
         self.assertNotIn("reply.png", persisted)
 
     def test_bridge_dispatch_routes_start_and_submit_without_exposing_payload(self):
-        self.assertEqual(DEFAULT_USB_BIND, "10.11.99.2")
+        self.assertEqual(DEFAULT_USB_BIND, "10.11.99.16")
 
         class Starter:
             def start(self, payload):

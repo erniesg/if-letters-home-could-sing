@@ -66,7 +66,7 @@ class NativeLauncherContractTests(unittest.TestCase):
         )
         installed = result.installed.decode("utf-8")
 
-        self.assertIn("http://10.11.99.2:8765/v1/sessions/start", installed)
+        self.assertIn("http://10.11.99.16:8765/v1/sessions/start", installed)
         self.assertIn('root.windowNavigator.open("legacydevice/window/main"', installed)
         self.assertIn("documentId: response.document_id", installed)
         self.assertIn('lettersHomeLauncher.text = "Preparing letter…"', installed)
