@@ -10,6 +10,8 @@ from typing import Any, Mapping
 
 from .codex_app_server import CodexAppServerClient
 from .native_packet import NativePacketRenderer
+from .notebook_service import NotebookCoordinator
+from .notebook_session import NotebookSessionStore
 from .remarkable_usb import RemarkableUsbDocuments
 from .service import ReceiptStore, SessionRegistry, SessionStarter, SubmissionService
 
@@ -45,15 +47,30 @@ class BridgeApplication:
     def __init__(
         self,
         *,
-        starter: SessionStarter,
-        submissions: SubmissionService,
+        coordinator: NotebookCoordinator | None = None,
+        starter: SessionStarter | None = None,
+        submissions: SubmissionService | None = None,
         registry: SessionRegistry | None = None,
     ):
+        if coordinator is None and (starter is None or submissions is None):
+            raise ValueError("bridge application requires a coordinator")
+        self.coordinator = coordinator
         self.starter = starter
         self.submissions = submissions
         self.registry = registry or getattr(starter, "registry", None)
 
     def dispatch(self, path: str, payload: Mapping[str, Any]) -> tuple[int, Mapping[str, Any]]:
+        if self.coordinator is not None:
+            routes = {
+                "/v1/sessions/start": self.coordinator.start,
+                "/v1/sessions/bind": self.coordinator.bind,
+                "/v1/sessions/ink-start": self.coordinator.mark_first_ink,
+                "/v1/sessions/submit": self.coordinator.submit,
+            }
+            handler = routes.get(path)
+            if handler is not None:
+                return 200, handler(payload)
+            return 404, {"error": "not_found"}
         if path == "/v1/sessions/start":
             return 200, self.starter.start(payload)
         if path == "/v1/sessions/submit":
@@ -61,7 +78,19 @@ class BridgeApplication:
         return 404, {"error": "not_found"}
 
     def dispatch_get(self, path: str) -> tuple[int, Mapping[str, Any]]:
+        if path == "/health" and self.coordinator is not None:
+            health = self.coordinator.health()
+            return (200 if health.get("status") == "ok" else 503), health
         prefix = "/v1/sessions/"
+        if path.startswith(prefix) and self.coordinator is not None:
+            session_id = path[len(prefix):]
+            if session_id and len(session_id) <= 128 and all(
+                character.isalnum() or character in "-_" for character in session_id
+            ):
+                try:
+                    return 200, self.coordinator.state(session_id)
+                except (KeyError, ValueError):
+                    return 404, {"error": "session_not_found"}
         if path.startswith(prefix) and self.registry is not None:
             session_id = path[len(prefix):]
             if session_id and len(session_id) <= 128 and all(
@@ -92,9 +121,6 @@ class BridgeHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        if self.path == "/health":
-            self._write(200, {"status": "ok"})
-            return
         status, response = self.server.application.dispatch_get(self.path)
         self._write(status, response)
 
@@ -144,23 +170,18 @@ def build_application(
     conversation_context: str,
 ) -> BridgeApplication:
     tablet = RemarkableUsbDocuments()
-    renderer = NativePacketRenderer()
-    registry = SessionRegistry(Path.home() / ".local/share/letters-home/sessions.json")
-    starter = SessionStarter(
+    state_root = Path.home() / ".local/share/letters-home"
+    renderer = NativePacketRenderer(work_dir=state_root / "notebook-renders")
+    store = NotebookSessionStore(state_root / "notebook-sessions.json")
+    coordinator = NotebookCoordinator(
+        store=store,
         tablet=tablet,
         renderer=renderer,
         generator=CodexLetterRunner(cwd=repo_root),
-        registry=registry,
+        reviewer=CodexReviewRunner(cwd=repo_root),
         default_context=conversation_context,
     )
-    submissions = SubmissionService(
-        tablet=tablet,
-        renderer=renderer,
-        reviewer=CodexReviewRunner(cwd=repo_root),
-        registry=registry,
-        receipts=ReceiptStore(Path.home() / ".local/share/letters-home/receipts.json"),
-    )
-    return BridgeApplication(starter=starter, submissions=submissions, registry=registry)
+    return BridgeApplication(coordinator=coordinator)
 
 
 def main(argv: list[str] | None = None) -> int:

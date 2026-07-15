@@ -179,15 +179,23 @@ class NotebookSessionStore:
                 self._write()
             return self._public(state)
 
-    def finish_incoming(self, session_id: str) -> dict[str, Any]:
+    def finish_incoming(
+        self,
+        session_id: str,
+        *,
+        final_text: str | None = None,
+    ) -> dict[str, Any]:
         with self._lock:
             state = self._state(session_id)
             if state["incoming_complete"]:
                 return self._public(state)
-            state["incoming_text"] = self._stream(
-                session_id,
-                "incoming_text",
-            ).finalize()
+            if final_text is not None:
+                stream = SentenceStream(FERRARI_GRID, minimum=self.minimum_letter)
+                stream.append(final_text)
+                self._streams[(session_id, "incoming_text")] = stream
+            else:
+                stream = self._stream(session_id, "incoming_text")
+            state["incoming_text"] = stream.finalize()
             state["incoming_complete"] = True
             if state["document_id"] is not None:
                 state["phase"] = "ready"
