@@ -6,7 +6,21 @@
 
 **Architecture:** Xochitl creates and owns the notebook, templates, pages, ink, stock toolbar, and gestures. A USB-bound Mac bridge owns durable session state and one two-turn Codex review task; QML polls only bounded render state and draws non-interactive letter/review layers. No code writes Xochitl's private document files or imports a replacement PDF.
 
-**Tech Stack:** Python 3.12, `unittest`, Codex app-server JSON-RPC, Xochitl QML 3.28.0.162, QMLDiff `25681c3`, Xovi/QRR, native declarative `.template` JSON, macOS LaunchAgents.
+**Tech Stack:** Python 3.12, `unittest`, Codex app-server JSON-RPC, Xochitl QML 3.28.0.162, QMLDiff `25681c3`, Xovi/QRR, native KZip template packages, macOS LaunchAgents.
+
+## Instant-start amendment (approved 2026-07-15)
+
+The participant must never wait for Codex before entering the notebook. Keep a
+verified app-owned two-page blank native notebook as a reusable seed. On a warm
+tap, copy its two pages inside the seed, move only those copies into a new
+native notebook through the stock `CreateNotebook.qml` controller scope, bind
+the clone, and open it within 1.5 seconds. A two-second launcher watchdog must
+restore the item and notify on every exception or callback failure.
+
+Server state continues to publish only complete sentences. The Ferrari QML
+reveals the cumulative array as a monotonic prefix, one glyph every 90 ms, so
+generation batches appear as handwriting-like streaming without moving earlier
+glyphs.
 
 ## Global Constraints
 
@@ -34,7 +48,7 @@
 - `mac_bridge/notebook_session.py` — durable app-private notebook session state and phase transitions.
 - `mac_bridge/notebook_service.py` — asynchronous start/bind/submit orchestration without PDF import.
 - `mac_bridge/launch_agent.py` — deterministic sanitized LaunchAgent rendering and bidirectional health.
-- `toolbar_launcher/templates/letters-home-ferrari.template` — app-owned 10×18 native notebook background in the exact format used by the 3.28 Ferrari backup.
+- `toolbar_launcher/templates/letters-home-ferrari/` — app-owned manifest plus 954×1696 PNG/SVG background sources for the exact 3.28 Ferrari KZip import contract.
 - `mac_bridge/launchd/com.erniesg.letters-home.bridge.plist` — generated fixture used by installer tests.
 - `scripts/install-letters-home-bridge` and `scripts/uninstall-letters-home-bridge` — reversible per-user Mac service control.
 - `tests/test_letter_grid.py`, `tests/test_notebook_session.py`, `tests/test_notebook_service.py`, and `tests/test_bridge_launch_agent.py` — focused contracts.
@@ -538,49 +552,43 @@ git commit -m "feat: stream a response from the review task"
 
 **Files:**
 
-- Create: `toolbar_launcher/templates/letters-home-ferrari.template`
+- Create: `toolbar_launcher/templates/letters-home-ferrari/{manifest.json,image.png,image.svg}`
 - Modify: `mac_bridge/trial_bundle.py`
 - Modify: `tests/test_native_document_launcher.py`
 - Modify: `tests/test_device_installer.py`
 
 **Interfaces:**
 
-- Produces: template ID `letters-home-ferrari`, declared grid rectangle `(72,104)-(882,1592)`, and trial-manifest hashes.
+- Produces: template ID `letters-home-ferrari`, native package `letters-home-ferrari.rmt`, grid rectangle `(72,104)-(882,1592)`, and trial-manifest hashes.
 - Consumers: QML page creation in Task 7 and live rollback in Task 9.
 
 - [ ] **Step 1: Write failing template geometry and manifest tests**
 
 ```python
-def test_ferrari_template_is_native_full_size_and_declares_the_10_by_18_grid(self):
-    template = json.loads(
-        (ROOT / "toolbar_launcher/templates/letters-home-ferrari.template").read_text()
-    )
-    constants = {next(iter(item)): next(iter(item.values())) for item in template["constants"]}
-    self.assertEqual(template["formatVersion"], 1)
-    self.assertEqual(template["orientation"], "portrait")
-    self.assertEqual((constants["targetWidth"], constants["targetHeight"]), (954, 1696))
-    self.assertEqual((constants["gridColumns"], constants["gridRows"]), (10, 18))
-    self.assertEqual(
-        (constants["gridLeft"], constants["gridTop"], constants["gridRight"], constants["gridBottom"]),
-        (72, 104, 882, 1592),
-    )
+def test_ferrari_template_package_sources_match_the_native_zip_import_contract(self):
+    source = ROOT / "toolbar_launcher/templates/letters-home-ferrari"
+    manifest = json.loads((source / "manifest.json").read_text())
+    self.assertEqual(set(manifest), {"categories", "iconCode", "name"})
+    self.assertEqual(manifest["name"], "letters-home-ferrari")
+    self.assertEqual(png_size(source / "image.png"), (954, 1696))
+    self.assertEqual(svg_size(source / "image.svg"), (954, 1696))
 ```
 
 - [ ] **Step 2: Run tests and verify missing assets fail**
 
-Run: `python3 -m unittest tests.test_native_document_launcher.NativeLauncherContractTests.test_ferrari_template_is_native_full_size_and_declares_the_10_by_18_grid`
+Run: `python3 -m unittest tests.test_native_document_launcher.NativeLauncherContractTests.test_ferrari_template_package_sources_match_the_native_zip_import_contract`
 
 Expected: FAIL because the template assets do not exist.
 
 - [ ] **Step 3: Adapt the existing deterministic stationery fixture**
 
-Translate the visual vocabulary from `fixtures/reply/reply-ferrari.svg` into the stock Ferrari 3.28 declarative `.template` JSON format recovered from the backup: retain the warm paper, fold memory, border, and muted red rules, and use ten equal columns and eighteen equal rows within the declared rectangle. Do not include generated text, signatures, seals, receipts, addresses, logos, or archival claims.
+Translate the visual vocabulary from `fixtures/reply/reply-ferrari.svg` into the Ferrari 3.28 native KZip import contract recovered from the exact binary: retain the warm paper, fold memory, border, and muted red rules, and use ten equal columns and eighteen equal rows within the declared rectangle. The ZIP root contains only `manifest.json`, `image.png`, and `image.svg`. Do not include generated text, signatures, seals, receipts, addresses, logos, or archival claims.
 
-Install only the unique app-owned `.template` filename and portrait orientation. Do not replace the stock `templates.json` or any stock `.template` entry.
+Install only the unique app-owned `.rmt` package. Do not replace the stock `templates.json` or any stock template entry. Hash-pin the package and Xochitl's two derived images in `templates/import`.
 
 - [ ] **Step 4: Package and hash-pin assets**
 
-Extend the trial bundle with `templates/letters-home-ferrari.template`. Its manifest entry includes SHA-256, byte count, mode `0644`, destination, `app_owned: true`, and rollback action `remove_if_hash_matches`. Refuse a pre-existing destination with different bytes.
+Extend the trial bundle with deterministic `templates/letters-home-ferrari.rmt`. Its manifest entry includes SHA-256, byte count, mode `0644`, destination, `app_owned: true`, derived-output hashes, and rollback action `remove_if_hash_matches`. Refuse a pre-existing destination with different bytes.
 
 - [ ] **Step 5: Run tests and commit**
 
@@ -858,3 +866,181 @@ Record only IDs, counts, hashes, service state, and pass/fail observations. Do n
 Restore pretrial QMDs and template state, restart Xovi once, and verify every recorded pretrial hash. Reinstall only after rollback proof is green and the owner requests another trial.
 
 Run `scripts/agent-evidence` again and commit only redacted documentation/evidence pointers if the repo policy allows them.
+
+---
+
+### Task 10: Repair instant launch with a reusable native seed
+
+**Files:**
+
+- Modify: `contracts/native-notebook-api.ferrari-3.28.0.162.json`
+- Modify: `mac_bridge/notebook_session.py`
+- Modify: `mac_bridge/notebook_service.py`
+- Modify: `mac_bridge/server.py`
+- Modify: `toolbar_launcher/qmldiff/20-letters-home-launch.qmd`
+- Modify: `toolbar_launcher/qmldiff/30-letters-home-submit.qmd`
+- Modify: `toolbar_launcher/launcher.py`
+- Modify: `mac_bridge/trial_bundle.py`
+- Modify: `tests/test_notebook_session.py`
+- Modify: `tests/test_notebook_service.py`
+- Modify: `tests/test_native_document_launcher.py`
+- Modify: `tests/test_toolbar_launcher.py`
+- Modify: `tests/test_device_installer.py`
+
+**Interfaces:**
+
+- Consumes: exact Ferrari `CreateNotebook.qml` resource
+  `[[8651031636888757197]]`, stock route
+  `library-ui/window/create-notebook`, `DocumentController.copyPages`, and
+  `LibraryController.createDocumentFromExisting`.
+- Produces: `NotebookSessionStore.seed_state()`,
+  `NotebookSessionStore.bind_seed(...)`, `GET /v1/notebook-seed`, and
+  `POST /v1/notebook-seed/bind`; QML callbacks return one validated clone ID or
+  one safe error code.
+
+- [x] **Step 1: Write failing durable-seed and route tests**
+
+Add tests that bind a seed, reload the store, and receive only native IDs:
+
+```python
+store.bind_seed(
+    document_id="seed-doc",
+    incoming_page_id="seed-page-1",
+    reply_page_id="seed-page-2",
+)
+self.assertEqual(
+    NotebookSessionStore(path).seed_state(),
+    {
+        "status": "ready",
+        "document_id": "seed-doc",
+        "incoming_page_id": "seed-page-1",
+        "reply_page_id": "seed-page-2",
+    },
+)
+```
+
+Assert `BridgeApplication.dispatch_get("/v1/notebook-seed")` returns the same
+bounded object and `dispatch("/v1/notebook-seed/bind", payload)` rejects bad IDs.
+
+- [x] **Step 2: Run the focused tests and verify RED**
+
+Run:
+
+```bash
+python3 -m unittest tests.test_notebook_session tests.test_notebook_service
+```
+
+Expected: FAIL because the seed store and bridge routes do not exist.
+
+- [x] **Step 3: Persist the seed separately from participant sessions**
+
+Extend the existing schema with one optional top-level `seed` object containing
+only `document_id`, `incoming_page_id`, and `reply_page_id`. Validate each with
+the existing safe identifier boundary, write atomically with the sessions, and
+return `{"status":"missing"}` when absent. Do not store seed page content,
+participant content, or Xochitl paths.
+
+- [x] **Step 4: Run the seed tests and verify GREEN**
+
+Run:
+
+```bash
+python3 -m unittest tests.test_notebook_session tests.test_notebook_service
+```
+
+Expected: PASS.
+
+- [x] **Step 5: Write failing exact-QML launcher tests**
+
+Assert the launch patch:
+
+```python
+self.assertIn("library-ui/window/create-notebook", launch)
+self.assertIn("lettersHomeSeed", launch)
+self.assertIn("DocumentController.copyPages", launch)
+self.assertIn("LibraryController.createDocumentFromExisting", launch)
+self.assertIn("/v1/notebook-seed", launch)
+self.assertIn("interval: 2000", launch)
+self.assertIn("try {", launch)
+self.assertNotIn("LibraryController.createDocument(", sidebar_region)
+```
+
+Assert the exact contract pins
+`LibraryController.createDocumentFromExisting` and the create-notebook route.
+Assert the submit patch defines `visibleIncomingGlyphCount`, uses
+`incomingGlyphs.slice(0, visibleIncomingGlyphCount)`, and advances the count by
+exactly one with `interval: 90`.
+
+- [x] **Step 6: Run the QML tests and verify RED**
+
+Run:
+
+```bash
+python3 -m unittest tests.test_native_document_launcher tests.test_toolbar_launcher tests.test_device_installer
+```
+
+Expected: FAIL on the current out-of-scope `LibraryController.createDocument`
+call, absent seed route, absent watchdog, and whole-batch glyph repeater.
+
+- [x] **Step 7: Patch the stock create-notebook scope and warm launcher**
+
+Add a second `AFFECT` block for exact Ferrari `CreateNotebook.qml`. Its silent
+mode must:
+
+1. create and bind a two-page `Letters Home Stationery` seed when the bridge
+   reports `missing`;
+2. for a warm launch, call
+   `DocumentController.copyPages(seedId, [0, 1], seedId, 2)`;
+3. wait until the seed exposes four pages, then call
+   `LibraryController.createDocumentFromExisting(currentFolderId, name,
+   seedId, [2, 3])` so only the copied pages leave the seed;
+4. invoke `onCreated(cloneId)` and close the silent window;
+5. catch every synchronous exception and invoke `onFailed(errorCode)` before
+   closing.
+
+The Sidebar block may start the bridge request and open this route, but it must
+not reference `LibraryController` or `DocumentController`. A 2,000 ms watchdog
+restores `Letters Home`, enables the item, and queues a stock notification.
+Binding and stock document opening happen only after the clone exposes two
+page IDs.
+
+- [x] **Step 8: Reveal server batches one glyph per e-ink-safe tick**
+
+Reset `visibleIncomingGlyphCount` to zero when the session key changes. Use a
+90 ms repeating timer that increments it by exactly one while it is less than
+`incomingGlyphs.length`; render only
+`incomingGlyphs.slice(0, visibleIncomingGlyphCount)`. Do the same for the page-4
+response. Never reset either count when a later cumulative server batch arrives.
+
+- [x] **Step 9: Run exact structural and portable verification**
+
+Run:
+
+```bash
+python3 -m unittest tests.test_notebook_session tests.test_notebook_service tests.test_native_document_launcher tests.test_toolbar_launcher tests.test_device_installer
+/private/tmp/qmldiff-25681c3/target/release/qmldiff check-compatibility /private/tmp/ferrari-3.28.0.162.hashtab toolbar_launcher/qmldiff/20-letters-home-launch.qmd
+/private/tmp/qmldiff-25681c3/target/release/qmldiff check-compatibility /private/tmp/ferrari-3.28.0.162.hashtab toolbar_launcher/qmldiff/30-letters-home-submit.qmd
+python3 -m unittest discover -s tests
+env -i HOME="$HOME" PATH="/usr/bin:/bin:/usr/sbin:/sbin" PYTHONPATH="$PWD" /usr/bin/python3 -m unittest discover -s tests
+scripts/agent-evidence
+```
+
+Expected: all required tests pass, both QMDs are exactly compatible, and the
+evidence manifest contains no participant/model text or secret value.
+
+- [x] **Step 10: Commit the portable repair**
+
+```bash
+git add contracts/native-notebook-api.ferrari-3.28.0.162.json mac_bridge/notebook_session.py mac_bridge/notebook_service.py mac_bridge/server.py mac_bridge/trial_bundle.py toolbar_launcher/qmldiff/20-letters-home-launch.qmd toolbar_launcher/qmldiff/30-letters-home-submit.qmd toolbar_launcher/launcher.py tests/test_notebook_session.py tests/test_notebook_service.py tests/test_native_document_launcher.py tests/test_toolbar_launcher.py tests/test_device_installer.py docs/superpowers/specs/2026-07-15-native-notebook-correspondence-design.md docs/superpowers/plans/2026-07-15-native-notebook-correspondence.md docs/issues/010-native-codex-roundtrip.md
+git commit -m "fix: open a prewarmed native letter notebook"
+```
+
+- [ ] **Step 11: Validate the approved Ferrari mutation**
+
+Build a fresh exact bundle, report its hashes and rollback boundary, install
+only the changed hash-owned QMDs after the existing human checkpoint, and run
+`/home/root/xovi/start` once. Measure five warm taps: each must open the cloned
+two-page notebook within 1.5 seconds, the launcher must never remain disabled
+past two seconds, page 1 must reveal one immutable glyph at a time as batches
+arrive, and page 2 must retain stock tools and gestures. Record only timings,
+counts, IDs, hashes, and pass/fail observations.

@@ -27,6 +27,7 @@ PHASES = {
     "failed",
 }
 _SAFE_ERROR = re.compile(r"^[a-z0-9][a-z0-9_:-]{0,95}$")
+_SAFE_NATIVE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 
 
 class NotebookSessionStore:
@@ -38,6 +39,7 @@ class NotebookSessionStore:
         self._lock = threading.RLock()
         self._contexts: dict[str, str] = {}
         self._streams: dict[tuple[str, str], SentenceStream] = {}
+        self._seed: dict[str, str] | None = None
         self._sessions = self._load()
 
     def _load(self) -> dict[str, dict[str, Any]]:
@@ -46,6 +48,20 @@ class NotebookSessionStore:
         payload = json.loads(self.path.read_text(encoding="utf-8"))
         if payload.get("schema_version") != 1 or not isinstance(payload.get("sessions"), dict):
             raise ValueError("notebook_session_state_invalid")
+        seed = payload.get("seed")
+        if seed is not None:
+            keys = {"document_id", "incoming_page_id", "reply_page_id"}
+            if (
+                not isinstance(seed, dict)
+                or set(seed) != keys
+                or any(
+                    not isinstance(seed[key], str)
+                    or _SAFE_NATIVE_ID.fullmatch(seed[key]) is None
+                    for key in keys
+                )
+            ):
+                raise ValueError("notebook_session_state_invalid")
+            self._seed = {key: seed[key] for key in keys}
         sessions = payload["sessions"]
         if any(
             not isinstance(session_id, str)
@@ -63,7 +79,11 @@ class NotebookSessionStore:
         try:
             with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
                 json.dump(
-                    {"schema_version": 1, "sessions": self._sessions},
+                    {
+                        "schema_version": 1,
+                        "seed": self._seed,
+                        "sessions": self._sessions,
+                    },
                     handle,
                     ensure_ascii=False,
                     sort_keys=True,
@@ -92,6 +112,38 @@ class NotebookSessionStore:
     @staticmethod
     def _bump(state: dict[str, Any]) -> None:
         state["version"] += 1
+
+    @staticmethod
+    def _seed_identifier(value: Any, field: str) -> str:
+        if not isinstance(value, str) or _SAFE_NATIVE_ID.fullmatch(value) is None:
+            raise ValueError(f"invalid seed {field}")
+        return value
+
+    def seed_state(self) -> dict[str, str]:
+        with self._lock:
+            if self._seed is None:
+                return {"status": "missing"}
+            return {"status": "ready", **copy.deepcopy(self._seed)}
+
+    def bind_seed(
+        self,
+        *,
+        document_id: str,
+        incoming_page_id: str,
+        reply_page_id: str,
+    ) -> dict[str, str]:
+        seed = {
+            "document_id": self._seed_identifier(document_id, "document id"),
+            "incoming_page_id": self._seed_identifier(
+                incoming_page_id,
+                "incoming page id",
+            ),
+            "reply_page_id": self._seed_identifier(reply_page_id, "reply page id"),
+        }
+        with self._lock:
+            self._seed = seed
+            self._write()
+            return {"status": "ready", **copy.deepcopy(seed)}
 
     def begin(
         self,

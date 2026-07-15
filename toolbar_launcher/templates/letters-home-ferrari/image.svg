@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="954" height="1696" viewBox="0 0 954 1696">
+  <rect width="954" height="1696" fill="#f1e8d5"/>
+  <rect x="0" y="0" width="954" height="42" fill="#3f352a" opacity="0.06"/>
+  <rect x="0" y="1654" width="954" height="42" fill="#3f352a" opacity="0.05"/>
+  <rect x="0" y="0" width="28" height="1696" fill="#3f352a" opacity="0.045"/>
+  <rect x="926" y="0" width="28" height="1696" fill="#3f352a" opacity="0.04"/>
+  <path d="M477 0V1696 M0 848H954" stroke="#796d5e" stroke-width="2" opacity="0.10"/>
+  <rect x="72" y="104" width="810" height="1488" fill="none" stroke="#b65f56" stroke-width="3" opacity="0.62"/>
+  <path d="M153 104V1592 M234 104V1592 M315 104V1592 M396 104V1592 M477 104V1592 M558 104V1592 M639 104V1592 M720 104V1592 M801 104V1592" stroke="#bd6c62" stroke-width="2" opacity="0.28"/>
+  <path d="M72 186.667H882 M72 269.333H882 M72 352H882 M72 434.667H882 M72 517.333H882 M72 600H882 M72 682.667H882 M72 765.333H882 M72 848H882 M72 930.667H882 M72 1013.333H882 M72 1096H882 M72 1178.667H882 M72 1261.333H882 M72 1344H882 M72 1426.667H882 M72 1509.333H882" stroke="#bd6c62" stroke-width="1" opacity="0.22"/>
+</svg>

@@ -39,6 +39,8 @@ AFFECT [[1224665461898798997]]
                 property bool guardActive: false
                 property bool participantNavigated: false
                 property bool reviewNotified: false
+                property int visibleIncomingGlyphCount: 0
+                property int visibleResponseGlyphCount: 0
 
                 onSessionKeyChanged: {
                     version = -1;
@@ -52,6 +54,8 @@ AFFECT [[1224665461898798997]]
                     guardActive = false;
                     participantNavigated = false;
                     reviewNotified = false;
+                    visibleIncomingGlyphCount = 0;
+                    visibleResponseGlyphCount = 0;
                 }
 
                 function notify(message) {
@@ -189,6 +193,36 @@ AFFECT [[1224665461898798997]]
                     onTriggered: lettersHomeLayer.poll()
                 }
 
+                Timer {
+                    interval: 90
+                    repeat: true
+                    running: lettersHomeLayer.isLettersHome
+                        && root.currentPageId === lettersHomeLayer.incomingPageId
+                        && lettersHomeLayer.visibleIncomingGlyphCount
+                            < lettersHomeLayer.incomingGlyphs.length
+                    onTriggered: {
+                        if (lettersHomeLayer.visibleIncomingGlyphCount
+                                < lettersHomeLayer.incomingGlyphs.length) {
+                            lettersHomeLayer.visibleIncomingGlyphCount += 1;
+                        }
+                    }
+                }
+
+                Timer {
+                    interval: 90
+                    repeat: true
+                    running: lettersHomeLayer.isLettersHome
+                        && root.currentPageId === lettersHomeLayer.responsePageId
+                        && lettersHomeLayer.visibleResponseGlyphCount
+                            < lettersHomeLayer.responseGlyphs.length
+                    onTriggered: {
+                        if (lettersHomeLayer.visibleResponseGlyphCount
+                                < lettersHomeLayer.responseGlyphs.length) {
+                            lettersHomeLayer.visibleResponseGlyphCount += 1;
+                        }
+                    }
+                }
+
                 Connections {
                     target: root.penHandler
                     enabled: lettersHomeLayer.isLettersHome && !lettersHomeLayer.inkPosted
@@ -228,7 +262,7 @@ AFFECT [[1224665461898798997]]
 
                 Repeater {
                     model: root.currentPageId === lettersHomeLayer.incomingPageId
-                        ? lettersHomeLayer.incomingGlyphs : []
+                        ? lettersHomeLayer.incomingGlyphs.slice(0, lettersHomeLayer.visibleIncomingGlyphCount) : []
                     Text {
                         x: modelData.x * lettersHomeLayer.width / 954 - width / 2
                         y: modelData.y * lettersHomeLayer.height / 1696 - height / 2
@@ -251,7 +285,7 @@ AFFECT [[1224665461898798997]]
 
                 Repeater {
                     model: root.currentPageId === lettersHomeLayer.responsePageId
-                        ? lettersHomeLayer.responseGlyphs : []
+                        ? lettersHomeLayer.responseGlyphs.slice(0, lettersHomeLayer.visibleResponseGlyphCount) : []
                     Text {
                         x: modelData.x * lettersHomeLayer.width / 954 - width / 2
                         y: modelData.y * lettersHomeLayer.height / 1696 - height / 2

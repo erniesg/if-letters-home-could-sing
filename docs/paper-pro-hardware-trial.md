@@ -8,11 +8,14 @@ pen toolbar, close action, swipe-down behavior, page gestures, and manual page
 turns remain owned by Xochitl.
 
 The repository pins the recovered Ferrari 3.28 notebook API and packages it
-with the three QMLDiffs and native template. Portable tests and a non-mutating
-Mac LaunchAgent check are required before the next live checkpoint. The current
-native-notebook candidate has **not** yet been installed or observed on the
-physical tablet; none of the historical PDF checks below establish that it
-works on-device.
+with the three QMLDiffs and native template. The direct-create candidate was
+installed and its session request reached the bridge, but the journal proved
+that `Sidebar.qml` crashed on out-of-scope `LibraryController` before binding or
+opening the notebook. The current repair moves every native library operation
+into exact `CreateNotebook.qml`, prewarms one two-page stationery seed, clones
+it per encounter, opens under a two-second watchdog, and reveals one glyph per
+90 ms. This seed-clone candidate has **not** yet been installed or observed on
+the physical tablet.
 
 The next owner-approved live trial must reconfirm the exact device hashes,
 active QMD order, USB route, Mac bridge health, and rollback backup before one
@@ -256,10 +259,20 @@ Evidence is manual observation plus service status, restart count, and hashes.
 
 For the current native-notebook candidate, unload only the hash-owned Mac
 LaunchAgent, restore every pretrial QMD byte (or remove a QMD recorded absent),
-remove `letters-home-ferrari.template` only if its installed hash still matches
-the approved bundle, and run `/home/root/xovi/start` once. Reconfirm the exact
-pretrial active-QMD order, Xochitl/QRR hashes, service state, and that no
-Letters Home process or private listener remains.
+remove `letters-home-ferrari.rmt` and the derived
+`templates/import/letters-home-ferrari.{png,svg}` only when each installed hash
+still matches the approved bundle, and run `/home/root/xovi/start` once.
+Reconfirm the exact pretrial active-QMD order, Xochitl/QRR hashes, service
+state, and that no Letters Home process or private listener remains.
+
+The live Ferrari root filesystem is read-only. Exact-binary inspection and the
+first loader failure established that Xochitl treats every file in
+`templates/custom` as a KZip package. The current native template therefore
+belongs at
+`/home/root/.local/share/remarkable/templates/custom/letters-home-ferrari.rmt`
+with root-level `manifest.json`, `image.png`, and `image.svg`; the factory
+directory under `/usr/share/remarkable/templates` is never remounted or
+modified.
 
 The following rollback record applies only to the historical AppLoad trial.
 

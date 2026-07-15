@@ -1,9 +1,12 @@
 import hashlib
 import json
+import struct
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
+from xml.etree import ElementTree
 
 from toolbar_launcher import TARGETS, TabletSnapshot, apply_toolbar_patch
 
@@ -31,51 +34,25 @@ def snapshot_for(target_name="ferrari"):
 
 
 class NativeLauncherContractTests(unittest.TestCase):
-    def test_ferrari_template_is_native_full_size_and_declares_the_10_by_18_grid(self):
-        template_path = (
-            ROOT / "toolbar_launcher" / "templates" / "letters-home-ferrari.template"
-        )
-        self.assertTrue(template_path.is_file(), "native Ferrari template is missing")
-        template = json.loads(template_path.read_text(encoding="utf-8"))
-        constants = {
-            next(iter(item)): next(iter(item.values()))
-            for item in template["constants"]
-        }
+    def test_ferrari_template_package_sources_match_the_native_zip_import_contract(self):
+        source = ROOT / "toolbar_launcher" / "templates" / "letters-home-ferrari"
+        manifest = json.loads((source / "manifest.json").read_text(encoding="utf-8"))
+        svg = ElementTree.parse(source / "image.svg").getroot()
+        png = (source / "image.png").read_bytes()
 
-        self.assertEqual(template["name"], "Letters Home")
-        self.assertEqual(template["formatVersion"], 1)
-        self.assertEqual(template["orientation"], "portrait")
         self.assertEqual(
+            manifest,
             {
-                key: constants[key]
-                for key in (
-                    "targetWidth",
-                    "targetHeight",
-                    "gridColumns",
-                    "gridRows",
-                    "gridLeft",
-                    "gridTop",
-                    "gridRight",
-                    "gridBottom",
-                )
-            },
-            {
-                "targetWidth": 954,
-                "targetHeight": 1696,
-                "gridColumns": 10,
-                "gridRows": 18,
-                "gridLeft": 72,
-                "gridTop": 104,
-                "gridRight": 882,
-                "gridBottom": 1592,
+                "categories": ["Creative", "Lines", "Grids"],
+                "iconCode": "\ue99a",
+                "name": "letters-home-ferrari",
             },
         )
-        item_ids = {item.get("id") for item in template["items"]}
-        self.assertTrue(
-            {"paper", "fold-memory", "border", "vertical-guides", "horizontal-guides"}.issubset(
-                item_ids
-            )
-        )
+        self.assertEqual(svg.attrib["width"], "954")
+        self.assertEqual(svg.attrib["height"], "1696")
+        self.assertEqual(svg.attrib["viewBox"], "0 0 954 1696")
+        self.assertEqual(png[:8], b"\x89PNG\r\n\x1a\n")
+        self.assertEqual(struct.unpack(">II", png[16:24]), (954, 1696))
 
     def test_ferrari_native_notebook_api_contract_pins_required_resources_and_symbols(self):
         contract_path = (
@@ -103,6 +80,14 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertEqual(
             contract["symbols"]["LibraryController.createDocument"],
             "[[16080285492618834883]]",
+        )
+        self.assertEqual(
+            contract["symbols"]["LibraryController.createDocumentFromExisting"],
+            "[[4393738620531550914]]",
+        )
+        self.assertEqual(
+            contract["symbols"]["library-ui/window/create-notebook"],
+            "[[5959403860571066977]]",
         )
         self.assertEqual(
             contract["symbols"]["DocumentController.addPageWithTemplateAndPageSize"],
@@ -215,17 +200,47 @@ class NativeLauncherContractTests(unittest.TestCase):
                 )
             self.assertEqual(len(manifest["templates"]), 1)
             template = manifest["templates"][0]
-            self.assertEqual(template["name"], "letters-home-ferrari.template")
+            self.assertEqual(template["name"], "letters-home-ferrari.rmt")
             self.assertEqual(template["mode"], "0644")
             self.assertTrue(template["app_owned"])
             self.assertEqual(template["rollback_action"], "remove_if_hash_matches")
             self.assertEqual(
                 template["destination"],
-                "/usr/share/remarkable/templates/letters-home-ferrari.template",
+                "/home/root/.local/share/remarkable/templates/custom/letters-home-ferrari.rmt",
             )
             bundled_template = output / "templates" / template["name"]
             self.assertTrue(bundled_template.is_file())
             self.assertEqual(template["sha256"], hashlib.sha256(bundled_template.read_bytes()).hexdigest())
+            with zipfile.ZipFile(bundled_template) as archive:
+                self.assertEqual(
+                    sorted(archive.namelist()),
+                    ["image.png", "image.svg", "manifest.json"],
+                )
+                self.assertEqual(
+                    json.loads(archive.read("manifest.json")),
+                    {
+                        "categories": ["Creative", "Lines", "Grids"],
+                        "iconCode": "\ue99a",
+                        "name": "letters-home-ferrari",
+                    },
+                )
+                png_sha256 = hashlib.sha256(archive.read("image.png")).hexdigest()
+                svg_sha256 = hashlib.sha256(archive.read("image.svg")).hexdigest()
+            self.assertEqual(
+                template["generated_outputs"],
+                [
+                    {
+                        "destination": "/home/root/.local/share/remarkable/templates/import/letters-home-ferrari.png",
+                        "rollback_action": "remove_if_hash_matches",
+                        "sha256": png_sha256,
+                    },
+                    {
+                        "destination": "/home/root/.local/share/remarkable/templates/import/letters-home-ferrari.svg",
+                        "rollback_action": "remove_if_hash_matches",
+                        "sha256": svg_sha256,
+                    },
+                ],
+            )
             self.assertEqual(
                 manifest["document_view"]["resource_id"],
                 "[[1224665461898798997]]",
@@ -285,10 +300,10 @@ class NativeLauncherContractTests(unittest.TestCase):
 
         self.assertIn("http://10.11.99.16:8765/v1/sessions/start", installed)
         self.assertIn("http://10.11.99.16:8765/v1/sessions/bind", installed)
-        self.assertIn("LibraryController.createDocument", installed)
-        self.assertIn("DocumentController.setTemplateForPage", installed)
-        self.assertIn("DocumentController.addPageWithTemplateAndPageSize", installed)
-        self.assertIn('"letters-home-ferrari"', installed)
+        self.assertIn("http://10.11.99.16:8765/v1/notebook-seed", installed)
+        self.assertIn("library-ui/window/create-notebook", installed)
+        self.assertNotIn("LibraryController.", installed)
+        self.assertNotIn("DocumentController.", installed)
         self.assertIn("document.idForPage(0)", installed)
         self.assertIn("document.idForPage(1)", installed)
         self.assertIn('root.windowNavigator.open("legacydevice/window/main"', installed)
@@ -296,10 +311,48 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertIn('lettersHomeLauncher.text = "Preparing letter…"', installed)
         self.assertNotIn("Mac unavailable", installed)
         self.assertIn('lettersHomeLauncher.text = "Letters Home"', installed)
-        self.assertNotIn("response.document_id", installed)
         self.assertNotIn("upload", installed.lower())
         self.assertNotIn("AppLoadLauncher", installed)
         self.assertNotIn("import net.asivery.AppLoad", installed)
+
+    def test_warm_launcher_clones_a_native_seed_in_the_stock_controller_scope(self):
+        launch = (PACKAGE / "qmldiff" / "20-letters-home-launch.qmd").read_text()
+        sidebar_region, factory_region = launch.split(
+            "AFFECT [[8651031636888757197]]",
+            1,
+        )
+
+        self.assertIn("library-ui/window/create-notebook", sidebar_region)
+        self.assertIn("/v1/notebook-seed", launch)
+        self.assertIn("lettersHomeSeed", launch)
+        self.assertIn("interval: 2000", sidebar_region)
+        self.assertNotIn("LibraryController.", sidebar_region)
+        self.assertNotIn("DocumentController.", sidebar_region)
+        self.assertNotIn("Library.entryForId", sidebar_region)
+        self.assertIn("DocumentController.copyPages", factory_region)
+        self.assertIn(
+            "LibraryController.createDocumentFromExisting",
+            factory_region,
+        )
+        self.assertIn("try {", factory_region)
+        self.assertIn("onFailed", factory_region)
+
+    def test_streamed_batches_reveal_one_immutable_glyph_per_tick(self):
+        submit = (PACKAGE / "qmldiff" / "30-letters-home-submit.qmd").read_text()
+
+        self.assertIn("property int visibleIncomingGlyphCount: 0", submit)
+        self.assertIn("property int visibleResponseGlyphCount: 0", submit)
+        self.assertIn("interval: 90", submit)
+        self.assertIn("visibleIncomingGlyphCount += 1", submit)
+        self.assertIn("visibleResponseGlyphCount += 1", submit)
+        self.assertIn(
+            "incomingGlyphs.slice(0, lettersHomeLayer.visibleIncomingGlyphCount)",
+            submit,
+        )
+        self.assertIn(
+            "responseGlyphs.slice(0, lettersHomeLayer.visibleResponseGlyphCount)",
+            submit,
+        )
 
     def test_qmldiff_runs_one_native_notebook_without_replacing_stock_input(self):
         launch = (PACKAGE / "qmldiff" / "20-letters-home-launch.qmd").read_text()
@@ -313,15 +366,20 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertIn("legacydevice/window/main", launch)
         self.assertIn("/v1/sessions/start", launch)
         self.assertIn("/v1/sessions/bind", launch)
+        self.assertIn("/v1/notebook-seed", launch)
         self.assertIn("LibraryController.createDocument", launch)
-        self.assertIn("NavigationManager.activeContext.explorer.currentFolderId", launch)
+        self.assertIn("NavigationManager.activeContext", launch)
+        self.assertIn("activeContext.explorer.currentFolderId", launch)
         self.assertNotIn('LibraryController.createDocument(""', launch)
         self.assertIn("DocumentController.setTemplateForPage", launch)
         self.assertIn("DocumentController.addPageWithTemplateAndPageSize", launch)
-        self.assertIn("document.idForPage(0)", launch)
-        self.assertIn("document.idForPage(1)", launch)
-        self.assertIn("interval: 250", launch)
-        self.assertIn("readinessAttempts >= 20", launch)
+        self.assertIn("LibraryController.createDocumentFromExisting", launch)
+        self.assertIn("DocumentController.copyPages", launch)
+        self.assertIn("ready.idForPage(0)", launch)
+        self.assertIn("ready.idForPage(1)", launch)
+        self.assertIn("interval: 50", launch)
+        self.assertIn("interval: 2000", launch)
+        self.assertIn("lettersHomeCloneAttempts >= 20", launch)
         self.assertIn("AFFECT [[1224665461898798997]]", submit)
         self.assertIn("/v1/sessions/submit", submit)
         self.assertIn("/v1/sessions/ink-start", submit)
@@ -337,7 +395,6 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertNotIn('split("").join("\\n")', submit)
         self.assertNotIn("charactersPerColumn", submit)
         self.assertNotIn("implicitWidth", submit)
-        self.assertNotIn("response.document_id", launch + submit)
         self.assertNotIn("upload", (launch + submit).lower())
         self.assertNotIn("createNotebookFromExistingPages", submit)
         self.assertIn('console.warn("[LettersHome] submit failed"', submit)
@@ -373,7 +430,6 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertIn("DocumentController.copyPages", source)
         self.assertIn("DocumentController.addPageWithTemplateAndPageSize", source)
         self.assertNotIn("createNotebookFromExistingPages", source)
-        self.assertNotIn("response.document_id", source)
         self.assertNotIn("reviewed_document_id", source)
         self.assertNotIn("application/pdf", source)
         self.assertNotIn("/upload", source.lower())

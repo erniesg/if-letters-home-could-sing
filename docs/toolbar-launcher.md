@@ -4,8 +4,11 @@
 
 The AppLoad launch path described later in this historical spike is retired.
 `20-letters-home-launch.qmd` now calls the paired Mac at
-`10.11.99.16:8765/v1/sessions/start` and opens the returned document through
-stock `legacydevice/window/main`. `30-letters-home-submit.qmd` targets exact
+`10.11.99.16:8765/v1/sessions/start`, asks for the prewarmed blank seed IDs,
+and opens the stock `library-ui/window/create-notebook` route. The Sidebar owns
+no library/document controller. The exact stock creation scope clones the seed,
+returns validated native IDs, and the Sidebar opens that clone through stock
+`legacydevice/window/main` within a two-second watchdog. `30-letters-home-submit.qmd` targets exact
 Ferrari `DocumentView.qml` resource `[[1224665461898798997]]` (recovered source
 SHA-256 `a2102689b1feb4604e98ece588ee4606a64a7b0599bda2a3e8fac431f0fa74a5`)
 and adds one bottom-right action only on page 2 of an original Letters Home
@@ -81,9 +84,10 @@ eraser controls inside an open document.
 
 `10-letters-home-inert.qmd` adds one `Letters Home` sidebar item with an
 envelope icon and an empty click handler. `20-letters-home-launch.qmd` changes
-only that item's handler to request and open the native packet through the Mac
-bridge. `30-letters-home-submit.qmd` adds the bounded page-2 submit action to
-stock DocumentView. The host harness refuses the launch phase unless
+only that item's handler and patches the exact stock notebook-creation scope to
+prewarm and clone two-page native stationery. `30-letters-home-submit.qmd` adds
+the bounded page-2 submit action and one-glyph reveal timers to stock
+DocumentView. The host harness refuses the launch phase unless
 visual/stability confirmation is explicitly represented. The SVG icon is packaged under
 `qrc:/letters-home/icons/letter` and embedded in the adapted AppLoad runtime,
 so the launcher does not depend on an unregistered standalone RCC.

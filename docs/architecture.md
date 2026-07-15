@@ -19,7 +19,7 @@ PDF, uploads a reviewed replacement, or edits Xochitl's document store.
 
 ```mermaid
 flowchart LR
-    A["Main Xochitl hamburger sidebar"] -->|"Letters Home"| B["Create one native notebook"]
+    A["Main Xochitl hamburger sidebar"] -->|"Letters Home"| B["Clone prewarmed native stationery"]
     B --> C["Page 1 incoming overlay"]
     B --> D["Page 2 stock ink"]
     C <-->|"bounded polling"| E["Paired Mac bridge"]
@@ -42,30 +42,50 @@ copies that contract beside the QMLDiffs. A mismatched Xochitl binary, QRR
 hashtable, recovered source, target version, or active patch order must fail
 closed before mutation.
 
+The app-owned background is a deterministic KZip template package installed as
+`/home/root/.local/share/remarkable/templates/custom/letters-home-ferrari.rmt`,
+never in the read-only factory directory under `/usr/share`. Ferrari Xochitl
+requires root-level `manifest.json` and `image.png` members and accepts
+`image.svg` for the full-resolution vector background. On startup it copies the
+two image members into the writable `templates/import` cache and rebuilds that
+cache's `templates.json`; those generated app-owned images are hash-pinned for
+rollback too.
+
 Chiappa remains a separate exact-version target. Matching-looking bytes or
 layout dimensions do not authorize reuse of the Ferrari contract.
 
 ### Notebook creation and binding
 
+The bridge persists only the native document/page IDs of one app-owned,
+two-page blank `Letters Home Stationery` seed. A 1.2-second startup timer asks
+the stock creation window to build that seed when it is absent. The seed is a
+normal native notebook, never a PDF or a private document-store fixture.
+
 The sidebar QMLDiff:
 
 - asks the private Mac bridge to start a session;
-- calls `LibraryController.createDocument` in
-  `NavigationManager.activeContext.explorer.currentFolderId`;
-- assigns the full-page `letters-home-ferrari` template and adds page 2;
-- resolves both native page ids with `document.idForPage`;
+- asks for the persisted seed IDs and opens the stock
+  `library-ui/window/create-notebook` route in silent mode;
+- never references `Library`, `LibraryController`, or `DocumentController`;
+- lets the exact `CreateNotebook.qml` scope copy the seed pages and move only
+  those copies into `Letters Home <session-id>`;
+- receives the clone document ID and both validated page IDs through the stock
+  route callback;
 - binds those ids to the session; and
-- opens the same document through `legacydevice/window/main` only after bind.
+- opens the clone through `legacydevice/window/main` only after bind.
 
-A bridge or bind failure restores the sidebar label and leaves normal Xochitl
-navigation available. It does not create or import a fallback PDF.
+A two-second watchdog restores the sidebar label after any bridge, seed, clone,
+bind, or callback failure and leaves normal Xochitl navigation available. A
+damaged seed is rebuilt asynchronously for the next tap. It does not create or
+import a fallback PDF.
 
 ### Pages and interaction ownership
 
 The document-view QMLDiff adds one non-interactive layer before the stock
 toolbar:
 
-- Page 1 paints cumulative, already-laid-out glyphs from the bridge on a fixed
+- Page 1 reveals cumulative, already-laid-out glyphs from the bridge one at a
+  time every 90 ms on a fixed
   Ferrari `954×1696`, `10×18` vertical grid. Text runs top-to-bottom and
   columns right-to-left. Polling is e-ink-safe and bounded.
 - Page 2 is an ordinary native ink page. Exactly one connection to the stock
@@ -77,7 +97,8 @@ toolbar:
 - Page 3 paints only grounded correction geometry and a compact review note.
   Red is reserved for high-confidence corrections; uncertain readings remain
   neutral. Page 2 and its ink are never changed.
-- Page 4 paints the cumulative reciprocal response on the same `10×18` grid.
+- Page 4 reveals the cumulative reciprocal response with the same monotonic
+  one-glyph timer on the same `10×18` grid.
   The response contract must fit one page.
 
 The layer has no `MouseArea`, `TapHandler`, custom gesture window, or

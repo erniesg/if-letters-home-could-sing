@@ -12,16 +12,21 @@ that same notebook.
 
 ## Acceptance tests
 
-- The main-sidebar `Letters Home` entry starts a bridge session, creates one
-  native notebook in the active folder, assigns the exact Ferrari template,
-  adds page 2, binds both native page ids, and opens that same document through
-  `windowNavigator.open("legacydevice/window/main", ...)`.
+- The main-sidebar `Letters Home` entry starts a bridge session, clones one
+  verified app-owned two-page blank seed through stock native page/document
+  operations, binds both clone page ids, and opens that clone through
+  `windowNavigator.open("legacydevice/window/main", ...)` within 1.5 seconds on
+  a healthy warm Ferrari path. Codex generation is not on the open path.
+- A missing or modified seed produces a stock notification, restores the
+  enabled launcher within two seconds, and queues a stock-controller rebuild;
+  it never leaves `Preparing letter…` stuck or consumes a damaged seed.
 - The active flow contains no AppLoad window, PDF import, reviewed-document
   upload, second library item, or direct Xochitl document-store mutation.
 - Page 1 polls cumulative stable `item/agentMessage/delta` text no faster than
   750 ms and renders server-provided glyph positions on a `954×1696`, `10×18`
   portrait grid, top-to-bottom with columns right-to-left. The fictional
-  incoming letter is bounded to one page.
+  incoming letter is bounded to one page. Each published batch is revealed as
+  a monotonic prefix at exactly one additional glyph per 90 ms tick.
 - A bridge restart rehydrates page-1 text from durable session state. A missing
   or failed session leaves the stock document and exit/navigation behavior
   usable.
@@ -78,7 +83,8 @@ LaunchAgent plist, or in the repository.
 ## Artifact outputs
 
 - Exact Ferrari sidebar and document-view QMLDiffs.
-- Native Ferrari `.template` and recovered native-notebook API contract.
+- Native Ferrari KZip template package (`manifest.json`, `image.png`, and
+  `image.svg`) and recovered native-notebook API contract.
 - Paired-Mac notebook service, persisted Codex review/response client, and
   deterministic LaunchAgent installer/uninstaller.
 - Hash-pinned, non-authorizing live-trial bundle with exact destinations and
@@ -117,8 +123,9 @@ future Xochitl version.
 
 ## Definition of done
 
-Ferrari is complete only after the owner observes one notebook opening from the
-main hamburger menu; page 1 visibly streaming a complete one-page vertical
+Ferrari is complete only after the owner observes one cloned notebook opening
+from the main hamburger menu within 1.5 seconds on the warm path; page 1 visibly
+streaming a complete one-page vertical
 letter; page 2 accepting stock pen/marker/eraser and default gestures; submit
 creating a persisted Codex task; page 3 circling a known wrong glyph with the
 correct one adjacent while preserving page 2; page 4 streaming a readable

@@ -104,6 +104,7 @@ def _launcher_block(phase: str) -> str:
         clicked = """{
                 lettersHomeLauncher.enabled = false;
                 lettersHomeLauncher.text = "Preparing letter…";
+                lettersHomeLaunchWatchdog.restart();
                 const request = new XMLHttpRequest();
                 request.open("POST", "http://10.11.99.16:8765/v1/sessions/start");
                 request.setRequestHeader("Content-Type", "application/json");
@@ -117,21 +118,7 @@ def _launcher_block(phase: str) -> str:
                     }
                     const response = JSON.parse(request.responseText);
                     lettersHomeLauncher.sessionId = response.session_id;
-                    const currentFolderId = NavigationManager.activeContext.explorer.currentFolderId;
-                    const documentId = LibraryController.createDocument(
-                        NavigationManager.activeContext.explorer.currentFolderId,
-                        "Letters Home " + response.session_id
-                    );
-                    lettersHomeLauncher.documentId = documentId;
-                    LibraryController.setOrientation(documentId, Qt.Vertical);
-                    DocumentController.setTemplateForPage(
-                        documentId, 0, "letters-home-ferrari", Qt.size(954, 1696)
-                    );
-                    DocumentController.addPageWithTemplateAndPageSize(
-                        documentId, 1, "letters-home-ferrari", Qt.size(954, 1696),
-                        function() { lettersHomeLauncher.pageCreationComplete = true; }
-                    );
-                    lettersHomeReadyTimer.start();
+                    lettersHomeLauncher.requestSeed();
                 };
                 request.send(JSON.stringify({ profile_id: "ferrari_3.28.0.162" }));
             }"""
@@ -140,14 +127,42 @@ def _launcher_block(phase: str) -> str:
         native_support = """
             property string sessionId: ""
             property string documentId: ""
-            property bool pageCreationComplete: false
             property int readinessAttempts: 0
 
             function failLaunch(reason) {
                 lettersHomeReadyTimer.stop();
+                lettersHomeLaunchWatchdog.stop();
                 console.warn("[LettersHome] native launch failed", reason);
                 text = "Letters Home";
                 enabled = true;
+            }
+
+            function requestSeed() {
+                const request = new XMLHttpRequest();
+                request.open("GET", "http://10.11.99.16:8765/v1/notebook-seed");
+                request.onreadystatechange = function() {
+                    if (request.readyState !== XMLHttpRequest.DONE) return;
+                    if (request.status !== 200) {
+                        lettersHomeLauncher.failLaunch("mac_bridge_unavailable");
+                        return;
+                    }
+                    const response = JSON.parse(request.responseText);
+                    root.windowNavigator.open("library-ui/window/create-notebook", {
+                        currentFolderId: NavigationManager.activeContext.explorer.currentFolderId,
+                        lettersHomeSeed: response.status !== "ready",
+                        lettersHomeClone: response.status === "ready",
+                        lettersHomeSeedDocumentId: response.document_id || "",
+                        lettersHomeDocumentName: "Letters Home " + sessionId,
+                        onCreated: function(createdId) {
+                            lettersHomeLauncher.documentId = createdId;
+                            lettersHomeReadyTimer.start();
+                        },
+                        onFailed: function(reason) {
+                            lettersHomeLauncher.failLaunch(reason);
+                        }
+                    });
+                };
+                request.send();
             }
 
             function postBinding(document) {
@@ -162,6 +177,7 @@ def _launcher_block(phase: str) -> str:
                     }
                     lettersHomeLauncher.text = "Letters Home";
                     lettersHomeLauncher.enabled = true;
+                    lettersHomeLaunchWatchdog.stop();
                     root.toggle();
                     root.windowNavigator.open("legacydevice/window/main", {
                         documentId: lettersHomeLauncher.documentId
@@ -182,13 +198,20 @@ def _launcher_block(phase: str) -> str:
                 onTriggered: {
                     lettersHomeLauncher.readinessAttempts += 1;
                     const document = Library.entryForId(lettersHomeLauncher.documentId);
-                    if (document && pageCreationComplete && document.pageCount >= 2) {
+                    if (document && document.pageCount >= 2) {
                         stop();
                         lettersHomeLauncher.postBinding(document);
                     } else if (lettersHomeLauncher.readinessAttempts >= 20) {
                         lettersHomeLauncher.failLaunch("native_notebook_not_ready");
                     }
                 }
+            }
+
+            Timer {
+                id: lettersHomeLaunchWatchdog
+                interval: 2000
+                repeat: false
+                onTriggered: lettersHomeLauncher.failLaunch("native_launch_timeout")
             }
 """
     return (

@@ -7,6 +7,7 @@ import hashlib
 import json
 import shutil
 import tempfile
+import zipfile
 from pathlib import Path
 
 from toolbar_launcher.targets import TARGETS
@@ -25,8 +26,9 @@ QMD_NAMES = (
 )
 TEMPLATE_ASSETS = (
     (
-        "letters-home-ferrari.template",
-        "/usr/share/remarkable/templates/letters-home-ferrari.template",
+        "letters-home-ferrari",
+        "letters-home-ferrari.rmt",
+        "/home/root/.local/share/remarkable/templates/custom/letters-home-ferrari.rmt",
     ),
 )
 DOCUMENT_VIEW_RESOURCE_ID = "[[1224665461898798997]]"
@@ -60,12 +62,14 @@ def load_native_api_contract(target_name: str) -> dict[str, object]:
             "DocumentController.copyPages",
             "DocumentController.setTemplateForPage",
             "LibraryController.createDocument",
+            "LibraryController.createDocumentFromExisting",
             "NavigationManager.activeContext.explorer.currentFolderId",
             "createNotebook",
             "createNotebookFromExistingPages",
             "currentFolderId",
             "documentName",
             "document.idForPage",
+            "library-ui/window/create-notebook",
             "onNotebookClicked",
             "root.createNotebook",
         }
@@ -92,6 +96,18 @@ def load_native_api_contract(target_name: str) -> dict[str, object]:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _build_template_package(source: Path, destination: Path) -> None:
+    """Build the deterministic KZip package consumed by Ferrari Xochitl."""
+
+    members = ("manifest.json", "image.png", "image.svg")
+    with zipfile.ZipFile(destination, mode="w", compression=zipfile.ZIP_STORED) as archive:
+        for name in members:
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.create_system = 3
+            info.external_attr = 0o100644 << 16
+            archive.writestr(info, (source / name).read_bytes())
 
 
 def validate_app_owned_destination(
@@ -142,10 +158,10 @@ def build_trial_bundle(output: Path, *, target_name: str) -> Path:
         template_destination = staging / "templates"
         template_destination.mkdir()
         template_entries = []
-        for name, device_destination in TEMPLATE_ASSETS:
-            source = ROOT / "toolbar_launcher" / "templates" / name
+        for source_name, name, device_destination in TEMPLATE_ASSETS:
+            source = ROOT / "toolbar_launcher" / "templates" / source_name
             destination = template_destination / name
-            shutil.copy2(source, destination)
+            _build_template_package(source, destination)
             destination.chmod(0o644)
             template_entries.append(
                 {
@@ -156,6 +172,18 @@ def build_trial_bundle(output: Path, *, target_name: str) -> Path:
                     "destination": device_destination,
                     "app_owned": True,
                     "rollback_action": "remove_if_hash_matches",
+                    "generated_outputs": [
+                        {
+                            "destination": "/home/root/.local/share/remarkable/templates/import/letters-home-ferrari.png",
+                            "rollback_action": "remove_if_hash_matches",
+                            "sha256": _sha256(source / "image.png"),
+                        },
+                        {
+                            "destination": "/home/root/.local/share/remarkable/templates/import/letters-home-ferrari.svg",
+                            "rollback_action": "remove_if_hash_matches",
+                            "sha256": _sha256(source / "image.svg"),
+                        },
+                    ],
                 }
             )
         contract_destination = staging / "contracts"

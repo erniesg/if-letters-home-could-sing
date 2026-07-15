@@ -4,7 +4,7 @@ Date: 2026-07-15
 
 Target: reMarkable Paper Pro Move / Ferrari, OS 3.28.0.162
 
-Status: approved design, pending implementation plan
+Status: approved design; instant-start amendment approved 2026-07-15
 
 ## Outcome
 
@@ -53,23 +53,45 @@ Two alternatives are rejected:
 
 ## Notebook and template lifecycle
 
-The launcher performs these steps:
+The launcher keeps one app-owned, two-page blank stationery notebook as a
+reusable seed. The seed is created through the stock notebook controller before
+the participant needs it; it is never a PDF, an imported archival object, or a
+private document-store fixture. Its identifier is persisted as app-private
+bridge state, and the tablet verifies that the native entry still exists and
+still contains exactly two blank pages before using it.
+
+The warm launcher performs these steps:
 
 1. Ask the bridge to create a session. The response contains a session ID and
    no document payload.
-2. Create a native notebook through the verified stock Xochitl controller,
-   without presenting the stock notebook-creator sheet to the participant.
-3. Name it `Letters Home <session-id>` so the QML layer can recover the session
-   after reopening without storing participant content in the name.
-4. Apply the app-owned qiao-pi template to page 1.
-5. Add page 2 with the corresponding blank huipi template.
-6. Bind the native document ID to the bridge session and open page 1 through
-   the stock document view.
+2. Open the verified stock notebook-creation scope invisibly. That scope first
+   copies the seed's two pages inside the seed and then moves only those copies
+   into a new notebook with `LibraryController.createDocumentFromExisting`.
+   The seed's original two pages remain untouched and reusable.
+3. Name the clone `Letters Home <session-id>` so the QML layer can recover the
+   session after reopening without storing participant content in the name.
+4. Bind the clone's native document ID and page IDs to the bridge session.
+5. Close the sidebar and open page 1 through the stock document view as soon as
+   the native entry is ready. Codex generation continues in parallel and is
+   never on the open path.
 
-The template bundle uses a unique app-owned identifier and full Ferrari media
-size of 954 by 1696 pixels. Installation must not overwrite a stock template.
-Rollback removes only app-owned template files after restoring their manifest
-backup. Paper Pro / Chiappa remains a separate exact-resource target.
+If the seed is missing, edited, or not ready, the launcher fails visibly and
+queues an asynchronous seed rebuild through the same stock controller. It does
+not hang, silently create a PDF, mutate Xochitl's private store, or consume a
+damaged seed. The next tap may use the rebuilt seed.
+
+With a healthy local bridge and valid seed, tap-to-open targets 1.5 seconds or
+less on Ferrari. `Preparing letter…` has a two-second watchdog that restores
+the enabled `Letters Home` item and emits a stock notification on failure.
+
+The template bundle uses the unique app-owned identifier
+`letters-home-ferrari` and full Ferrari media size of 954 by 1696 pixels. It is
+a deterministic KZip package with the exact three members accepted by Ferrari
+Xochitl: `manifest.json`, `image.png`, and `image.svg`. Installation must not
+overwrite a stock template. Rollback removes the hash-owned package and the
+two hash-owned images Xochitl derives in its `templates/import` cache after
+restoring the pretrial manifest state. Paper Pro / Chiappa remains a separate
+exact-resource target.
 
 The initial notebook has only pages 1 and 2. Pages 3 and 4 are created inside
 the same notebook at submit time. No `Letters Home *.pdf` or
@@ -102,6 +124,13 @@ Raw Codex deltas are accumulated privately. Only complete sentences ending in
 `。`, `！`, or `？` become visible. A sentence is published only when the whole
 sentence fits in the remaining cells. This creates a few meaningful e-ink-safe
 batches and prevents a partial sentence from being stranded at the page edge.
+
+The device reveals each newly published batch one immutable glyph at a time.
+A 90 ms timer increases a visible-prefix count by exactly one until it catches
+up with the server's cumulative glyph array. New server batches extend the
+same prefix; they never reset or reposition a displayed glyph. This separates
+model batching from the participant-facing writing rhythm without waiting for
+the complete letter.
 
 If another complete sentence would cross 180 cells, it is not published. The
 already published complete-sentence prefix becomes the final letter. If the

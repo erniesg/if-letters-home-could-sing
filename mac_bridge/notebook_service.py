@@ -102,6 +102,27 @@ class NotebookCoordinator:
         self.background(generate)
         return {"status": "incoming", "session_id": session_id}
 
+    def seed_state(self) -> dict[str, str]:
+        return self.store.seed_state()
+
+    def bind_seed(self, payload: Mapping[str, Any]) -> dict[str, str]:
+        if not isinstance(payload, Mapping):
+            raise ValueError("invalid seed payload")
+        return self.store.bind_seed(
+            document_id=self._identifier(
+                payload.get("document_id"),
+                "seed document id",
+            ),
+            incoming_page_id=self._identifier(
+                payload.get("incoming_page_id"),
+                "seed incoming page id",
+            ),
+            reply_page_id=self._identifier(
+                payload.get("reply_page_id"),
+                "seed reply page id",
+            ),
+        )
+
     def bind(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         if not isinstance(payload, Mapping):
             raise ValueError("invalid bind payload")

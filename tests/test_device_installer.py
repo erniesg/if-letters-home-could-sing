@@ -96,13 +96,13 @@ class InstallerFixtureTests(unittest.TestCase):
             installer.preflight()
         self.assertEqual(context.exception.code, expected)
 
-    def test_native_template_destination_refuses_unowned_existing_bytes(self):
+    def test_native_template_package_destination_refuses_unowned_existing_bytes(self):
         from mac_bridge.trial_bundle import (
             TrialBundleError,
             validate_app_owned_destination,
         )
 
-        destination = self.workspace / "letters-home-ferrari.template"
+        destination = self.workspace / "letters-home-ferrari.rmt"
         expected = hashlib.sha256(b"owned template").hexdigest()
         self.assertEqual(
             validate_app_owned_destination(destination, expected_sha256=expected),

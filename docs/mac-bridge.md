@@ -8,13 +8,15 @@ bounded session/render state and identifiers, never provider credentials.
 
 ## Native notebook flow
 
-`Letters Home` now creates one stock Xochitl notebook in the active My Files
-folder. It applies the app-owned `letters-home-ferrari` template to two native
-pages and binds their native document/page IDs before opening stock
-`legacydevice/window/main`.
+`Letters Home` keeps one app-owned two-page blank native stationery notebook
+ready in the active My Files folder. Each encounter copies those seed pages
+through the stock Xochitl notebook controller, moves only the copies into a new
+native notebook, binds the clone's native IDs, and opens stock
+`legacydevice/window/main`. Codex generation runs in parallel and is never on
+the notebook-open path.
 
-- Page 1 polls complete AI sentences and draws the server-provided 10×18 glyph
-  coordinates over the native letter template.
+- Page 1 polls complete AI sentences and reveals the server-provided 10×18
+  glyph coordinates one at a time every 90 ms over the native letter template.
 - Page 2 is an untouched native-ink huipi with the normal reMarkable toolbar,
   close action, pen settings, and swipe behavior. The small `寄出` action is
   outside the toolbar and moves clear of a right or bottom stock toolbar.

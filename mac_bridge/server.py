@@ -68,6 +68,7 @@ class BridgeApplication:
     def dispatch(self, path: str, payload: Mapping[str, Any]) -> tuple[int, Mapping[str, Any]]:
         if self.coordinator is not None:
             routes = {
+                "/v1/notebook-seed/bind": self.coordinator.bind_seed,
                 "/v1/sessions/start": self.coordinator.start,
                 "/v1/sessions/bind": self.coordinator.bind,
                 "/v1/sessions/ink-start": self.coordinator.mark_first_ink,
@@ -84,6 +85,8 @@ class BridgeApplication:
         return 404, {"error": "not_found"}
 
     def dispatch_get(self, path: str) -> tuple[int, Mapping[str, Any]]:
+        if path == "/v1/notebook-seed" and self.coordinator is not None:
+            return 200, self.coordinator.seed_state()
         if path == "/health" and self.coordinator is not None:
             health = self.coordinator.health()
             return (200 if health.get("status") == "ok" else 503), health

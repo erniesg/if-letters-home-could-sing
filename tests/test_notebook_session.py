@@ -50,6 +50,43 @@ class NotebookSessionStoreTests(unittest.TestCase):
                 "家中安好，勿念。",
             )
 
+    def test_blank_notebook_seed_persists_only_native_ids(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "notebook-sessions.json"
+            store = self.store(path)
+
+            self.assertEqual(store.seed_state(), {"status": "missing"})
+            bound = store.bind_seed(
+                document_id="seed-doc",
+                incoming_page_id="seed-page-1",
+                reply_page_id="seed-page-2",
+            )
+
+            expected = {
+                "status": "ready",
+                "document_id": "seed-doc",
+                "incoming_page_id": "seed-page-1",
+                "reply_page_id": "seed-page-2",
+            }
+            self.assertEqual(bound, expected)
+            self.assertEqual(self.store(path).seed_state(), expected)
+            persisted = path.read_text(encoding="utf-8")
+            self.assertNotIn("letters-home-ferrari", persisted)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+
+    def test_blank_notebook_seed_rejects_unsafe_native_ids(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            store = self.store(
+                Path(temporary_directory) / "notebook-sessions.json"
+            )
+
+            with self.assertRaisesRegex(ValueError, "invalid seed document id"):
+                store.bind_seed(
+                    document_id="../seed-doc",
+                    incoming_page_id="seed-page-1",
+                    reply_page_id="seed-page-2",
+                )
+
     def test_review_and_response_phase_transitions_are_idempotent(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             path = Path(temporary_directory) / "notebook-sessions.json"

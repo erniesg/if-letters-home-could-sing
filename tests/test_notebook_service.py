@@ -320,6 +320,15 @@ class NotebookCoordinatorTests(unittest.TestCase):
         from mac_bridge.server import BridgeApplication
 
         class Coordinator:
+            def seed_state(self):
+                return {"status": "ready", "document_id": "seed-doc"}
+
+            def bind_seed(self, payload):
+                return {
+                    "status": "ready",
+                    "document_id": payload["document_id"],
+                }
+
             def start(self, payload):
                 return {"status": "incoming", "session_id": payload["fixture"]}
 
@@ -345,6 +354,18 @@ class NotebookCoordinatorTests(unittest.TestCase):
                 }
 
         application = BridgeApplication(coordinator=Coordinator())
+
+        self.assertEqual(
+            application.dispatch_get("/v1/notebook-seed"),
+            (200, {"status": "ready", "document_id": "seed-doc"}),
+        )
+        self.assertEqual(
+            application.dispatch(
+                "/v1/notebook-seed/bind",
+                {"document_id": "seed-doc-2"},
+            ),
+            (200, {"status": "ready", "document_id": "seed-doc-2"}),
+        )
 
         self.assertEqual(
             application.dispatch("/v1/sessions/start", {"fixture": "s1"}),
