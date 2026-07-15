@@ -10,7 +10,8 @@ from typing import Any, Mapping
 MAX_ANNOTATIONS = 10
 MAX_SUMMARY = 360
 MAX_FIELD = 600
-MAX_LETTER = 240
+MAX_LETTER = 180
+MIN_NOTEBOOK_LETTER = 144
 PROHIBITED_EVALUATION = re.compile(
     r"\b(?:score|grade|marks?|correct answer)\b|(?:评分|分数|打分|成绩|满分)",
     re.IGNORECASE,
@@ -74,10 +75,12 @@ def _text(value: Any, field: str, *, maximum: int = MAX_FIELD, allow_empty: bool
     return cleaned
 
 
-def parse_letter_text(value: Any) -> Letter:
+def parse_letter_text(value: Any, *, minimum: int = 0) -> Letter:
     """Validate one fictional letter before displaying or persisting it."""
 
     body = _text(value, "letter", maximum=MAX_LETTER)
+    if len(body) < minimum:
+        raise ReviewContractError("letter is too short")
     if body.startswith("```") or body.endswith("```"):
         raise ReviewContractError("letter must not contain a code fence")
     if len(re.findall(r"[\u3400-\u9fff]", body)) < 12:

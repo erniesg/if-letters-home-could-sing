@@ -142,6 +142,22 @@ class CodexLetterResult:
     letter: Letter
 
 
+def incoming_letter_prompt(conversation_context: str) -> str:
+    """Build the bounded fictional-letter request used by the incoming turn."""
+
+    context = conversation_context.strip() or (
+        "care across distance, health, education, remittance received, and returning home"
+    )
+    return f"""Write one fictional contemporary Chinese family letter inspired by the care and reciprocity of qiao pi.
+It will be typeset in vertical Chinese columns, top-to-bottom and right-to-left, on a portrait paper page.
+Use 150 to 168 Chinese characters; never exceed 180 including punctuation. Return only the letter body: no markdown, title, commentary, signature, seal, or JSON.
+Let the emotional content correspond to this conversation context without copying it verbatim:
+{context}
+
+Do not use a real personal name, accession number, signature, seal, museum claim, or authenticity claim.
+The letter is visibly fictional."""
+
+
 class CodexAppServerClient:
     """Create one visible, non-ephemeral Codex task for a durable reply submit."""
 
@@ -274,14 +290,7 @@ class CodexAppServerClient:
                     "Return only the requested fictional Chinese letter text."
                 ),
             )
-            prompt = f"""Write one fictional contemporary Chinese family letter inspired by the care and reciprocity of qiao pi.
-It will be typeset in vertical Chinese columns, top-to-bottom and right-to-left, on a portrait paper page.
-Use 90 to 180 Chinese characters. Return only the letter body: no markdown, title, commentary, signature, seal, or JSON.
-Let the emotional content correspond to this conversation context without copying it verbatim:
-{conversation_context.strip() or 'care across distance, health, education, remittance received, and returning home'}
-
-Do not use a real personal name, accession number, signature, seal, museum claim, or authenticity claim.
-The letter is visibly fictional."""
+            prompt = incoming_letter_prompt(conversation_context)
             started_turn = channel.request(
                 "turn/start",
                 {
