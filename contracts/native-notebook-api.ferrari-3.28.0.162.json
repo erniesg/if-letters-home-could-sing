@@ -1,0 +1,23 @@
+{
+  "hashtab_sha256": "ebbb415d5e875a67a84416c3029e6ce7e94861a32bb8d390fd01fe0403d492cd",
+  "os_version": "3.28.0.162",
+  "resources": {
+    "sidebar": "[[4911547370760691430]]",
+    "document_view": "[[1224665461898798997]]",
+    "create_notebook": "[[8651031636888757197]]",
+    "create_notebook_window": "[[16344100773210839301]]",
+    "pages": "[[4530443761526121003]]"
+  },
+  "symbols": {
+    "DocumentController.addPageWithTemplateAndPageSize": "[[14285801537390842371]]",
+    "DocumentController.setTemplateForPage": "[[7540657167845513638]]",
+    "LibraryController.createDocument": "[[16080285492618834883]]",
+    "createNotebook": "[[11689254259907176254]]",
+    "createNotebookFromExistingPages": "[[5450413349604854157]]",
+    "currentFolderId": "[[1536661485978992373]]",
+    "documentName": "[[15793094956877606249]]",
+    "onNotebookClicked": "[[15540280890624773142]]",
+    "root.createNotebook": "[[13558404569428295472]]"
+  },
+  "target": "ferrari"
+}

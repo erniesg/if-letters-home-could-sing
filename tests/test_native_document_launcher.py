@@ -3,6 +3,7 @@ import io
 import json
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 from toolbar_launcher import TARGETS, TabletSnapshot, apply_toolbar_patch
 
@@ -30,6 +31,83 @@ def snapshot_for(target_name="ferrari"):
 
 
 class NativeLauncherContractTests(unittest.TestCase):
+    def test_ferrari_native_notebook_api_contract_pins_required_resources_and_symbols(self):
+        contract_path = (
+            ROOT / "contracts" / "native-notebook-api.ferrari-3.28.0.162.json"
+        )
+        self.assertTrue(contract_path.is_file(), "native notebook API contract is missing")
+        contract = json.loads(contract_path.read_text(encoding="utf-8"))
+
+        self.assertEqual(contract["os_version"], "3.28.0.162")
+        self.assertEqual(
+            contract["hashtab_sha256"],
+            TARGETS["ferrari"].hashtab_sha256,
+        )
+        self.assertEqual(
+            contract["resources"],
+            {
+                "sidebar": "[[4911547370760691430]]",
+                "document_view": "[[1224665461898798997]]",
+                "create_notebook": "[[8651031636888757197]]",
+                "create_notebook_window": "[[16344100773210839301]]",
+                "pages": "[[4530443761526121003]]",
+            },
+        )
+        self.assertEqual(
+            contract["symbols"]["LibraryController.createDocument"],
+            "[[16080285492618834883]]",
+        )
+        self.assertEqual(
+            contract["symbols"]["DocumentController.addPageWithTemplateAndPageSize"],
+            "[[14285801537390842371]]",
+        )
+        self.assertEqual(
+            contract["symbols"]["DocumentController.setTemplateForPage"],
+            "[[7540657167845513638]]",
+        )
+        self.assertEqual(
+            contract["symbols"]["createNotebookFromExistingPages"],
+            "[[5450413349604854157]]",
+        )
+
+    def test_native_notebook_api_loader_rejects_unverified_target_and_hash(self):
+        from mac_bridge import trial_bundle
+
+        self.assertTrue(
+            hasattr(trial_bundle, "load_native_api_contract"),
+            "native notebook API loader is missing",
+        )
+        with self.assertRaisesRegex(
+            trial_bundle.TrialBundleError,
+            "native_notebook_api_unverified",
+        ):
+            trial_bundle.load_native_api_contract("chiappa")
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            contract_path = Path(temporary_directory) / "contract.json"
+            contract_path.write_text(
+                json.dumps(
+                    {
+                        "target": "ferrari",
+                        "os_version": "3.28.0.162",
+                        "hashtab_sha256": "0" * 64,
+                        "resources": {},
+                        "symbols": {},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with mock.patch.dict(
+                trial_bundle.NATIVE_API_CONTRACTS,
+                {"ferrari": contract_path},
+                clear=True,
+            ):
+                with self.assertRaisesRegex(
+                    trial_bundle.TrialBundleError,
+                    "native_notebook_api_unverified",
+                ):
+                    trial_bundle.load_native_api_contract("ferrari")
+
     def test_only_grounded_high_confidence_corrections_become_red_ellipse_marks(self):
         from mac_bridge.contracts import parse_review
         from mac_bridge.native_packet import correction_marks

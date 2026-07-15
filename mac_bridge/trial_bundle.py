@@ -13,6 +13,11 @@ from toolbar_launcher.targets import TARGETS
 
 
 ROOT = Path(__file__).resolve().parents[1]
+NATIVE_API_CONTRACTS = {
+    "ferrari": ROOT
+    / "contracts"
+    / "native-notebook-api.ferrari-3.28.0.162.json",
+}
 QMD_NAMES = (
     "10-letters-home-inert.qmd",
     "20-letters-home-launch.qmd",
@@ -26,6 +31,48 @@ class TrialBundleError(ValueError):
     pass
 
 
+def load_native_api_contract(target_name: str) -> dict[str, object]:
+    """Load a saved exact-resource contract or fail closed."""
+
+    try:
+        target = TARGETS[target_name]
+        path = NATIVE_API_CONTRACTS[target_name]
+        contract = json.loads(path.read_text(encoding="utf-8"))
+        resources = contract["resources"]
+        symbols = contract["symbols"]
+        required_resources = {
+            "sidebar",
+            "document_view",
+            "create_notebook",
+            "create_notebook_window",
+            "pages",
+        }
+        required_symbols = {
+            "DocumentController.addPageWithTemplateAndPageSize",
+            "DocumentController.setTemplateForPage",
+            "LibraryController.createDocument",
+            "createNotebook",
+            "createNotebookFromExistingPages",
+            "currentFolderId",
+            "documentName",
+            "onNotebookClicked",
+            "root.createNotebook",
+        }
+        if (
+            contract["target"] != target_name
+            or contract["os_version"] != target.os_version
+            or contract["hashtab_sha256"] != target.hashtab_sha256
+            or not isinstance(resources, dict)
+            or not required_resources.issubset(resources)
+            or not isinstance(symbols, dict)
+            or not required_symbols.issubset(symbols)
+        ):
+            raise ValueError
+    except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        raise TrialBundleError("native_notebook_api_unverified") from error
+    return contract
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -35,6 +82,7 @@ def build_trial_bundle(output: Path, *, target_name: str) -> Path:
 
     if target_name != "ferrari":
         raise TrialBundleError("chiappa_exact_resource_unverified")
+    load_native_api_contract(target_name)
     output = Path(output).resolve()
     if output.exists():
         raise TrialBundleError("trial_bundle_destination_exists")
