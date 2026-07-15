@@ -24,7 +24,7 @@ AFFECT [[4911547370760691430]]
                         });
                         return;
                     }
-                    lettersHomeLauncher.text = "Letters Home · Mac unavailable";
+                    lettersHomeLauncher.text = "Letters Home";
                     lettersHomeLauncher.enabled = true;
                 };
                 request.send(JSON.stringify({ profile_id: "ferrari_3.28.0.162" }));

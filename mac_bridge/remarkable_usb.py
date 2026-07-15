@@ -64,7 +64,7 @@ class RemarkableUsbDocuments:
         except (urllib.error.URLError, TimeoutError) as error:
             raise RuntimeError("remarkable_upload_failed") from error
 
-        expected_name = filename[:-4]
+        expected_names = {filename, filename[:-4]}
         deadline = time.monotonic() + self.timeout_seconds
         while time.monotonic() < deadline:
             matches = [
@@ -72,7 +72,7 @@ class RemarkableUsbDocuments:
                 for item in self._documents()
                 if isinstance(item.get("ID"), str)
                 and item["ID"] not in before
-                and item.get("VissibleName") == expected_name
+                and (item.get("VissibleName") or item.get("VisibleName")) in expected_names
             ]
             if len(matches) == 1:
                 return matches[0]

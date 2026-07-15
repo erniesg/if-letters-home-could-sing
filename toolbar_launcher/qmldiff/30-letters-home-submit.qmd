@@ -20,6 +20,11 @@ AFFECT [[1224665461898798997]]
                 ~&254542236275632405&~: {
                     lettersHomeSubmit.enabled = false;
                     lettersHomeSubmit.text = "Sending to Codex…";
+                    let sessionId = root.document.visibleName.substring("Letters Home ".length);
+                    if (sessionId.length > 4
+                            && sessionId.substring(sessionId.length - 4).toLowerCase() === ".pdf") {
+                        sessionId = sessionId.substring(0, sessionId.length - 4);
+                    }
                     const request = new XMLHttpRequest();
                     request.open("POST", "http://10.11.99.16:8765/v1/sessions/submit");
                     request.setRequestHeader("Content-Type", "application/json");
@@ -39,7 +44,7 @@ AFFECT [[1224665461898798997]]
                         lettersHomeSubmit.enabled = true;
                     };
                     request.send(JSON.stringify({
-                        session_id: root.document.visibleName.substring("Letters Home ".length),
+                        session_id: sessionId,
                         document_id: root.document.id,
                         reply_page_index: root.currentPage,
                         profile_id: "ferrari_3.28.0.162",

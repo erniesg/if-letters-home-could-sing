@@ -11,8 +11,76 @@ The portable and trusted-Mac gates for this native candidate pass. A synthetic
 review created a persisted desktop Codex task, a conversation-conditioned
 incoming task produced a real image, the renderer produced exact `1696×954`
 two- and three-page PDFs, and the three QMDs apply cleanly to recovered Ferrari
-3.28 resources. Physical installation remains held until the USB web interface
-and bridge are reachable and current on-device hashes are re-confirmed.
+3.28 resources. The native QMD install is now complete and stable; the visible
+tap, generated-document import, native ink, submit, and returned-page-3 checks
+remain in progress.
+
+## Installed native-document checkpoint
+
+The owner enabled the tablet USB web interface and approved the held Ferrari
+trial. Live discovery reconfirmed model `reMarkable Ferrari`, OS `3.28.0.162`,
+Xochitl SHA-256
+`10082aeb857c69c3f404ab189d7403318ba97d0c169e756ae9a5b3532b248a4a`, and
+hashtab SHA-256
+`ebbb415d5e875a67a84416c3029e6ce7e94861a32bb8d390fd01fe0403d492cd`.
+The enabled USB document API returned HTTP 200. The live Mac-side USB address
+is `10.11.99.16` on `en11`; the tablet fetched the bridge health endpoint there
+successfully. This replaces the unverified `.2` fixture assumption.
+
+Before mutation, the current QMDs and Xochitl service state were copied to:
+
+```text
+/home/root/.local/share/letters-home-installer/backups/20260715-ba4315e-native-document-roundtrip
+```
+
+The old launch QMD hash was
+`002383284266cb9c5d97f01de7da03a071ad66089a6e22999fca77edd287017f` and
+`30-letters-home-submit.qmd` was absent. The initially installed native
+candidates were:
+
+| Artifact | SHA-256 |
+|---|---|
+| `20-letters-home-launch.qmd` | `92fd0d8846097c8ca7bdce00a3f10233d7d7ec3a9c0fde15ae715813464e17e6` |
+| `30-letters-home-submit.qmd` | `27a7a1ea5658f797a1a7f7eb20190d292ee383a2344d5bb333f9af00d8f7e7a9` |
+
+The first atomic-copy attempt stopped before changing live files because the
+target BusyBox image has no `install` utility. The retry used verified
+`cp`, `chmod 600`, and `mv` operations. `/home/root/xovi/start` ran once.
+Xochitl returned with PID `89992`, `NRestarts=0`, and loaded QMDs `10`, `20`,
+`30`, `90`, and `95` without a QMLDiff failure. The bridge remains bound to the
+private USB interface at `10.11.99.16:8765`.
+
+The first owner tap created a real image task and uploaded a new `Letters Home`
+PDF, but the sidebar later showed `Mac unavailable` instead of opening it. The
+cause was not connectivity: Ferrari's USB API retained the `.pdf` extension in
+both visible-name fields, while the adapter accepted only the extensionless
+form. The upload therefore succeeded but its bounded discovery loop returned a
+false `remarkable_upload_not_visible` failure after 45 seconds.
+
+A regression test now uses the observed Ferrari response shape. The adapter
+accepts the exact uploaded name with or without `.pdf`, the sidebar restores
+the fixed-width `Letters Home` label after an error, and submit strips a
+retained `.pdf` suffix before recovering the session id. Exact-resource checks
+and the required evidence gate passed before the correction was installed.
+The prior QMDs and service state are backed up at:
+
+```text
+/home/root/.local/share/letters-home-installer/backups/20260715-upload-name-retry-fix
+```
+
+The installed correction hashes are:
+
+| Artifact | SHA-256 |
+|---|---|
+| `20-letters-home-launch.qmd` | `c169cca1f4af18fabcb3c82454cf670b5f87982e024a95df652dd86942a3f033` |
+| `30-letters-home-submit.qmd` | `4f9992a0ba1982cb4f773b008ac3572d0ed4b39d7f5eea72da678bfd000dfb6c` |
+
+The correction used verified atomic replacements and one Xovi restart.
+Xochitl returned with PID `90649`, `NRestarts=0`, and all five QMDs loaded
+without a QMLDiff failure. The bridge was restarted on the corrected adapter
+and its health endpoint passes. This checkpoint still does not claim the
+visible open, ink, submit, or returned page 3 passed; those require the next
+owner tap and physical observation.
 
 ## Initial observed target
 

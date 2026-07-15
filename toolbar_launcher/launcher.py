@@ -121,7 +121,7 @@ def _launcher_block(phase: str) -> str:
                         });
                         return;
                     }
-                    lettersHomeLauncher.text = "Letters Home · Mac unavailable";
+                    lettersHomeLauncher.text = "Letters Home";
                     lettersHomeLauncher.enabled = true;
                 };
                 request.send(JSON.stringify({ profile_id: "ferrari_3.28.0.162" }));

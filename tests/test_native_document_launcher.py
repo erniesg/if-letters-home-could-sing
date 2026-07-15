@@ -70,7 +70,8 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertIn('root.windowNavigator.open("legacydevice/window/main"', installed)
         self.assertIn("documentId: response.document_id", installed)
         self.assertIn('lettersHomeLauncher.text = "Preparing letter…"', installed)
-        self.assertIn('lettersHomeLauncher.text = "Letters Home · Mac unavailable"', installed)
+        self.assertNotIn("Mac unavailable", installed)
+        self.assertIn('lettersHomeLauncher.text = "Letters Home"', installed)
         self.assertNotIn("AppLoadLauncher", installed)
         self.assertNotIn("import net.asivery.AppLoad", installed)
 
@@ -90,6 +91,7 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertIn("Letters Home", submit)
         self.assertIn("currentPage", submit)
         self.assertIn("review_page_index", submit)
+        self.assertIn('sessionId.substring(sessionId.length - 4).toLowerCase() === ".pdf"', submit)
         self.assertIn(
             "~&233726547792244&~: ~&6504329801&~",
             submit,
