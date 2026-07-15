@@ -114,7 +114,7 @@ def build_trial_bundle(output: Path, *, target_name: str) -> Path:
 
     if target_name != "ferrari":
         raise TrialBundleError("chiappa_exact_resource_unverified")
-    load_native_api_contract(target_name)
+    native_api_contract = load_native_api_contract(target_name)
     output = Path(output).resolve()
     if output.exists():
         raise TrialBundleError("trial_bundle_destination_exists")
@@ -133,6 +133,10 @@ def build_trial_bundle(output: Path, *, target_name: str) -> Path:
                     "name": name,
                     "sha256": _sha256(destination),
                     "size_bytes": destination.stat().st_size,
+                    "destination": (
+                        "/home/root/xovi/exthome/qt-resource-rebuilder/" + name
+                    ),
+                    "rollback_action": "restore_pretrial_or_remove_if_absent",
                 }
             )
         template_destination = staging / "templates"
@@ -154,6 +158,21 @@ def build_trial_bundle(output: Path, *, target_name: str) -> Path:
                     "rollback_action": "remove_if_hash_matches",
                 }
             )
+        contract_destination = staging / "contracts"
+        contract_destination.mkdir()
+        contract_source = NATIVE_API_CONTRACTS[target_name]
+        bundled_contract = contract_destination / contract_source.name
+        shutil.copy2(contract_source, bundled_contract)
+        native_api_entry = {
+            "name": bundled_contract.name,
+            "sha256": _sha256(bundled_contract),
+            "size_bytes": bundled_contract.stat().st_size,
+            "resources": native_api_contract["resources"],
+            "recovered_source_sha256": native_api_contract[
+                "recovered_source_sha256"
+            ],
+            "symbols": native_api_contract["symbols"],
+        }
         target = TARGETS[target_name]
         manifest = {
             "schema_version": 1,
@@ -172,9 +191,27 @@ def build_trial_bundle(output: Path, *, target_name: str) -> Path:
                 "resource_id": DOCUMENT_VIEW_RESOURCE_ID,
                 "recovered_source_sha256": DOCUMENT_VIEW_SOURCE_SHA256,
             },
-            "bridge": {"host": "10.11.99.16", "port": 8765},
+            "bridge": {
+                "host": "10.11.99.16",
+                "port": 8765,
+                "launch_agent_label": "com.erniesg.letters-home.bridge",
+            },
+            "native_api_contract": native_api_entry,
             "qmds": entries,
             "templates": template_entries,
+            "workflow": {
+                "document_model": "one_native_notebook",
+                "initial_pages": ["incoming_letter", "huipi"],
+                "completed_pages": [
+                    "incoming_letter",
+                    "huipi",
+                    "reversible_marginalia",
+                    "response_letter",
+                ],
+                "pdf_import": False,
+                "reviewed_document_upload": False,
+                "participant_ink_replaced": False,
+            },
             "requires_live_preflight": True,
             "mutation_authorized_by_manifest": False,
             "rollback": "restore the backed-up Letters Home QMD set and restart Xochitl once",

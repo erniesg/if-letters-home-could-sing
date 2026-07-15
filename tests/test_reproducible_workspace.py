@@ -1,12 +1,53 @@
+import ast
 import json
 import re
 import subprocess
-import tomllib
 import unittest
 from pathlib import Path
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.10 and older macOS system Python.
+    tomllib = None
+
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def load_workspace_metadata(path: Path):
+    text = path.read_text(encoding="utf-8")
+    if tomllib is not None:
+        return tomllib.loads(text)
+
+    def section(name):
+        match = re.search(
+            rf"(?ms)^\[{re.escape(name)}\]\s*(.*?)(?=^\[|\Z)",
+            text,
+        )
+        if match is None:
+            raise AssertionError(f"missing [{name}] in pyproject.toml")
+        return match.group(1)
+
+    def literal(section_name, key):
+        body = section(section_name)
+        match = re.search(
+            rf"(?ms)^{re.escape(key)}\s*=\s*(\[[^\]]*\]|\"[^\"]*\")",
+            body,
+        )
+        if match is None:
+            raise AssertionError(f"missing {key} in [{section_name}]")
+        return ast.literal_eval(match.group(1))
+
+    return {
+        "build-system": {"requires": literal("build-system", "requires")},
+        "project": {
+            "requires-python": literal("project", "requires-python"),
+            "dependencies": literal("project", "dependencies"),
+            "optional-dependencies": {
+                "dev": literal("project.optional-dependencies", "dev")
+            },
+        },
+    }
 
 
 def requirement_lines(path: Path):
@@ -27,7 +68,7 @@ def frontend_sources():
 
 class PythonWorkspaceTests(unittest.TestCase):
     def test_active_python_workspace_is_pinned_and_dependency_free(self):
-        metadata = tomllib.loads((ROOT / "pyproject.toml").read_text())
+        metadata = load_workspace_metadata(ROOT / "pyproject.toml")
         project = metadata["project"]
 
         self.assertEqual((ROOT / ".python-version").read_text().strip(), "3.12.8")

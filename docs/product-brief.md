@@ -16,7 +16,7 @@ The participant's reply is a contemporary **huipi** (回批): the return message
   then opens that document in the stock reMarkable reader/writer interface.
 - The experience never replaces the stock pen-and-eraser toolbar, close action,
   swipe-down menu, or page gestures.
-- A fictional qiao pi-inspired Chinese letter arrives in vertical text batches on deterministic paper, then is persisted as vector text in the reviewed packet.
+- A fictional qiao pi-inspired Chinese letter arrives in vertical text batches on the first page of one native notebook. The paired Mac retains the bounded session text so the overlay can be rehydrated without importing a replacement document.
 - It is labelled `A fictional letter generated for this encounter` in the UI or accessible provenance panel.
 - It may be informed by themes such as remittance received, education, health, care, distance, and requests to visit, but it must not reproduce a museum accession, signature, handwriting, seal, or claim a real author.
 - The reader can swipe forward but cannot accidentally submit from this page.
@@ -31,12 +31,12 @@ The participant's reply is a contemporary **huipi** (回批): the return message
 - A participant can finish without WHOOP.
 - Submit requires a deliberate action and a confirmation when the page is empty.
 - Submission creates a visible persisted Codex task on the paired Mac and keeps
-  the page open until a reviewed native copy is ready.
+  the same notebook open while its marginalia and response pages become ready.
 
 ### Page 3 — Marked copy
 
 - The original ink remains visually primary and unmodified.
-- A full-size copy of the huipi shows red ellipses around only high-confidence wrong glyphs, with the correct glyph immediately beside each mark. The original page 2 remains untouched.
+- Xochitl first copies the huipi inside the same notebook. A reversible overlay on that full-size page 3 shows red ellipses around only high-confidence wrong glyphs, with the correct glyph immediately beside each mark. The original page 2 remains untouched.
 - Feedback is concise, specific, and kind. It can point out likely character/word corrections, ambiguous reading, tone, and a reflective question.
 - Uncertain readings are marked as uncertain; the system does not fabricate a transcription.
 - The page is called `Marginalia` or `A reading of your reply`, not `Score`, `Grade`, or `Correct answer`.
@@ -45,7 +45,7 @@ The participant's reply is a contemporary **huipi** (回批): the return message
 
 - The correspondent answers what was actually legible in the participant's huipi.
 - The reply uses the same vertical typesetting and portrait paper system as page 1.
-- Compact teacher explanations continue on page 5 only when useful; the layout does not reserve empty card space.
+- The response is constrained to the `10×18` portrait grid and one page. The compact teacher note expands only to its content on page 3; the flow never creates a mostly empty page 5.
 
 ## Experience principles
 

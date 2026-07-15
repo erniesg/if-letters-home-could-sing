@@ -51,7 +51,7 @@ SNAPSHOTS = ROOT / "tablet_app" / "snapshots"
 def unix_seqpacket_supported():
     try:
         connection = socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET)
-    except OSError:
+    except (AttributeError, OSError):
         return False
     connection.close()
     return True

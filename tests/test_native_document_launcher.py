@@ -1,6 +1,5 @@
 import unittest
 import hashlib
-import io
 import json
 import tempfile
 from pathlib import Path
@@ -206,6 +205,14 @@ class NativeLauncherContractTests(unittest.TestCase):
             for entry in manifest["qmds"]:
                 self.assertTrue((bundled / entry["name"]).is_file())
                 self.assertEqual(len(entry["sha256"]), 64)
+                self.assertEqual(
+                    entry["destination"],
+                    "/home/root/xovi/exthome/qt-resource-rebuilder/" + entry["name"],
+                )
+                self.assertEqual(
+                    entry["rollback_action"],
+                    "restore_pretrial_or_remove_if_absent",
+                )
             self.assertEqual(len(manifest["templates"]), 1)
             template = manifest["templates"][0]
             self.assertEqual(template["name"], "letters-home-ferrari.template")
@@ -222,6 +229,45 @@ class NativeLauncherContractTests(unittest.TestCase):
             self.assertEqual(
                 manifest["document_view"]["resource_id"],
                 "[[1224665461898798997]]",
+            )
+            native_api = manifest["native_api_contract"]
+            contract_path = output / "contracts" / native_api["name"]
+            self.assertTrue(contract_path.is_file())
+            self.assertEqual(
+                native_api["sha256"],
+                hashlib.sha256(contract_path.read_bytes()).hexdigest(),
+            )
+            self.assertEqual(
+                native_api["resources"]["pages_actions"],
+                "[[11797611520953530268]]",
+            )
+            self.assertEqual(
+                native_api["symbols"]["DocumentController.copyPages"],
+                "[[12188519148798835813]]",
+            )
+            self.assertEqual(
+                native_api["recovered_source_sha256"]["create_notebook"],
+                "808163f296c9f272710bd07082b868039b948983c051a28a54bea13380c0316d",
+            )
+            self.assertEqual(
+                manifest["workflow"],
+                {
+                    "document_model": "one_native_notebook",
+                    "initial_pages": ["incoming_letter", "huipi"],
+                    "completed_pages": [
+                        "incoming_letter",
+                        "huipi",
+                        "reversible_marginalia",
+                        "response_letter",
+                    ],
+                    "pdf_import": False,
+                    "reviewed_document_upload": False,
+                    "participant_ink_replaced": False,
+                },
+            )
+            self.assertEqual(
+                manifest["bridge"]["launch_agent_label"],
+                "com.erniesg.letters-home.bridge",
             )
             self.assertTrue(manifest["requires_live_preflight"])
 
@@ -314,72 +360,23 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertIn("participantNavigated", submit)
         self.assertIn("guardPageId", submit)
 
-    def test_native_packet_contract_is_full_bleed_on_both_devices(self):
-        from mac_bridge.native_packet import packet_spec
-
-        for profile_id, dimensions in {
-            "ferrari_3.28.0.162": (954, 1696),
-            "chiappa_3.28.0.162": (1620, 2160),
-        }.items():
-            with self.subTest(profile_id=profile_id):
-                packet = packet_spec(profile_id)
-                self.assertEqual((packet.width, packet.height), dimensions)
-                self.assertEqual([page.kind for page in packet.pages], ["incoming", "huipi"])
-                for page in packet.pages:
-                    self.assertEqual((page.x, page.y), (0, 0))
-                    self.assertEqual((page.width, page.height), dimensions)
-                    self.assertEqual(page.chrome_margin, 0)
-
-    def test_ferrari_renderer_emits_two_full_page_portrait_media_boxes(self):
-        from pypdf import PdfReader
-
-        from mac_bridge.contracts import Letter
-        from mac_bridge.native_packet import NativePacketRenderer
-
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            temporary = Path(temporary_directory)
-            packet = NativePacketRenderer(work_dir=temporary).build_initial_packet(
-                Letter("阿妹，见字如面。家中一切安好，勿念。"),
-                profile_id="ferrari_3.28.0.162",
+    def test_active_native_notebook_flow_never_imports_or_replaces_a_pdf(self):
+        source = "\n".join(
+            (PACKAGE / "qmldiff" / name).read_text(encoding="utf-8")
+            for name in (
+                "20-letters-home-launch.qmd",
+                "30-letters-home-submit.qmd",
             )
-            pages = PdfReader(io.BytesIO(packet)).pages
-
-        self.assertEqual(len(pages), 2)
-        self.assertEqual(
-            [(int(page.mediabox.width), int(page.mediabox.height)) for page in pages],
-            [(954, 1696), (954, 1696)],
         )
-        self.assertIn("阿", pages[0].extract_text())
-        self.assertNotIn("阿", pages[1].extract_text())
 
-    def test_reviewed_packet_opens_on_full_size_marked_copy_then_response_letter(self):
-        from pypdf import PdfReader
-
-        from mac_bridge.contracts import Letter, parse_review
-        from mac_bridge.native_packet import NativePacketRenderer
-        from tests.test_native_codex_bridge import VALID_REVIEW
-
-        incoming = Letter("阿妹，见字如面。家中一切安好，勿念。")
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            renderer = NativePacketRenderer(work_dir=Path(temporary_directory))
-            source = renderer.build_initial_packet(None, profile_id="ferrari_3.28.0.162")
-            reviewed, review_page_index = renderer.build_reviewed_packet(
-                source,
-                parse_review(VALID_REVIEW),
-                profile_id="ferrari_3.28.0.162",
-                incoming_letter=incoming,
-            )
-            pages = PdfReader(io.BytesIO(reviewed)).pages
-
-        self.assertEqual(review_page_index, 2)
-        self.assertGreaterEqual(len(pages), 5)
-        self.assertIn("阿", pages[0].extract_text())
-        self.assertIn("末", pages[2].extract_text())
-        self.assertIn("见", pages[3].extract_text())
-        self.assertEqual(
-            [(int(page.mediabox.width), int(page.mediabox.height)) for page in pages[:4]],
-            [(954, 1696)] * 4,
-        )
+        self.assertIn("LibraryController.createDocument", source)
+        self.assertIn("DocumentController.copyPages", source)
+        self.assertIn("DocumentController.addPageWithTemplateAndPageSize", source)
+        self.assertNotIn("createNotebookFromExistingPages", source)
+        self.assertNotIn("response.document_id", source)
+        self.assertNotIn("reviewed_document_id", source)
+        self.assertNotIn("application/pdf", source)
+        self.assertNotIn("/upload", source.lower())
 
 
 if __name__ == "__main__":

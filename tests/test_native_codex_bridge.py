@@ -388,18 +388,25 @@ class CodexAppServerContractTests(unittest.TestCase):
             )
 
     def test_raster_reply_adds_four_private_detail_tiles_to_the_vision_turn(self):
-        from PIL import Image
-
         with tempfile.TemporaryDirectory() as temporary_directory:
             reply = Path(temporary_directory) / "reply.png"
-            Image.new("RGB", (400, 800), "#f3ead7").save(reply)
+            reply.write_bytes(b"synthetic-raster-fixture")
+            detail_tiles = tuple(
+                Path(temporary_directory) / f"{name}.png"
+                for name in ("top-left", "top-right", "bottom-left", "bottom-right")
+            )
             channel = ScriptedRpcChannel()
 
-            CodexAppServerClient(channel=channel, cwd=ROOT).review_reply(
-                session_id="session-detail-tiles",
-                reply_image=reply,
-                conversation_context="fixture",
-            )
+            with patch.object(
+                CodexAppServerClient,
+                "_detail_tiles",
+                return_value=detail_tiles,
+            ):
+                CodexAppServerClient(channel=channel, cwd=ROOT).review_reply(
+                    session_id="session-detail-tiles",
+                    reply_image=reply,
+                    conversation_context="fixture",
+                )
 
         turn = channel.requests[4][1]
         images = [item for item in turn["input"] if item["type"] == "localImage"]

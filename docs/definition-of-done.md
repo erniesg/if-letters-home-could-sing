@@ -2,25 +2,32 @@
 
 ## Product-level done
 
-The feature is done only when all of the following are demonstrated on both backed-up target devices at the pinned OS version:
+The feature is done only when all of the following are demonstrated on each
+eligible backed-up target at its independently pinned OS and resource version:
 
 1. A `Letters Home` envelope entry appears in the main hamburger/library
    sidebar beside `My files`, never in the open-document editing toolbar, and
-   opens a native correspondence document without corrupting a notebook.
-2. Page 1 fills the native page with a generated or cached fictional qiao
-   pi-inspired letter with provenance visible on demand.
+   creates and opens one native notebook without importing a PDF or creating a
+   second library item.
+2. Page 1 streams a bounded fictional qiao pi-inspired letter into the native
+   portrait `10×18` grid, with every glyph in bounds and provenance visible.
 3. One swipe reaches a blank huipi page; stock pen, marker, eraser, undo/redo,
-   close, swipe-down, and page gestures behave exactly as in another PDF.
+   layers, close, swipe-down, and page gestures behave exactly as in another
+   native notebook.
 4. The first accepted stroke starts the heart-rate capture window and submit closes it.
 5. The experience completes with WHOOP connected, disconnected mid-session, unavailable, or declined.
 6. Submission creates one visible persisted Codex task on the paired Mac with
-   the rendered huipi attached at original detail, then opens a reviewed copy at
-   page 3 with pages 1 and 2 unchanged and gentle anchored marginalia. Overflow
-   paginates instead of clipping.
+   the rendered huipi attached at original detail, copies page 2 to page 3 in
+   the same notebook, and adds page 4. Page 3 shows reversible grounded
+   marginalia while page 2 remains unchanged; page 4 streams a reciprocal
+   response constrained to one portrait grid.
 7. Back, swipe, empty-submit, retry, offline, timeout, duplicate-submit, and provider-error paths have intentional UI states.
 8. No real archival item is misrepresented as generated content, and no generated item uses a real accession number, signature, or copied seal.
 9. Consent, retention, export, and deletion work as documented; sensitive values are absent from logs and evidence.
-10. Exact-version install, uninstall, rollback, and coexistence with existing CJK patches pass on Ferrari and Chiappa.
+10. Exact-version install, uninstall, rollback, and coexistence with existing
+    CJK patches pass independently. Ferrari is the current eligible target;
+    Chiappa remains held until its own native API contract is recovered and
+    hardware-validated.
 
 ## Engineering done for every issue
 

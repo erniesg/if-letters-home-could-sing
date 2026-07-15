@@ -1,21 +1,26 @@
 # Ferrari Paper Pro hardware trial
 
-Status: the AppLoad window path is retired. It caused the blank/custom-chrome
-behavior recorded below and must not be repaired or relaunched. The current
-candidate keeps the existing main-sidebar placement but changes its action to
-request a native PDF from the paired Mac and open stock `DocumentView`. A second
-exact QMLDiff adds one page-2 `Send to Codex` action; the stock pen toolbar,
-close action, swipe-down behavior, and gestures remain owned by Xochitl.
+Status: the AppLoad and imported-PDF paths are retired. The current candidate
+creates one stock native notebook with four pages: incoming letter, writable
+huipi, copied huipi with reversible marginalia, and reciprocal response. It
+never imports a reviewed document or creates a second library item. The stock
+pen toolbar, close action, swipe-down behavior, page gestures, and manual page
+turns remain owned by Xochitl.
 
-The portable and trusted-Mac gates for this native candidate pass. A real
-incoming task emitted streamed Chinese text, a detail-grounded review returned
-one schema-valid single-glyph correction plus a reciprocal letter, the renderer
-produces an exact `954×1696` five-page portrait smoke, and the three QMDs apply
-cleanly to recovered Ferrari 3.28 resources. The native QMD install is complete
-and stable; the visible streamed-text, native ink, submit, page-3 mark, and
-page-4 response checks remain owner-observed gates.
+The repository pins the recovered Ferrari 3.28 notebook API and packages it
+with the three QMLDiffs and native template. Portable tests and a non-mutating
+Mac LaunchAgent check are required before the next live checkpoint. The current
+native-notebook candidate has **not** yet been installed or observed on the
+physical tablet; none of the historical PDF checks below establish that it
+works on-device.
 
-## Installed native-document checkpoint
+The next owner-approved live trial must reconfirm the exact device hashes,
+active QMD order, USB route, Mac bridge health, and rollback backup before one
+atomic QMD/template replacement and one Xovi/Xochitl restart. The pass requires
+the owner to observe all four same-notebook pages, default notebook controls,
+a known wrong glyph marked on page 3, and the streamed page-4 response.
+
+## Historical imported-PDF checkpoint (superseded)
 
 The owner enabled the tablet USB web interface and approved the held Ferrari
 trial. Live discovery reconfirmed model `reMarkable Ferrari`, OS `3.28.0.162`,
@@ -232,20 +237,31 @@ close control could instantiate. The native replacement avoids AppLoad
 entirely, so exit and swipe behavior are the stock document behavior even when
 the Mac bridge is unavailable.
 
-For the native trial, re-run the exact Ferrari firmware, Xochitl, Sidebar,
-DocumentView, QRR hashtable, active-QMD, process, free-space, and
-installed-artifact checks. Back up the current Letters Home QMDs, replace only
-the sidebar launch action, add the exact DocumentView submit QMD, and run
+For the current native-notebook trial, re-run the exact Ferrari firmware,
+Xochitl, all six recovered QML-resource hashes, QRR hashtable, active-QMD order,
+process, free-space, USB route, and installed-artifact checks. Confirm the Mac
+LaunchAgent health, then back up the current Letters Home QMDs and template.
+Replace only the three exact QMDs and app-owned template, then run
 `/home/root/xovi/start` once. No reboot is planned. Expected unavailability is
-15–45 seconds, capped at two minutes. Rollback restores the backed-up QMD set
-and restarts once. Verify the full-bleed incoming page, native pen controls on
-the huipi, persisted Codex task, reviewed page 3, and unchanged stock
+15–45 seconds, capped at two minutes. Rollback restores the backed-up QMD set,
+removes the template only when its hash still matches, and restarts once.
+Verify the streamed incoming page, stock pen controls on the huipi, persisted
+Codex task, reversible page-3 mark, page-4 response, and unchanged stock
 close/swipe behavior.
 
 The stock reMarkable screenshot helper will not be used while Xovi runs.
 Evidence is manual observation plus service status, restart count, and hashes.
 
 ## Rollback
+
+For the current native-notebook candidate, unload only the hash-owned Mac
+LaunchAgent, restore every pretrial QMD byte (or remove a QMD recorded absent),
+remove `letters-home-ferrari.template` only if its installed hash still matches
+the approved bundle, and run `/home/root/xovi/start` once. Reconfirm the exact
+pretrial active-QMD order, Xochitl/QRR hashes, service state, and that no
+Letters Home process or private listener remains.
+
+The following rollback record applies only to the historical AppLoad trial.
 
 For the placement correction, restore the backed-up original inert QMD and run
 `/home/root/xovi/start` once. Its hash must return to
@@ -262,9 +278,11 @@ rather than broadening a hash or locator.
 
 The native vertical slice uses the signed-in desktop Codex app-server for both
 conversation-conditioned streamed Chinese text and a structured teacher-style
-review with a reciprocal response letter. It transfers native PDFs through the
-enabled USB web interface, preserves the writer's original page, and marks only
-a page-3 copy. Real WHOOP capture remains a later human-approved provider lane.
+review with a reciprocal response letter. It creates and extends one native
+notebook in place. The enabled USB web interface supplies only a read-only
+export for page-2 review; no PDF is imported back. The writer's original page
+is preserved and only the page-3 copy receives reversible overlays. Real WHOOP
+capture remains a later human-approved provider lane.
 
 ## Streamed-text and grounded-review smoke (2026-07-15)
 
