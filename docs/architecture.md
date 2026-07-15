@@ -18,13 +18,13 @@ flowchart LR
     A["Main Xochitl hamburger sidebar"] -->|"Letters Home entry"| B["QMLDiff launcher patch"]
     B -->|"USB-private HTTP"| C["Paired Mac bridge"]
     C --> D["Persisted Codex incoming task"]
-    D --> E["GPT Image 2 letter"]
-    C -->|"official USB import"| F["Native two-page PDF"]
+    D --> E["Streamed Chinese text deltas"]
+    C -->|"official USB import"| F["Native two-page paper packet"]
     F --> G["Stock Xochitl DocumentView"]
     G -->|"page 2 submit + USB export"| C
     C --> H["Persisted Codex review task"]
-    H --> I["Structured teacher review"]
-    C -->|"append page 3+ and USB import"| G
+    H --> I["Grounded review + response letter"]
+    C -->|"append marked copy + response and USB import"| G
     J["Phone / edge WHOOP BLE bridge"] -->|"future live HR samples"| C
 ```
 
@@ -48,11 +48,11 @@ between versions.
 
 ### 2. Native correspondence packet
 
-- Page 1 is a full-bleed fictional incoming letter at the exact device profile.
+- Page 1 is deterministic paper with a non-interactive streamed-text preview. The bridge accumulates stable Codex agent-message deltas, and the tablet polls cumulative state at an e-ink-safe cadence instead of repainting each token.
 - Page 2 is deterministic full-page huipi stationery annotated with stock tools.
-- The reviewed copy preserves pages 1 and 2, appends page 3+, and opens at page 3.
-- Page 3 shows the preserved reply with numbered anchor markers and reversible
-  margin notes. Overflow becomes additional pages instead of clipped content.
+- The reviewed copy persists the final page-1 letter as vector text and preserves page 2.
+- Page 3 is a full-size copy of the huipi. High-confidence wrong glyph bounding boxes become red ellipses with the correct glyph adjacent; uncertain readings use a neutral marker.
+- Page 4 is the correspondent's vertically typeset response letter. Compact teacher explanations begin on page 5 only when necessary.
 - Ferrari and Chiappa remain independent exact-version targets even where
   current resource bytes match.
 
@@ -62,7 +62,8 @@ The tablet never contains OpenAI or WHOOP client secrets. A private bridge bound
 to the Mac side of the USB link owns:
 
 - native PDF import/export through the enabled USB web interface;
-- persisted Codex app-server tasks for incoming image generation and reply review;
+- persisted Codex app-server tasks for incoming text generation and reply review;
+- bounded, cumulative live-session state for the tablet's short-poll stream;
 - deterministic full-bleed packet and paginated marginalia rendering;
 - restart-safe submit receipts containing identifiers only;
 - WHOOP OAuth token exchange and refresh;
@@ -94,24 +95,22 @@ Capture semantics:
 5. Preserve gaps and reconnect events; never invent samples or interpolate silently.
 6. Permit `declined` and `unavailable` sessions to complete normally.
 
-### 5. AI image and review
+### 5. AI letter and review
 
-- Use the Image API with `gpt-image-2` for the single-prompt incoming asset when the live provider is enabled.
-- Render profiles request model-valid dimensions and deterministically crop/pad to device dimensions.
-- Image prompts include provenance and anti-copy constraints.
+- Generate bounded fictional Chinese text for the incoming letter and stream only stable `item/agentMessage/delta` content. No archival signature, seal, accession, or authenticity claim is allowed.
+- Deterministically typeset Chinese vertically, top-to-bottom with columns ordered right-to-left, at the exact device profile. The same renderer persists the final incoming and reciprocal letters in the reviewed PDF.
+- Require normalized glyph bounding boxes for corrections. The renderer clips all geometry to the page and draws red only for high-confidence corrections; uncertainty stays neutral.
 - The review service returns structured annotations, never a replacement image as its only output.
-- Annotation coordinates are normalised to page space and rendered as numbered
-  markers plus margin notes on a new page so the participant's original strokes
-  remain intact.
+- Annotation boxes are normalised to page space. Red ellipses and adjacent correction glyphs are drawn only on the page-3 copy, so the participant's original strokes remain intact on page 2.
 
 ## Render profiles
 
-| Device | Native landscape | Requested generation | Transform |
-|---|---:|---:|---|
-| Paper Pro / Chiappa | 2160 × 1620 | 2160 × 1616 | pad 2 px top and bottom |
-| Paper Pro Move / Ferrari | 1696 × 954 | 1696 × 960 | crop 3 px top and bottom |
+| Device | Native portrait page |
+|---|---:|
+| Paper Pro / Chiappa | 1620 × 2160 |
+| Paper Pro Move / Ferrari | 954 × 1696 |
 
-Portrait orientation swaps the final native dimensions after transformation. Generation dimensions remain within GPT Image 2's documented custom-size constraints: edges divisible by 16, ratio at most 3:1, and total pixels within the supported range.
+Every `Letters Home` page occupies the complete portrait media box. The older image-adapter render profiles remain isolated under issue 004 and are not part of the native streamed-text path.
 
 The machine-readable source is [`contracts/render-profiles.json`](../contracts/render-profiles.json).
 

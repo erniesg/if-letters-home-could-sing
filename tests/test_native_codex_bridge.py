@@ -2,9 +2,10 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mac_bridge.codex_app_server import CodexAppServerClient, resolve_codex_executable
-from mac_bridge.contracts import ReviewContractError, parse_review
+from mac_bridge.contracts import Letter, ReviewContractError, parse_review
 from mac_bridge.review_layout import layout_review
 from mac_bridge.server import DEFAULT_USB_BIND, BridgeApplication
 from mac_bridge.service import ReceiptStore, SessionRegistry, SessionStarter, SubmissionService
@@ -14,27 +15,29 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 VALID_REVIEW = {
-    "schema_version": 1,
+    "schema_version": 3,
     "summary": "你的回批很真诚；以下是几处可以更自然的表达。",
-    "annotations": [
+    "corrections": [
         {
-            "kind": "correction",
-            "observed_text": "我有收到你信",
-            "suggested_text": "我已收到你的信",
-            "explanation": "“已收到”更自然，也补足了领属关系。",
+            "observed_text": "未",
+            "suggested_text": "末",
+            "explanation": "这里要写时间的“末”，末笔比“未”更长。",
             "confidence": 0.94,
-            "anchor": {"x": 0.28, "y": 0.31},
+            "anchor": {"x": 0.28, "y": 0.31, "width": 0.08, "height": 0.07},
         },
+    ],
+    "annotations": [
         {
             "kind": "uncertain-reading",
             "observed_text": "返／反",
             "suggested_text": "返",
             "explanation": "这里的字形不太确定；若你想表达回乡，可以写“返乡”。",
             "confidence": 0.55,
-            "anchor": {"x": 0.63, "y": 0.58},
+            "anchor": {"x": 0.63, "y": 0.58, "width": 0.08, "height": 0.07},
         },
     ],
     "reflective_question": "如果再写一行，你最想告诉家里什么？",
+    "response_letter": "见字如面。读到你的回批，我知道你平安，心里便安定许多。愿你慢慢写来，我们也慢慢回信。",
 }
 
 
@@ -141,6 +144,9 @@ class CodexAppServerContractTests(unittest.TestCase):
         self.assertEqual(turn["input"][1]["detail"], "original")
         self.assertEqual(turn["input"][1]["path"], str(ROOT / "fixtures" / "reply" / "reply-ferrari.svg"))
         self.assertEqual(turn["outputSchema"]["title"], "LettersHomeReview")
+        correction_rule = turn["outputSchema"]["properties"]["corrections"]["items"]
+        self.assertEqual(correction_rule["properties"]["suggested_text"]["maxLength"], 1)
+        self.assertEqual(correction_rule["properties"]["confidence"]["minimum"], 0.8)
         self.assertIn("conversation", turn["input"][0]["text"].lower())
 
     def test_failed_turn_does_not_return_a_false_review(self):
@@ -166,57 +172,83 @@ class CodexAppServerContractTests(unittest.TestCase):
                 conversation_context="fixture",
             )
 
-    def test_incoming_letter_generation_is_conversation_conditioned_and_persisted(self):
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            generated = Path(temporary_directory) / "incoming.png"
-            generated.write_bytes(b"fixture png")
-            skill = Path(temporary_directory) / "SKILL.md"
-            skill.write_text("fixture image generation skill")
+    def test_raster_reply_adds_four_private_detail_tiles_to_the_vision_turn(self):
+        from PIL import Image
 
-            class ImageChannel(ScriptedRpcChannel):
-                def events(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            reply = Path(temporary_directory) / "reply.png"
+            Image.new("RGB", (400, 800), "#f3ead7").save(reply)
+            channel = ScriptedRpcChannel()
+
+            CodexAppServerClient(channel=channel, cwd=ROOT).review_reply(
+                session_id="session-detail-tiles",
+                reply_image=reply,
+                conversation_context="fixture",
+            )
+
+        turn = channel.requests[4][1]
+        images = [item for item in turn["input"] if item["type"] == "localImage"]
+        self.assertEqual(len(images), 5)
+        self.assertEqual(images[0]["path"], str(reply.resolve()))
+        self.assertTrue(all(image["detail"] == "original" for image in images))
+        self.assertIn("top-left", turn["input"][0]["text"])
+        self.assertIn("full-page coordinates", turn["input"][0]["text"])
+
+    def test_incoming_letter_streams_stable_text_deltas_and_returns_final_letter(self):
+        letter = "阿妹，见字如面。家中一切安好，勿念。听说你近来功课很忙，也要记得按时吃饭。待天气凉些，再慢慢写信回来。"
+
+        class LetterChannel(ScriptedRpcChannel):
+            def events(self):
+                for delta in ("阿妹，见字如面。", "家中一切安好，勿念。", "听说你近来功课很忙，也要记得按时吃饭。"):
                     yield {
-                        "method": "item/completed",
+                        "method": "item/agentMessage/delta",
                         "params": {
                             "threadId": "thread-letters-home-001",
                             "turnId": "turn-review-001",
-                            "item": {
-                                "id": "image-001",
-                                "type": "imageGeneration",
-                                "status": "completed",
-                                "result": "generated",
-                                "savedPath": str(generated),
-                            },
+                            "itemId": "message-001",
+                            "delta": delta,
                         },
                     }
-                    yield {
-                        "method": "turn/completed",
-                        "params": {
-                            "threadId": "thread-letters-home-001",
-                            "turn": {"id": "turn-review-001", "status": "completed", "items": []},
+                yield {
+                    "method": "item/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turnId": "turn-review-001",
+                        "item": {
+                            "id": "message-001",
+                            "type": "agentMessage",
+                            "phase": "final_answer",
+                            "text": letter,
                         },
-                    }
+                    },
+                }
+                yield {
+                    "method": "turn/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turn": {"id": "turn-review-001", "status": "completed", "items": []},
+                    },
+                }
 
-            channel = ImageChannel()
-            result = CodexAppServerClient(channel=channel, cwd=ROOT).generate_letter(
-                session_id="session-fixture-001",
-                conversation_context="A sibling writes about recovery, school fees, and coming home.",
-                imagegen_skill=skill,
-            )
+        channel = LetterChannel()
+        deltas = []
+        result = CodexAppServerClient(channel=channel, cwd=ROOT).generate_letter(
+            session_id="session-fixture-001",
+            conversation_context="A sibling writes about recovery, school fees, and coming home.",
+            on_delta=deltas.append,
+        )
 
         self.assertEqual(result.thread_id, "thread-letters-home-001")
-        self.assertEqual(result.image_path, generated.resolve())
+        self.assertEqual(result.letter.body, letter)
+        self.assertEqual("".join(deltas), letter[: len("".join(deltas))])
         name_request = channel.requests[3][1]
         self.assertIn("Letters Home incoming", name_request["name"])
         turn = channel.requests[4][1]
-        self.assertEqual(
-            turn["input"][1],
-            {"type": "skill", "name": "imagegen", "path": str(skill.resolve())},
-        )
+        self.assertEqual(len(turn["input"]), 1)
         prompt = turn["input"][0]["text"]
         self.assertIn("recovery, school fees, and coming home", prompt)
-        self.assertIn("gpt-image-2", prompt)
-        self.assertIn("1696 × 960", prompt)
+        self.assertIn("vertical", prompt.lower())
+        self.assertIn("Chinese", prompt)
         self.assertIn("fictional", prompt.lower())
 
     def test_transport_prefers_the_first_available_executable_without_host_assumptions(self):
@@ -236,8 +268,10 @@ class CodexAppServerContractTests(unittest.TestCase):
 class ReviewContractTests(unittest.TestCase):
     def test_teacher_review_is_bounded_uncertainty_aware_and_non_scoring(self):
         review = parse_review(VALID_REVIEW)
-        self.assertEqual(review.schema_version, 1)
+        self.assertEqual(review.schema_version, 3)
         self.assertEqual(len(review.annotations), 2)
+        self.assertEqual(review.response_letter, VALID_REVIEW["response_letter"])
+        self.assertGreater(review.annotations[0].anchor.width, 0)
         self.assertLess(review.annotations[1].confidence, 0.7)
         self.assertEqual(review.annotations[1].kind, "uncertain-reading")
 
@@ -246,9 +280,15 @@ class ReviewContractTests(unittest.TestCase):
         scored = dict(VALID_REVIEW, summary="Score: 8/10")
         cases.append(scored)
         bad_anchor = json.loads(json.dumps(VALID_REVIEW))
-        bad_anchor["annotations"][0]["anchor"]["x"] = 1.2
+        bad_anchor["corrections"][0]["anchor"]["x"] = 1.2
         cases.append(bad_anchor)
-        too_many = dict(VALID_REVIEW, annotations=VALID_REVIEW["annotations"] * 7)
+        overflowing_box = json.loads(json.dumps(VALID_REVIEW))
+        overflowing_box["corrections"][0]["anchor"].update({"x": 0.96, "width": 0.08})
+        cases.append(overflowing_box)
+        phrase_correction = json.loads(json.dumps(VALID_REVIEW))
+        phrase_correction["corrections"][0]["suggested_text"] = "末尾"
+        cases.append(phrase_correction)
+        too_many = dict(VALID_REVIEW, annotations=VALID_REVIEW["annotations"] * 11)
         cases.append(too_many)
         for payload in cases:
             with self.subTest(payload=payload):
@@ -261,12 +301,17 @@ class ReviewContractTests(unittest.TestCase):
             dict(
                 VALID_REVIEW["annotations"][0],
                 explanation=("这是一条需要换行的温和说明。" * 16) + str(index),
-                anchor={"x": 0.1 + index * 0.05, "y": 0.2 + index * 0.04},
+                anchor={
+                    "x": 0.1 + index * 0.05,
+                    "y": 0.2 + index * 0.04,
+                    "width": 0.05,
+                    "height": 0.05,
+                },
             )
             for index in range(8)
         ]
         review = parse_review(long_payload)
-        pages = layout_review(review, width=1696, height=954)
+        pages = layout_review(review, width=954, height=1696)
 
         self.assertGreater(len(pages), 1)
         annotation_boxes = [
@@ -281,13 +326,20 @@ class ReviewContractTests(unittest.TestCase):
             list(range(1, len(review.annotations) + 1)),
         )
         for page in pages:
-            self.assertEqual((page.width, page.height), (1696, 954))
+            self.assertEqual((page.width, page.height), (954, 1696))
             for box in page.boxes:
                 self.assertGreaterEqual(box.x, 0)
                 self.assertGreaterEqual(box.y, 0)
                 self.assertLessEqual(box.x + box.width, page.width)
                 self.assertLessEqual(box.y + box.height, page.height)
                 self.assertTrue(box.lines)
+                if box.kind != "reply-preview":
+                    font_size = max(15, round(page.height * 0.022))
+                    text_width = box.width - max(16, round(page.width * 0.012)) * 2
+                    self.assertLessEqual(
+                        max(len(line) for line in box.lines),
+                        max(6, text_width // font_size),
+                    )
 
 
 class FakeTabletDocuments:
@@ -314,8 +366,8 @@ class FakeReplyRenderer:
         self.render_calls.append((source_pdf, page_index, session_id))
         return self.reply_path
 
-    def build_reviewed_packet(self, source_pdf, review, *, profile_id):
-        self.packet_calls.append((source_pdf, review, profile_id))
+    def build_reviewed_packet(self, source_pdf, review, *, profile_id, incoming_letter):
+        self.packet_calls.append((source_pdf, review, profile_id, incoming_letter))
         return b"%PDF-1.4 reviewed packet", 2
 
 
@@ -333,16 +385,20 @@ class FakeCodexReviewer:
 
 
 class FakeLetterGenerator:
-    def __init__(self, image_path):
-        self.image_path = image_path
+    def __init__(self):
         self.calls = []
 
-    def generate_letter(self, *, session_id, conversation_context):
+    def generate_letter(self, *, session_id, conversation_context, on_delta):
         self.calls.append((session_id, conversation_context))
+        on_delta("阿妹，见字如面。")
+        on_delta("家中一切安好，勿念。")
         return type(
-            "CodexImageResult",
+            "CodexLetterResult",
             (),
-            {"thread_id": "thread-incoming-001", "image_path": self.image_path},
+            {
+                "thread_id": "thread-incoming-001",
+                "letter": Letter("阿妹，见字如面。家中一切安好，勿念。"),
+            },
         )()
 
 
@@ -351,19 +407,60 @@ class FakePacketRenderer(FakeReplyRenderer):
         super().__init__(reply_path)
         self.initial_calls = []
 
-    def build_initial_packet(self, image_path, *, profile_id):
-        self.initial_calls.append((image_path, profile_id))
+    def build_initial_packet(self, letter, *, profile_id):
+        self.initial_calls.append((letter, profile_id))
         return b"%PDF-1.4 initial packet"
 
 
+def ready_registry(session_id):
+    registry = SessionRegistry()
+    registry.begin(session_id, "fixture context")
+    registry.complete(
+        session_id,
+        Letter("阿妹，见字如面。家中一切安好，勿念。"),
+        "thread-incoming-001",
+    )
+    return registry
+
+
 class SubmissionServiceTests(unittest.TestCase):
-    def test_start_creates_incoming_task_uploads_packet_and_registers_context(self):
+    def test_live_stream_drops_non_letter_commentary_before_tablet_render(self):
+        registry = SessionRegistry()
+        registry.begin("session-sanitize", "private context")
+        registry.append("session-sanitize", "Here is the letter: **")
+        registry.append("session-sanitize", "见字如面。家中安好，勿念。")
+
+        state = registry.public_state("session-sanitize")
+
+        self.assertEqual(state["text"], "见字如面。家中安好，勿念。")
+        self.assertEqual(state["version"], 1)
+
+    def test_completed_fictional_letter_survives_bridge_restart_without_private_context(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            state_path = Path(temporary_directory) / "sessions.json"
+            first = SessionRegistry(state_path)
+            first.begin("session-restart", "private participant context")
+            first.complete(
+                "session-restart",
+                Letter("阿妹，见字如面。家中一切安好，勿念。"),
+                "thread-incoming-001",
+            )
+
+            persisted = state_path.read_text(encoding="utf-8")
+            recovered = SessionRegistry(state_path)
+
+        self.assertNotIn("private participant context", persisted)
+        self.assertEqual(recovered.get("session-restart"), "")
+        self.assertEqual(recovered.public_state("session-restart")["status"], "ready")
+        self.assertEqual(recovered.letter("session-restart").body, "阿妹，见字如面。家中一切安好，勿念。")
+
+    def test_start_uploads_blank_packet_then_accumulates_live_letter_chunks(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
             image_path = Path(temporary_directory) / "incoming.png"
             image_path.write_bytes(b"fixture image")
             tablet = FakeTabletDocuments()
             renderer = FakePacketRenderer(image_path)
-            generator = FakeLetterGenerator(image_path)
+            generator = FakeLetterGenerator()
             registry = SessionRegistry()
             starter = SessionStarter(
                 tablet=tablet,
@@ -371,6 +468,7 @@ class SubmissionServiceTests(unittest.TestCase):
                 generator=generator,
                 registry=registry,
                 default_context="default context",
+                background=lambda work: work(),
             )
 
             result = starter.start(
@@ -380,17 +478,20 @@ class SubmissionServiceTests(unittest.TestCase):
                 }
             )
 
-        self.assertEqual(result["status"], "ready")
-        self.assertEqual(result["codex_thread_id"], "thread-incoming-001")
+        self.assertEqual(result["status"], "streaming")
         self.assertEqual(result["document_id"], "reviewed-document-001")
         self.assertEqual(len(generator.calls), 1)
         session_id, context = generator.calls[0]
         self.assertEqual(result["session_id"], session_id)
         self.assertEqual(context, "care, recovery, and returning home")
         self.assertEqual(registry.get(session_id), context)
+        state = registry.public_state(session_id)
+        self.assertEqual(state["status"], "ready")
+        self.assertGreaterEqual(state["version"], 3)
+        self.assertEqual(state["text"], "阿妹，见字如面。家中一切安好，勿念。")
         self.assertEqual(
             renderer.initial_calls,
-            [(image_path, "ferrari_3.28.0.162")],
+            [(None, "ferrari_3.28.0.162")],
         )
         self.assertEqual(
             tablet.upload_calls,
@@ -404,7 +505,19 @@ class SubmissionServiceTests(unittest.TestCase):
             tablet = FakeTabletDocuments()
             renderer = FakeReplyRenderer(reply_path)
             codex = FakeCodexReviewer()
-            service = SubmissionService(tablet=tablet, renderer=renderer, reviewer=codex)
+            registry = SessionRegistry()
+            registry.begin("session-fixture-001", "distance, health, and returning home")
+            registry.complete(
+                "session-fixture-001",
+                Letter("阿妹，见字如面。家中一切安好，勿念。"),
+                "thread-incoming-001",
+            )
+            service = SubmissionService(
+                tablet=tablet,
+                renderer=renderer,
+                reviewer=codex,
+                registry=registry,
+            )
 
             first = service.submit(
                 {
@@ -433,6 +546,47 @@ class SubmissionServiceTests(unittest.TestCase):
         self.assertEqual(len(codex.calls), 1)
         self.assertEqual(len(tablet.upload_calls), 1)
         self.assertNotIn("reply", json.dumps(first).lower())
+        self.assertEqual(renderer.packet_calls[0][3].body, "阿妹，见字如面。家中一切安好，勿念。")
+
+    def test_submit_retries_a_transient_just_saved_export_before_starting_codex(self):
+        class JustSavedTablet(FakeTabletDocuments):
+            def export_pdf(self, document_id):
+                self.export_calls.append(document_id)
+                if len(self.export_calls) == 1:
+                    raise RuntimeError("remarkable_usb_unreachable")
+                return b"%PDF-1.4 settled annotated reply"
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            reply_path = Path(temporary_directory) / "reply.png"
+            reply_path.write_bytes(b"fixture image")
+            tablet = JustSavedTablet()
+            renderer = FakeReplyRenderer(reply_path)
+            codex = FakeCodexReviewer()
+            service = SubmissionService(
+                tablet=tablet,
+                renderer=renderer,
+                reviewer=codex,
+                registry=ready_registry("session-fixture-retry"),
+            )
+
+            with patch("mac_bridge.service.time.sleep") as sleep:
+                result = service.submit(
+                    {
+                        "session_id": "session-fixture-retry",
+                        "document_id": "native-document-retry",
+                        "reply_page_index": 1,
+                        "profile_id": "ferrari_3.28.0.162",
+                        "conversation_context": "",
+                    }
+                )
+
+        self.assertEqual(result["status"], "reviewed")
+        self.assertEqual(
+            tablet.export_calls,
+            ["native-document-retry", "native-document-retry"],
+        )
+        sleep.assert_called_once_with(1)
+        self.assertEqual(len(codex.calls), 1)
 
     def test_persisted_receipt_makes_duplicate_submit_idempotent_after_restart(self):
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -453,6 +607,7 @@ class SubmissionServiceTests(unittest.TestCase):
                 tablet=first_tablet,
                 renderer=FakeReplyRenderer(reply_path),
                 reviewer=first_reviewer,
+                registry=ready_registry("session-fixture-001"),
                 receipts=ReceiptStore(receipt_path),
             ).submit(payload)
 
@@ -484,7 +639,13 @@ class SubmissionServiceTests(unittest.TestCase):
             def submit(self, payload):
                 return {"status": "reviewed", "document_id": payload["fixture"]}
 
-        application = BridgeApplication(starter=Starter(), submissions=Submissions())
+        class Registry:
+            def public_state(self, session_id):
+                return {"status": "streaming", "session_id": session_id, "version": 2, "text": "见字"}
+
+        application = BridgeApplication(
+            starter=Starter(), submissions=Submissions(), registry=Registry()
+        )
         start_status, start = application.dispatch(
             "/v1/sessions/start", {"fixture": "initial-001"}
         )
@@ -492,10 +653,12 @@ class SubmissionServiceTests(unittest.TestCase):
             "/v1/sessions/submit", {"fixture": "reviewed-001"}
         )
         missing_status, missing = application.dispatch("/unknown", {"private": "ink"})
+        stream_status, stream = application.dispatch_get("/v1/sessions/fixture-001")
 
         self.assertEqual((start_status, start["document_id"]), (200, "initial-001"))
         self.assertEqual((submit_status, submit["document_id"]), (200, "reviewed-001"))
         self.assertEqual((missing_status, missing), (404, {"error": "not_found"}))
+        self.assertEqual((stream_status, stream["text"]), (200, "见字"))
 
 
 if __name__ == "__main__":

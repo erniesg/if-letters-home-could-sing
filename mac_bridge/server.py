@@ -18,15 +18,14 @@ DEFAULT_USB_BIND = "10.11.99.16"
 
 
 class CodexLetterRunner:
-    def __init__(self, *, cwd: Path, imagegen_skill: Path):
+    def __init__(self, *, cwd: Path):
         self.cwd = cwd
-        self.imagegen_skill = imagegen_skill
 
-    def generate_letter(self, *, session_id: str, conversation_context: str):
+    def generate_letter(self, *, session_id: str, conversation_context: str, on_delta):
         return CodexAppServerClient(cwd=self.cwd).generate_letter(
             session_id=session_id,
             conversation_context=conversation_context,
-            imagegen_skill=self.imagegen_skill,
+            on_delta=on_delta,
         )
 
 
@@ -43,15 +42,35 @@ class CodexReviewRunner:
 
 
 class BridgeApplication:
-    def __init__(self, *, starter: SessionStarter, submissions: SubmissionService):
+    def __init__(
+        self,
+        *,
+        starter: SessionStarter,
+        submissions: SubmissionService,
+        registry: SessionRegistry | None = None,
+    ):
         self.starter = starter
         self.submissions = submissions
+        self.registry = registry or getattr(starter, "registry", None)
 
     def dispatch(self, path: str, payload: Mapping[str, Any]) -> tuple[int, Mapping[str, Any]]:
         if path == "/v1/sessions/start":
             return 200, self.starter.start(payload)
         if path == "/v1/sessions/submit":
             return 200, self.submissions.submit(payload)
+        return 404, {"error": "not_found"}
+
+    def dispatch_get(self, path: str) -> tuple[int, Mapping[str, Any]]:
+        prefix = "/v1/sessions/"
+        if path.startswith(prefix) and self.registry is not None:
+            session_id = path[len(prefix):]
+            if session_id and len(session_id) <= 128 and all(
+                character.isalnum() or character in "-_" for character in session_id
+            ):
+                try:
+                    return 200, self.registry.public_state(session_id)
+                except ValueError:
+                    return 404, {"error": "session_not_found"}
         return 404, {"error": "not_found"}
 
 
@@ -76,7 +95,8 @@ class BridgeHandler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._write(200, {"status": "ok"})
             return
-        self._write(404, {"error": "not_found"})
+        status, response = self.server.application.dispatch_get(self.path)
+        self._write(status, response)
 
     def do_OPTIONS(self):
         self.send_response(204)
@@ -121,16 +141,15 @@ class BridgeServer(ThreadingHTTPServer):
 def build_application(
     *,
     repo_root: Path,
-    imagegen_skill: Path,
     conversation_context: str,
 ) -> BridgeApplication:
     tablet = RemarkableUsbDocuments()
     renderer = NativePacketRenderer()
-    registry = SessionRegistry()
+    registry = SessionRegistry(Path.home() / ".local/share/letters-home/sessions.json")
     starter = SessionStarter(
         tablet=tablet,
         renderer=renderer,
-        generator=CodexLetterRunner(cwd=repo_root, imagegen_skill=imagegen_skill),
+        generator=CodexLetterRunner(cwd=repo_root),
         registry=registry,
         default_context=conversation_context,
     )
@@ -141,7 +160,7 @@ def build_application(
         registry=registry,
         receipts=ReceiptStore(Path.home() / ".local/share/letters-home/receipts.json"),
     )
-    return BridgeApplication(starter=starter, submissions=submissions)
+    return BridgeApplication(starter=starter, submissions=submissions, registry=registry)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -149,11 +168,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--bind", default=DEFAULT_USB_BIND)
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--repo-root", type=Path, default=Path.cwd())
-    parser.add_argument(
-        "--imagegen-skill",
-        type=Path,
-        default=Path.home() / ".codex/skills/.system/imagegen/SKILL.md",
-    )
     parser.add_argument("--conversation-context-file", type=Path)
     args = parser.parse_args(argv)
     context = (
@@ -163,7 +177,6 @@ def main(argv: list[str] | None = None) -> int:
     )
     application = build_application(
         repo_root=args.repo_root.resolve(),
-        imagegen_skill=args.imagegen_skill.resolve(),
         conversation_context=context,
     )
     server = BridgeServer((args.bind, args.port), application)

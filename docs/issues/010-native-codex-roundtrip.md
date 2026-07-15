@@ -5,17 +5,21 @@ labels: rucksack-needs-human
 
 ## Goal
 
-Open the correspondence as a full-bleed native reMarkable document, preserve the stock pen and gesture interface, and make reply submission create a persisted Codex task on the paired Mac that returns a reviewed native document beginning on page 3.
+Open the correspondence as a portrait, paper-like native reMarkable document, preserve the stock pen and gesture interface, stream a fictional incoming letter from the paired Mac, and make reply submission return both a marked copy and a correspondent's response.
 
 ## Acceptance tests
 
 - The main-sidebar `Letters Home` entry calls the consent-scoped Mac bridge and opens the returned document with `windowNavigator.open("legacydevice/window/main", ...)`; it never launches an AppLoad window.
-- Page 1 and the blank huipi page use the exact native Ferrari `1696×954` or Chiappa `2160×1620` aspect with zero application chrome margin.
+- Page 1 and the blank huipi page use the exact native portrait Ferrari `954×1696` or Chiappa `1620×2160` aspect with zero application chrome margin.
+- Page 1 starts as deterministic paper and polls a bounded session endpoint while Codex runs. Stable `item/agentMessage/delta` text is accumulated and rendered as Chinese vertical columns, top-to-bottom and right-to-left, in batches no faster than 750 ms. The overlay has no pointer or pen handler and disappears outside page 1.
+- A bridge restart or missing live session must fail to the untouched native document rather than trapping the user. The streaming layer is preview state; the final reviewed packet persists the completed incoming letter as vector text.
 - Xochitl owns pen, marker, eraser, undo/redo, page navigation, close, and swipe-down behaviour; the patch does not intercept or replace those controls.
 - Only page 2 of a `Letters Home` session shows one additive `Send to Codex` action. It exports the annotated native PDF through the enabled USB web interface and submits the reply page plus conversation context to the Mac bridge.
 - Each first durable submit creates one non-ephemeral, named Codex task through `codex app-server`, attaches the reply rendering at original detail, and constrains the final response to the versioned review schema.
+- The review schema includes a reciprocal Chinese response letter and normalized bounding boxes. Only high-confidence `correction` items may become red marks; uncertain readings remain visibly uncertain and never masquerade as corrections.
 - Duplicate submit returns the same Codex task and reviewed document id without exporting, reviewing, or uploading twice.
-- The reviewed upload preserves pages 1 and 2 unchanged, begins marginalia on page 3, opens page 3 automatically, and paginates additional notes instead of clipping them.
+- A transient USB export or reply-render failure retries only before Codex starts; retry never creates a duplicate review task.
+- The reviewed upload preserves page 2 unchanged and persists the completed incoming letter on page 1. Page 3 is a full-size copy of page 2 with red ellipses around high-confidence wrong glyphs and the suggested glyph written immediately beside each ellipse. Page 4 is the vertically typeset reciprocal response letter. Compact explanations paginate from page 5 only when needed; oversized empty cards are forbidden.
 - Review remains a kind Chinese-teacher reading: corrections, uncertain readings, tone, and reflection are allowed; scores, grades, fabricated transcription, and replacement of participant ink are rejected.
 - The bridge logs only session state, counts, document ids, hashes, and error codes; participant ink, rendered reply bytes, conversation text, biometric samples, and Codex payloads are never logged.
 - Required tests use fake tablet, renderer, and Codex transports. Live Codex, USB export/upload, QMLDiff install, Xochitl restart, and hardware validation remain explicit human-approved lanes.
@@ -58,7 +62,7 @@ Returning a reviewed copy creates a second native document instead of rewriting 
 
 ## Definition of done
 
-Ferrari is test-ready only after a synthetic reply visibly opens a persisted Codex task on the Mac, the returned native document opens on page 3, all review text is readable, stock notebook controls and swipe behaviour remain unchanged, and uninstall restores the exact pretrial hashes. Chiappa remains a separate exact-version validation target.
+Ferrari is test-ready only after a synthetic incoming letter visibly advances in more than one vertical-text batch, a synthetic reply opens a persisted Codex task on the Mac, the returned native document opens on the page-3 marked copy, a known wrong glyph is circled with its correction adjacent, page 4 contains a readable reciprocal letter, stock notebook controls and swipe behaviour remain unchanged, and uninstall restores the exact pretrial hashes. Chiappa remains a separate exact-version validation target.
 
 ## Free-form response
 

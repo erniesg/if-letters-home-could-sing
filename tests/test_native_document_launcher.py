@@ -1,4 +1,5 @@
 import unittest
+import io
 import json
 import tempfile
 from pathlib import Path
@@ -29,6 +30,21 @@ def snapshot_for(target_name="ferrari"):
 
 
 class NativeLauncherContractTests(unittest.TestCase):
+    def test_only_grounded_high_confidence_corrections_become_red_ellipse_marks(self):
+        from mac_bridge.contracts import parse_review
+        from mac_bridge.native_packet import correction_marks
+        from tests.test_native_codex_bridge import VALID_REVIEW
+
+        review = parse_review(VALID_REVIEW)
+        marks = correction_marks(review, width=954, height=1696)
+
+        self.assertEqual(len(marks), 1)
+        self.assertEqual(marks[0].shape, "ellipse")
+        self.assertEqual(marks[0].color, "#b52222")
+        self.assertEqual(marks[0].label, "末")
+        self.assertGreater(marks[0].x2, marks[0].x1)
+        self.assertGreater(marks[0].y2, marks[0].y1)
+
     def test_ferrari_trial_bundle_pins_every_native_qmd_and_refuses_chiappa(self):
         from mac_bridge.trial_bundle import TrialBundleError, build_trial_bundle
 
@@ -92,6 +108,17 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertIn("currentPage", submit)
         self.assertIn("review_page_index", submit)
         self.assertIn('sessionId.substring(sessionId.length - 4).toLowerCase() === ".pdf"', submit)
+        self.assertIn('console.warn("[LettersHome] submit failed"', submit)
+        self.assertIn("/v1/sessions/", submit)
+        self.assertIn("interval: 750", submit)
+        self.assertIn("onSessionKeyChanged", submit)
+        self.assertIn("index * lettersHomeStream.letterColumnGap - implicitWidth / 2", submit)
+        self.assertIn("item/agentMessage/delta", (ROOT / "docs" / "issues" / "010-native-codex-roundtrip.md").read_text())
+        self.assertNotIn("MouseArea", submit)
+        self.assertNotIn("TapHandler", submit)
+        self.assertIn("A reply has arrived", submit)
+        self.assertIn("Your ink is safe", submit)
+        self.assertNotIn("Try Send to Codex again", submit)
         self.assertIn(
             "~&233726547792244&~: ~&6504329801&~",
             submit,
@@ -102,8 +129,8 @@ class NativeLauncherContractTests(unittest.TestCase):
         from mac_bridge.native_packet import packet_spec
 
         for profile_id, dimensions in {
-            "ferrari_3.28.0.162": (1696, 954),
-            "chiappa_3.28.0.162": (2160, 1620),
+            "ferrari_3.28.0.162": (954, 1696),
+            "chiappa_3.28.0.162": (1620, 2160),
         }.items():
             with self.subTest(profile_id=profile_id):
                 packet = packet_spec(profile_id)
@@ -113,6 +140,57 @@ class NativeLauncherContractTests(unittest.TestCase):
                     self.assertEqual((page.x, page.y), (0, 0))
                     self.assertEqual((page.width, page.height), dimensions)
                     self.assertEqual(page.chrome_margin, 0)
+
+    def test_ferrari_renderer_emits_two_full_page_portrait_media_boxes(self):
+        from pypdf import PdfReader
+
+        from mac_bridge.contracts import Letter
+        from mac_bridge.native_packet import NativePacketRenderer
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary = Path(temporary_directory)
+            packet = NativePacketRenderer(work_dir=temporary).build_initial_packet(
+                Letter("阿妹，见字如面。家中一切安好，勿念。"),
+                profile_id="ferrari_3.28.0.162",
+            )
+            pages = PdfReader(io.BytesIO(packet)).pages
+
+        self.assertEqual(len(pages), 2)
+        self.assertEqual(
+            [(int(page.mediabox.width), int(page.mediabox.height)) for page in pages],
+            [(954, 1696), (954, 1696)],
+        )
+        self.assertIn("阿", pages[0].extract_text())
+        self.assertNotIn("阿", pages[1].extract_text())
+
+    def test_reviewed_packet_opens_on_full_size_marked_copy_then_response_letter(self):
+        from pypdf import PdfReader
+
+        from mac_bridge.contracts import Letter, parse_review
+        from mac_bridge.native_packet import NativePacketRenderer
+        from tests.test_native_codex_bridge import VALID_REVIEW
+
+        incoming = Letter("阿妹，见字如面。家中一切安好，勿念。")
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            renderer = NativePacketRenderer(work_dir=Path(temporary_directory))
+            source = renderer.build_initial_packet(None, profile_id="ferrari_3.28.0.162")
+            reviewed, review_page_index = renderer.build_reviewed_packet(
+                source,
+                parse_review(VALID_REVIEW),
+                profile_id="ferrari_3.28.0.162",
+                incoming_letter=incoming,
+            )
+            pages = PdfReader(io.BytesIO(reviewed)).pages
+
+        self.assertEqual(review_page_index, 2)
+        self.assertGreaterEqual(len(pages), 5)
+        self.assertIn("阿", pages[0].extract_text())
+        self.assertIn("末", pages[2].extract_text())
+        self.assertIn("见", pages[3].extract_text())
+        self.assertEqual(
+            [(int(page.mediabox.width), int(page.mediabox.height)) for page in pages[:4]],
+            [(954, 1696)] * 4,
+        )
 
 
 if __name__ == "__main__":

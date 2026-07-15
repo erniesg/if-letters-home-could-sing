@@ -6,16 +6,24 @@ import json
 import os
 import shutil
 import subprocess
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Protocol
+from typing import Any, Callable, Iterable, Mapping, Protocol
 
-from .contracts import REVIEW_OUTPUT_SCHEMA, Review, parse_review
+from .contracts import Letter, REVIEW_OUTPUT_SCHEMA, Review, parse_letter_text, parse_review
 
 
 DEFAULT_REVIEWER_PROMPT = """You are reading a handwritten contemporary huipi on a fictional qiao pi correspondence.
 Act as a kind Chinese-language teacher and attentive correspondent. Ground every note in what is actually visible.
-Offer concise corrections, uncertain readings, tone guidance, affirmations, and one reflective question.
+Silently inspect every visible handwritten glyph character by character before writing the review. Check radicals,
+stroke placement, homophones, and the surrounding phrase; do not stop after understanding the overall meaning.
+For each high-confidence wrong glyph, add one item to the corrections array; set observed_text and suggested_text
+to exactly one Chinese character and return a tight normalized bounding box around only that glyph. Put broader
+language, tone, and uncertain-reading observations in annotations, never corrections. Anchor coordinates use a top-left origin: x and y
+locate the box's top-left corner, then width and height give its size as fractions of the full image.
+Offer concise corrections, uncertain readings, tone guidance, affirmations, one reflective question, and a short
+reciprocal Chinese response letter that responds to what is actually legible.
 Never score or grade. Never invent a full transcription. Mark uncertain handwriting as uncertain.
 The participant's original ink is immutable. Return only the requested JSON object."""
 
@@ -129,9 +137,9 @@ class CodexReviewResult:
 
 
 @dataclass(frozen=True)
-class CodexImageResult:
+class CodexLetterResult:
     thread_id: str
-    image_path: Path
+    letter: Letter
 
 
 class CodexAppServerClient:
@@ -211,18 +219,50 @@ class CodexAppServerClient:
         )
         return thread_id
 
+    @staticmethod
+    def _detail_tiles(reply_image: Path, directory: Path) -> tuple[Path, ...]:
+        """Create private overlapping close-ups so small handwriting stays legible."""
+
+        try:
+            from PIL import Image
+
+            with Image.open(reply_image) as source:
+                source = source.convert("RGB")
+                width, height = source.size
+                overlap_x = round(width * 0.08)
+                overlap_y = round(height * 0.08)
+                middle_x, middle_y = width // 2, height // 2
+                regions = (
+                    ("top-left", (0, 0, middle_x + overlap_x, middle_y + overlap_y)),
+                    ("top-right", (middle_x - overlap_x, 0, width, middle_y + overlap_y)),
+                    ("bottom-left", (0, middle_y - overlap_y, middle_x + overlap_x, height)),
+                    ("bottom-right", (middle_x - overlap_x, middle_y - overlap_y, width, height)),
+                )
+                tiles = []
+                for name, box in regions:
+                    tile = source.crop(box)
+                    scale = min(2.0, 2048 / max(tile.size))
+                    if scale > 1:
+                        tile = tile.resize(
+                            (round(tile.width * scale), round(tile.height * scale)),
+                            Image.Resampling.LANCZOS,
+                        )
+                    path = directory / f"{name}.png"
+                    tile.save(path, format="PNG", optimize=True)
+                    tiles.append(path)
+                return tuple(tiles)
+        except (ImportError, OSError, ValueError):
+            return ()
+
     def generate_letter(
         self,
         *,
         session_id: str,
         conversation_context: str,
-        imagegen_skill: Path,
-    ) -> CodexImageResult:
-        """Create one visible Codex image task and return its saved raster path."""
+        on_delta: Callable[[str], None] | None = None,
+    ) -> CodexLetterResult:
+        """Create one visible Codex task and stream its fictional letter text."""
 
-        imagegen_skill = Path(imagegen_skill).resolve()
-        if not imagegen_skill.is_file():
-            raise ValueError("imagegen skill does not exist")
         channel = self.channel
         try:
             self._initialize()
@@ -230,44 +270,48 @@ class CodexAppServerClient:
                 session_id=session_id,
                 purpose="incoming",
                 developer_instructions=(
-                    "Use the attached image-generation skill once. Do not use shell or unrelated tools. "
-                    "Create a fictional image only and preserve the saved output path."
+                    "Do not use shell, network, file-write, or image-generation tools. "
+                    "Return only the requested fictional Chinese letter text."
                 ),
             )
-            prompt = f"""Use gpt-image-2 to create one full-bleed, wide fictional qiao pi-inspired family letter image.
-Compose for a 1696 × 960 source canvas; the trusted Mac will crop 3 px from top and bottom for Ferrari.
-Material direction: warm fibrous paper, fold memory, restrained red rules, muted blue-black handwritten Chinese.
-The emotional content should correspond to this conversation context without copying it verbatim:
+            prompt = f"""Write one fictional contemporary Chinese family letter inspired by the care and reciprocity of qiao pi.
+It will be typeset in vertical Chinese columns, top-to-bottom and right-to-left, on a portrait paper page.
+Use 90 to 180 Chinese characters. Return only the letter body: no markdown, title, commentary, signature, seal, or JSON.
+Let the emotional content correspond to this conversation context without copying it verbatim:
 {conversation_context.strip() or 'care across distance, health, education, remittance received, and returning home'}
 
-Do not use any real personal name, accession number, signature, seal, museum logo, authenticity claim,
-archival master, application toolbar, device frame, drop shadow, or outer margin. This is visibly fictional."""
+Do not use a real personal name, accession number, signature, seal, museum claim, or authenticity claim.
+The letter is visibly fictional."""
             started_turn = channel.request(
                 "turn/start",
                 {
                     "threadId": thread_id,
-                    "input": [
-                        {"type": "text", "text": prompt},
-                        {"type": "skill", "name": "imagegen", "path": str(imagegen_skill)},
-                    ],
+                    "input": [{"type": "text", "text": prompt}],
                 },
             )
             turn = started_turn.get("turn")
             turn_id = turn.get("id") if isinstance(turn, Mapping) else None
             if not isinstance(turn_id, str) or not turn_id:
                 raise RuntimeError("turn/start did not return a Codex turn id")
-            saved_path = None
+            final_text = None
             for event in channel.events():
                 method = event.get("method")
                 params = event.get("params")
                 if not isinstance(params, Mapping) or params.get("threadId") != thread_id:
                     continue
+                if method == "item/agentMessage/delta" and params.get("turnId") == turn_id:
+                    delta = params.get("delta")
+                    if isinstance(delta, str) and delta and on_delta is not None:
+                        on_delta(delta)
                 if method == "item/completed" and params.get("turnId") == turn_id:
                     item = params.get("item")
-                    if isinstance(item, Mapping) and item.get("type") == "imageGeneration":
-                        candidate = item.get("savedPath")
-                        if isinstance(candidate, str) and candidate:
-                            saved_path = Path(candidate).resolve()
+                    if (
+                        isinstance(item, Mapping)
+                        and item.get("type") == "agentMessage"
+                        and item.get("phase") in {None, "final_answer"}
+                        and isinstance(item.get("text"), str)
+                    ):
+                        final_text = item["text"]
                 if method == "turn/completed":
                     completed = params.get("turn")
                     if not isinstance(completed, Mapping) or completed.get("id") != turn_id:
@@ -275,11 +319,11 @@ archival master, application toolbar, device frame, drop shadow, or outer margin
                     if completed.get("status") != "completed":
                         error = completed.get("error")
                         message = error.get("message", str(error)) if isinstance(error, Mapping) else str(error)
-                        raise RuntimeError(message or "Codex image turn failed")
+                        raise RuntimeError(message or "Codex incoming-letter turn failed")
                     break
-            if saved_path is None or not saved_path.is_file():
-                raise RuntimeError("Codex image task completed without a saved image")
-            return CodexImageResult(thread_id, saved_path)
+            if final_text is None:
+                raise RuntimeError("Codex incoming-letter turn completed without text")
+            return CodexLetterResult(thread_id, parse_letter_text(final_text))
         finally:
             if self._owns_channel and hasattr(channel, "close"):
                 channel.close()
@@ -295,6 +339,7 @@ archival master, application toolbar, device frame, drop shadow, or outer margin
         if not reply_image.is_file():
             raise ValueError("reply image does not exist")
         channel = self.channel
+        detail_directory = tempfile.TemporaryDirectory(prefix="letters-home-details-")
         try:
             self._initialize()
             thread_id = self._start_thread(
@@ -305,19 +350,34 @@ archival master, application toolbar, device frame, drop shadow, or outer margin
                     "and return only JSON matching the supplied output schema."
                 ),
             )
+            detail_tiles = self._detail_tiles(reply_image, Path(detail_directory.name))
+            detail_note = ""
+            if detail_tiles:
+                detail_note = (
+                    "\n\nAfter the full page, four overlapping close-ups appear in this exact order: "
+                    "top-left, top-right, bottom-left, bottom-right. Inspect every close-up before deciding. "
+                    "They are details of the same page, not additional letters. Return every anchor in "
+                    "full-page coordinates, never tile-local coordinates."
+                )
             prompt = (
                 f"{self.reviewer_prompt}\n\n"
                 "Conversation context for reciprocity only; do not quote it as if handwritten:\n"
                 f"{conversation_context.strip() or 'No prior context supplied.'}"
+                f"{detail_note}"
+            )
+            turn_input = [
+                {"type": "text", "text": prompt},
+                {"type": "localImage", "path": str(reply_image), "detail": "original"},
+            ]
+            turn_input.extend(
+                {"type": "localImage", "path": str(path), "detail": "original"}
+                for path in detail_tiles
             )
             started_turn = channel.request(
                 "turn/start",
                 {
                     "threadId": thread_id,
-                    "input": [
-                        {"type": "text", "text": prompt},
-                        {"type": "localImage", "path": str(reply_image), "detail": "original"},
-                    ],
+                    "input": turn_input,
                     "outputSchema": REVIEW_OUTPUT_SCHEMA,
                 },
             )
@@ -358,5 +418,6 @@ archival master, application toolbar, device frame, drop shadow, or outer margin
                 raise RuntimeError("Codex review was not valid JSON") from error
             return CodexReviewResult(thread_id, parse_review(payload))
         finally:
+            detail_directory.cleanup()
             if self._owns_channel and hasattr(channel, "close"):
                 channel.close()

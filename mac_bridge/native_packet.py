@@ -6,16 +6,16 @@ import io
 import shutil
 import subprocess
 import tempfile
+import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
-from .contracts import Review
-from .review_layout import layout_review
+from .contracts import Letter, Review
 
 
 PROFILE_DIMENSIONS = {
-    "ferrari_3.28.0.162": (1696, 954),
-    "chiappa_3.28.0.162": (2160, 1620),
+    "ferrari_3.28.0.162": (954, 1696),
+    "chiappa_3.28.0.162": (1620, 2160),
 }
 
 
@@ -35,6 +35,39 @@ class PacketSpec:
     width: int
     height: int
     pages: tuple[PacketPage, ...]
+
+
+@dataclass(frozen=True)
+class CorrectionMark:
+    shape: str
+    color: str
+    label: str
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
+def correction_marks(review: Review, *, width: int, height: int) -> tuple[CorrectionMark, ...]:
+    """Map only high-confidence glyph corrections into page coordinates."""
+
+    marks = []
+    for annotation in review.annotations:
+        if annotation.kind != "correction" or annotation.confidence < 0.8:
+            continue
+        anchor = annotation.anchor
+        marks.append(
+            CorrectionMark(
+                shape="ellipse",
+                color="#b52222",
+                label=annotation.suggested_text[:4],
+                x1=anchor.x * width,
+                y1=height - (anchor.y + anchor.height) * height,
+                x2=(anchor.x + anchor.width) * width,
+                y2=height - anchor.y * height,
+            )
+        )
+    return tuple(marks)
 
 
 def packet_spec(profile_id: str) -> PacketSpec:
@@ -63,39 +96,28 @@ class NativePacketRenderer:
     def _dimensions(self, profile_id: str | None = None) -> tuple[int, int]:
         return PROFILE_DIMENSIONS[profile_id or self.profile_id]
 
-    def build_initial_packet(self, image_path: Path, *, profile_id: str) -> bytes:
-        """Render an edge-to-edge incoming page followed by deterministic huipi paper."""
+    @staticmethod
+    def _font_name():
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
 
-        try:
-            from PIL import Image, ImageOps
-            from reportlab.lib.colors import HexColor
-            from reportlab.lib.utils import ImageReader
-            from reportlab.pdfgen import canvas
-        except ImportError as error:
-            raise RuntimeError("trusted Mac image/PDF dependencies are unavailable") from error
-        width, height = self._dimensions(profile_id)
-        image_path = Path(image_path)
-        if not image_path.is_file():
-            raise ValueError("incoming image does not exist")
-        rendered = ImageOps.fit(
-            Image.open(image_path).convert("RGB"),
-            (width, height),
-            method=Image.Resampling.LANCZOS,
-            centering=(0.5, 0.5),
-        )
-        rendered_stream = io.BytesIO()
-        rendered.save(rendered_stream, format="PNG", optimize=True)
-        output = io.BytesIO()
-        drawing = canvas.Canvas(output, pagesize=(width, height), pageCompression=1)
-        drawing.drawImage(
-            ImageReader(io.BytesIO(rendered_stream.getvalue())),
-            0,
-            0,
-            width,
-            height,
-            preserveAspectRatio=False,
-        )
-        drawing.showPage()
+        font_name = "Helvetica"
+        for candidate in (
+            Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
+            Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
+        ):
+            if not candidate.is_file():
+                continue
+            try:
+                pdfmetrics.registerFont(TTFont("LettersHomeCJK", str(candidate)))
+                return "LettersHomeCJK"
+            except Exception:
+                continue
+        return font_name
+
+    @staticmethod
+    def _draw_paper(drawing, *, width: int, height: int) -> None:
+        from reportlab.lib.colors import HexColor
 
         drawing.setFillColor(HexColor("#f3ead7"))
         drawing.rect(0, 0, width, height, fill=1, stroke=0)
@@ -112,6 +134,51 @@ class NativePacketRenderer:
             x -= guide_gap
         drawing.setStrokeColor(HexColor("#dfcdb4"))
         drawing.line(width * 0.5, inset, width * 0.5, height - inset)
+
+    @staticmethod
+    def _draw_vertical_letter(drawing, letter: Letter, *, width: int, height: int, font_name: str) -> None:
+        from reportlab.lib.colors import HexColor
+
+        glyphs = [character for character in letter.body if not character.isspace()]
+        font_size = max(28, round(height * 0.023))
+        line_gap = round(font_size * 1.45)
+        column_gap = max(68, round(width * 0.075))
+        top = round(height * 0.075)
+        bottom = round(height * 0.07)
+        right = round(width * 0.08)
+        characters_per_column = max(1, (height - top - bottom) // line_gap)
+        drawing.setFillColor(HexColor("#263d52"))
+        drawing.setFont(font_name, font_size)
+        for index, glyph in enumerate(glyphs):
+            column, row = divmod(index, characters_per_column)
+            x = width - right - column * column_gap
+            if x < round(width * 0.07):
+                break
+            y = height - top - row * line_gap
+            drawing.drawCentredString(x, y, glyph)
+
+    def build_initial_packet(self, letter: Letter | None, *, profile_id: str) -> bytes:
+        """Render deterministic incoming paper and a blank writable huipi page."""
+
+        try:
+            from reportlab.pdfgen import canvas
+        except ImportError as error:
+            raise RuntimeError("trusted Mac image/PDF dependencies are unavailable") from error
+        width, height = self._dimensions(profile_id)
+        output = io.BytesIO()
+        drawing = canvas.Canvas(output, pagesize=(width, height), pageCompression=1)
+        font_name = self._font_name()
+        self._draw_paper(drawing, width=width, height=height)
+        if letter is not None:
+            self._draw_vertical_letter(
+                drawing,
+                letter,
+                width=width,
+                height=height,
+                font_name=font_name,
+            )
+        drawing.showPage()
+        self._draw_paper(drawing, width=width, height=height)
         drawing.showPage()
         drawing.save()
         return output.getvalue()
@@ -152,31 +219,18 @@ class NativePacketRenderer:
         review: Review,
         *,
         profile_id: str,
+        incoming_letter: Letter,
     ) -> tuple[bytes, int]:
         try:
             from pypdf import PdfReader, PdfWriter
-            from reportlab.lib.colors import Color, HexColor
+            from reportlab.lib.colors import HexColor
             from reportlab.lib.utils import ImageReader
-            from reportlab.pdfbase import pdfmetrics
-            from reportlab.pdfbase.ttfonts import TTFont
             from reportlab.pdfgen import canvas
         except ImportError as error:
             raise RuntimeError("trusted Mac PDF dependencies are unavailable") from error
 
         width, height = self._dimensions(profile_id)
-        pages = layout_review(review, width=width, height=height)
-        font_name = "Helvetica"
-        for candidate in (
-            Path("/System/Library/Fonts/Supplemental/Arial Unicode.ttf"),
-            Path("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"),
-        ):
-            if candidate.is_file():
-                try:
-                    pdfmetrics.registerFont(TTFont("LettersHomeCJK", str(candidate)))
-                    font_name = "LettersHomeCJK"
-                    break
-                except Exception:
-                    continue
+        font_name = self._font_name()
 
         with tempfile.TemporaryDirectory(prefix="letters-home-review-") as temporary_directory:
             temp = Path(temporary_directory)
@@ -206,95 +260,103 @@ class NativePacketRenderer:
                 )
             preview_path = preview.with_suffix(".png")
 
-            review_stream = io.BytesIO()
-            drawing = canvas.Canvas(review_stream, pagesize=(width, height), pageCompression=1)
-            for page_number, page in enumerate(pages, start=1):
-                preview_geometry = None
-                drawing.setFillColor(HexColor("#f3ead7"))
-                drawing.rect(0, 0, width, height, fill=1, stroke=0)
-                drawing.setFillColor(HexColor("#33475b"))
-                drawing.setFont(font_name, max(22, round(height * 0.038)))
+            if not preview_path.is_file():
+                raise RuntimeError("reply_page_render_failed")
+
+            final_incoming = self.build_initial_packet(incoming_letter, profile_id=profile_id)
+            additions_stream = io.BytesIO()
+            drawing = canvas.Canvas(additions_stream, pagesize=(width, height), pageCompression=1)
+
+            # Page 3: full-size marked copy. Original page 2 remains untouched in the packet.
+            drawing.drawImage(
+                ImageReader(str(preview_path)),
+                0,
+                0,
+                width,
+                height,
+                preserveAspectRatio=False,
+            )
+            mark_font_size = max(30, round(height * 0.026))
+            drawing.setFont(font_name, mark_font_size)
+            for mark in correction_marks(review, width=width, height=height):
+                drawing.setStrokeColor(HexColor(mark.color))
+                drawing.setFillColor(HexColor(mark.color))
+                drawing.setLineWidth(max(3, width / 210))
+                drawing.ellipse(mark.x1, mark.y1, mark.x2, mark.y2, fill=0, stroke=1)
+                label_x = mark.x2 + max(8, width * 0.012)
+                if label_x + mark_font_size * max(1, len(mark.label)) > width:
+                    label_x = max(0, mark.x1 - mark_font_size * max(1, len(mark.label)) - 8)
                 drawing.drawString(
-                    round(width * 0.025),
-                    height - round(height * 0.05),
-                    "回批 · A reading of your reply",
+                    label_x,
+                    (mark.y1 + mark.y2) / 2 - mark_font_size * 0.35,
+                    mark.label,
                 )
-                drawing.setFont(font_name, max(12, round(height * 0.018)))
-                drawing.drawRightString(width - round(width * 0.025), height - round(height * 0.05), f"{page_number}/{len(pages)}")
-                for box in page.boxes:
-                    pdf_y = height - box.y - box.height
-                    if box.kind == "reply-preview" and preview_path.is_file():
-                        scale = min(box.width / width, box.height / height)
-                        preview_width = width * scale
-                        preview_height = height * scale
-                        preview_x = box.x + (box.width - preview_width) / 2
-                        preview_y = pdf_y + (box.height - preview_height) / 2
-                        drawing.drawImage(
-                            ImageReader(str(preview_path)),
-                            preview_x,
-                            preview_y,
-                            preview_width,
-                            preview_height,
-                            preserveAspectRatio=False,
-                        )
-                        drawing.setStrokeColor(Color(0.35, 0.25, 0.2, alpha=0.35))
-                        drawing.rect(
-                            preview_x,
-                            preview_y,
-                            preview_width,
-                            preview_height,
-                            fill=0,
-                            stroke=1,
-                        )
-                        preview_geometry = (preview_x, preview_y, preview_width, preview_height)
-                        continue
-                    if (
-                        box.kind == "annotation"
-                        and preview_geometry
-                        and box.anchor_x is not None
-                        and box.anchor_y is not None
-                        and box.annotation_number is not None
-                    ):
-                        preview_x, preview_y, preview_width, preview_height = preview_geometry
-                        marker_x = preview_x + box.anchor_x * preview_width
-                        marker_y = preview_y + (1 - box.anchor_y) * preview_height
-                        drawing.setStrokeColor(HexColor("#a04d46"))
-                        drawing.setLineWidth(max(1.5, width / 900))
-                        drawing.line(marker_x, marker_y, box.x, pdf_y + box.height / 2)
-                        radius = max(11, round(height * 0.014))
-                        drawing.setFillColor(HexColor("#a04d46"))
-                        drawing.circle(marker_x, marker_y, radius, fill=1, stroke=0)
-                        drawing.setFillColor(HexColor("#fffaf0"))
-                        drawing.setFont(font_name, max(11, round(height * 0.015)))
-                        drawing.drawCentredString(
-                            marker_x,
-                            marker_y - radius * 0.38,
-                            str(box.annotation_number),
-                        )
-                    fill = "#fffaf0" if box.kind != "question" else "#e8dec8"
-                    drawing.setFillColor(HexColor(fill))
-                    drawing.roundRect(box.x, pdf_y, box.width, box.height, 14, fill=1, stroke=0)
-                    drawing.setFillColor(HexColor("#243746"))
-                    drawing.setFont(font_name, max(15, round(height * 0.022)))
-                    line_height = max(24, round(height * 0.031))
-                    text_y = pdf_y + box.height - max(18, round(width * 0.012)) - line_height
-                    if box.kind == "question":
-                        drawing.drawString(box.x + 18, text_y, "留给下一封信的问题")
-                        text_y -= line_height
-                    for line in box.lines:
-                        drawing.drawString(box.x + 18, text_y, line)
-                        text_y -= line_height
+            for annotation in review.annotations:
+                if annotation.kind != "uncertain-reading":
+                    continue
+                anchor = annotation.anchor
+                x1 = anchor.x * width
+                x2 = (anchor.x + anchor.width) * width
+                y1 = height - (anchor.y + anchor.height) * height
+                y2 = height - anchor.y * height
+                drawing.setStrokeColor(HexColor("#6f6a63"))
+                drawing.setLineWidth(max(1.5, width / 450))
+                drawing.setDash(8, 6)
+                drawing.ellipse(x1, y1, x2, y2, fill=0, stroke=1)
+                drawing.setDash()
+            drawing.showPage()
+
+            # Page 4: the correspondent writes back on the shared paper system.
+            self._draw_paper(drawing, width=width, height=height)
+            self._draw_vertical_letter(
+                drawing,
+                Letter(review.response_letter),
+                width=width,
+                height=height,
+                font_name=font_name,
+            )
+            drawing.showPage()
+
+            # Compact teacher notes only; no card grid or unused annotation box.
+            if review.annotations or review.summary:
+                self._draw_paper(drawing, width=width, height=height)
+                margin = round(width * 0.07)
+                font_size = max(20, round(height * 0.018))
+                line_height = round(font_size * 1.55)
+                drawing.setFillColor(HexColor("#263d52"))
+                drawing.setFont(font_name, max(28, round(height * 0.027)))
+                drawing.drawString(margin, height - margin - line_height, "回批小记")
+                drawing.setFont(font_name, font_size)
+                y = height - margin - line_height * 2.4
+                note_texts = [review.summary]
+                note_texts.extend(
+                    f"{index}. {item.observed_text} → {item.suggested_text}　{item.explanation}"
+                    for index, item in enumerate(review.annotations, start=1)
+                )
+                note_texts.append(f"问：{review.reflective_question}")
+                for note in note_texts:
+                    for line in textwrap.wrap(note, width=max(12, round(width / font_size) - 8)) or [""]:
+                        if y < margin + line_height:
+                            drawing.showPage()
+                            self._draw_paper(drawing, width=width, height=height)
+                            drawing.setFillColor(HexColor("#263d52"))
+                            drawing.setFont(font_name, font_size)
+                            y = height - margin - line_height
+                        drawing.drawString(margin, y, line)
+                        y -= line_height
+                    y -= line_height * 0.35
                 drawing.showPage()
             drawing.save()
 
         source_reader = PdfReader(io.BytesIO(source_pdf))
-        review_reader = PdfReader(io.BytesIO(review_stream.getvalue()))
+        incoming_reader = PdfReader(io.BytesIO(final_incoming))
+        additions_reader = PdfReader(io.BytesIO(additions_stream.getvalue()))
         if len(source_reader.pages) < 2:
             raise RuntimeError("source packet must contain incoming and huipi pages")
         writer = PdfWriter()
-        for page in source_reader.pages:
-            writer.add_page(page)
-        for page in review_reader.pages:
+        writer.add_page(incoming_reader.pages[0])
+        writer.add_page(source_reader.pages[1])
+        for page in additions_reader.pages:
             writer.add_page(page)
         output = io.BytesIO()
         writer.write(output)

@@ -32,7 +32,7 @@ def _wrap(text: str, characters: int) -> tuple[str, ...]:
     return tuple(
         textwrap.wrap(
             text,
-            width=max(8, characters),
+            width=max(6, characters),
             break_long_words=True,
             break_on_hyphens=False,
             replace_whitespace=True,
@@ -54,7 +54,10 @@ def layout_review(review: Review, *, width: int, height: int) -> tuple[ReviewPag
     column_width = width - column_x - margin
     line_height = max(24, round(height * 0.031))
     box_padding = max(16, round(width * 0.012))
-    character_width = max(12, column_width // max(18, round(width / 55)))
+    font_size = max(15, round(height * 0.022))
+    character_width = max(6, (column_width - box_padding * 2) // font_size)
+    full_width = width - margin * 2
+    full_character_width = max(8, (full_width - box_padding * 2) // font_size)
 
     first_boxes = [
         LayoutBox(
@@ -85,9 +88,12 @@ def layout_review(review: Review, *, width: int, height: int) -> tuple[ReviewPag
             pages.append([])
             y = top
         page_x = column_x if current_page == 0 else margin
-        page_width = column_width if current_page == 0 else width - margin * 2
+        page_width = column_width if current_page == 0 else full_width
         if current_page > 0:
-            lines = _wrap(f"{prefix}{uncertainty}\n{annotation.explanation}", max(character_width, 64))
+            lines = _wrap(
+                f"{prefix}{uncertainty}\n{annotation.explanation}",
+                full_character_width,
+            )
             box_height = box_padding * 2 + line_height * len(lines)
         pages[current_page].append(
             LayoutBox(
@@ -104,14 +110,17 @@ def layout_review(review: Review, *, width: int, height: int) -> tuple[ReviewPag
         )
         y += box_height + gap
 
-    question_lines = _wrap(review.reflective_question, character_width if current_page == 0 else 64)
+    question_lines = _wrap(
+        review.reflective_question,
+        character_width if current_page == 0 else full_character_width,
+    )
     question_height = box_padding * 2 + line_height * (len(question_lines) + 1)
     if y + question_height > height - bottom:
         current_page += 1
         pages.append([])
         y = top
     question_x = column_x if current_page == 0 else margin
-    question_width = column_width if current_page == 0 else width - margin * 2
+    question_width = column_width if current_page == 0 else full_width
     pages[current_page].append(
         LayoutBox("question", question_x, y, question_width, question_height, question_lines)
     )

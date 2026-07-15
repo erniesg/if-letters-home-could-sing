@@ -5,6 +5,94 @@ AFFECT [[1224665461898798997]]
     TRAVERSE FocusScope > Item#_uiContainer
         LOCATE AFTER Toolbar#toolbar
         INSERT {
+            Item {
+                id: lettersHomeStream
+                objectName: "letters-home-stream"
+                anchors.fill: parent
+                z: toolbar.z
+                visible: root.document
+                    && root.document.visibleName.indexOf("Letters Home ") === 0
+                    && root.document.visibleName.indexOf("Letters Home Review ") !== 0
+                    && root.currentPage === 0
+
+                property int version: -1
+                property bool complete: false
+                property var columns: []
+                property string sessionKey: visible ? sessionId() : ""
+                property int letterFontSize: Math.max(28, Math.round(height * 0.023))
+                property int letterColumnGap: Math.max(68, Math.round(width * 0.075))
+
+                onSessionKeyChanged: {
+                    version = -1;
+                    complete = false;
+                    columns = [];
+                }
+
+                function sessionId() {
+                    let value = root.document.visibleName.substring("Letters Home ".length);
+                    if (value.length > 4
+                            && value.substring(value.length - 4).toLowerCase() === ".pdf") {
+                        value = value.substring(0, value.length - 4);
+                    }
+                    return value;
+                }
+
+                function toColumns(value) {
+                    const compact = value.replace(/\s/g, "");
+                    const charactersPerColumn = Math.max(
+                        18,
+                        Math.floor((height * 0.855) / (letterFontSize * 1.45))
+                    );
+                    const result = [];
+                    for (let index = 0; index < compact.length; index += charactersPerColumn) {
+                        result.push(compact.substring(index, index + charactersPerColumn));
+                    }
+                    return result;
+                }
+
+                function poll() {
+                    if (!visible || complete) {
+                        return;
+                    }
+                    const request = new XMLHttpRequest();
+                    request.open("GET", "http://10.11.99.16:8765/v1/sessions/" + sessionKey);
+                    request.onreadystatechange = function() {
+                        if (request.readyState !== XMLHttpRequest.DONE || request.status !== 200) {
+                            return;
+                        }
+                        const response = JSON.parse(request.responseText);
+                        if (response.version !== lettersHomeStream.version) {
+                            lettersHomeStream.version = response.version;
+                            lettersHomeStream.columns = lettersHomeStream.toColumns(response.text || "");
+                        }
+                        lettersHomeStream.complete = response.status === "ready"
+                            || response.status === "failed";
+                    };
+                    request.send();
+                }
+
+                Timer {
+                    interval: 750
+                    repeat: true
+                    triggeredOnStart: true
+                    running: lettersHomeStream.visible && !lettersHomeStream.complete
+                    onTriggered: lettersHomeStream.poll()
+                }
+
+                Repeater {
+                    model: lettersHomeStream.columns
+                    Text {
+                        x: lettersHomeStream.width - Math.round(lettersHomeStream.width * 0.08)
+                            - index * lettersHomeStream.letterColumnGap - implicitWidth / 2
+                        y: Math.round(lettersHomeStream.height * 0.07)
+                        text: modelData.split("").join("\n")
+                        color: "#263d52"
+                        font.pixelSize: lettersHomeStream.letterFontSize
+                        lineHeight: 1.45
+                    }
+                }
+            }
+
             ~&16889273474833229381&~ {
                 ~&5972374&~: lettersHomeSubmit
                 ~&8399878573055752961&~: "letters-home-submit"
@@ -34,13 +122,22 @@ AFFECT [[1224665461898798997]]
                         }
                         if (request.status === 200) {
                             const response = JSON.parse(request.responseText);
+                            root.notificationQueue.enqueue({
+                                text: "A reply has arrived",
+                                timeout: 5000
+                            });
                             root.windowNavigator.open("legacydevice/window/main", {
                                 documentId: response.document_id,
                                 page: response.review_page_index
                             });
                             return;
                         }
-                        lettersHomeSubmit.text = "Try Send to Codex again";
+                        console.warn("[LettersHome] submit failed", request.status, request.responseText);
+                        root.notificationQueue.enqueue({
+                            text: "Reply not sent. Your ink is safe; try again.",
+                            timeout: 5000
+                        });
+                        lettersHomeSubmit.text = "Send to Codex";
                         lettersHomeSubmit.enabled = true;
                     };
                     request.send(JSON.stringify({

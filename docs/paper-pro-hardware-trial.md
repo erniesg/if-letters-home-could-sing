@@ -7,13 +7,13 @@ request a native PDF from the paired Mac and open stock `DocumentView`. A second
 exact QMLDiff adds one page-2 `Send to Codex` action; the stock pen toolbar,
 close action, swipe-down behavior, and gestures remain owned by Xochitl.
 
-The portable and trusted-Mac gates for this native candidate pass. A synthetic
-review created a persisted desktop Codex task, a conversation-conditioned
-incoming task produced a real image, the renderer produced exact `1696×954`
-two- and three-page PDFs, and the three QMDs apply cleanly to recovered Ferrari
-3.28 resources. The native QMD install is now complete and stable; the visible
-tap, generated-document import, native ink, submit, and returned-page-3 checks
-remain in progress.
+The portable and trusted-Mac gates for this native candidate pass. A real
+incoming task emitted streamed Chinese text, a detail-grounded review returned
+one schema-valid single-glyph correction plus a reciprocal letter, the renderer
+produces an exact `954×1696` five-page portrait smoke, and the three QMDs apply
+cleanly to recovered Ferrari 3.28 resources. The native QMD install is complete
+and stable; the visible streamed-text, native ink, submit, page-3 mark, and
+page-4 response checks remain owner-observed gates.
 
 ## Installed native-document checkpoint
 
@@ -81,6 +81,32 @@ without a QMLDiff failure. The bridge was restarted on the corrected adapter
 and its health endpoint passes. This checkpoint still does not claim the
 visible open, ink, submit, or returned page 3 passed; those require the next
 owner tap and physical observation.
+
+## First native reply and portrait correction
+
+The next owner tap opened a real two-page native packet and the owner wrote on
+page 2 with Xochitl. The first `Send to Codex` attempt failed before a Codex
+task or receipt was created. The tablet journal shows the scene file being
+written at the same instant. A private-safe replay after the save boundary
+completed export, created review task
+`019f6428-e570-70a0-b630-b7b230cc11dc`, imported one reviewed PDF, and returned
+review page index `2`. This isolates the failure to the pre-Codex export/render
+boundary rather than the teacher-review or reviewed-upload path.
+
+The bridge now retries only the transient `remarkable_usb_unreachable` and
+`reply_page_render_failed` states before starting Codex. The submit QMD writes
+only HTTP status and the bridge's bounded safe error body to the device journal,
+keeps the button label at `Send to Codex`, and remains idempotent after a review
+receipt exists.
+
+The physical packet also exposed an orientation error: it used the hardware
+resolution order as a landscape PDF media box. The native contract is now the
+Paper Pro Move's full portrait page, `954×1696`, for the incoming letter,
+blank huipi, reply rendering, and every review page. A rendered three-page
+smoke confirms identical portrait media boxes. Visual inspection confirms the
+first two pages are edge to edge and portrait marginalia wraps inside its note
+column rather than clipping at the right edge. A newly generated physical
+portrait packet and its automatic page-3 open remain to be observed.
 
 ## Initial observed target
 
@@ -235,7 +261,32 @@ rather than broadening a hash or locator.
 ## Trial scope
 
 The native vertical slice uses the signed-in desktop Codex app-server for both
-conversation-conditioned image generation and a structured teacher-style
-review. It transfers native PDFs through the enabled USB web interface and
-preserves the writer's original page. Real WHOOP capture remains a later
-human-approved provider lane.
+conversation-conditioned streamed Chinese text and a structured teacher-style
+review with a reciprocal response letter. It transfers native PDFs through the
+enabled USB web interface, preserves the writer's original page, and marks only
+a page-3 copy. Real WHOOP capture remains a later human-approved provider lane.
+
+## Streamed-text and grounded-review smoke (2026-07-15)
+
+- Persisted incoming Codex task `019f6443-8edf-77c1-a36a-86a2a49a6230`
+  emitted 158 agent-message deltas. The bridge coalesced them into a bounded
+  180-character final fictional letter without logging the text.
+- Persisted schema-3 review task `019f6451-711d-7a00-aa5f-3e5d6ae618e7`
+  returned five bounded annotations: one high-confidence single-glyph
+  correction eligible for a red ellipse, one uncertain reading that remains
+  non-red, and a 49-character reciprocal response letter.
+- The private reply rendering and model payload were not copied into evidence,
+  documentation, issues, or logs. Only task ids and bounded counts are recorded.
+- Immediately before the streamed-text mutation, Ferrari still matched OS
+  `3.28.0.162`, Xochitl
+  `10082aeb857c69c3f404ab189d7403318ba97d0c169e756ae9a5b3532b248a4a`,
+  hashtab
+  `ebbb415d5e875a67a84416c3029e6ce7e94861a32bb8d390fd01fe0403d492cd`,
+  and the prior QMD hashes. The prior submit QMD and service state are backed up
+  under
+  `/home/root/.local/share/letters-home-installer/backups/20260715-streamed-text-schema3`.
+- Only `30-letters-home-submit.qmd` changed. Its installed SHA-256 is
+  `2d31a7d0ecff761293178d5b9483d5c4eb9b6f9ae147be7ae05b4c6304bcb8b4`.
+  One Xovi restart returned Xochitl as PID `92610`, `NRestarts=0`; the journal
+  loaded QMDs 10, 20, and 30 without a QMLDiff error, and the tablet reached the
+  replacement bridge at `10.11.99.16:8765`.
