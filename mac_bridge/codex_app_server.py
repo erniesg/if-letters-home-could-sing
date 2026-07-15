@@ -28,17 +28,26 @@ class RpcChannel(Protocol):
     def events(self) -> Iterable[Mapping[str, Any]]: ...
 
 
+def resolve_codex_executable(candidates: Iterable[Path]) -> Path:
+    """Select the first executable candidate without assuming one exists in CI."""
+
+    for candidate in candidates:
+        candidate = Path(candidate)
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    raise RuntimeError("codex_app_server_unavailable")
+
+
 def default_codex_command() -> tuple[str, ...]:
     """Use the desktop-bundled Codex first so protocol and signed-in model stay aligned."""
 
-    candidates = (
-        Path("/Applications/ChatGPT.app/Contents/Resources/codex"),
-        Path(shutil.which("codex") or ""),
+    executable = resolve_codex_executable(
+        (
+            Path("/Applications/ChatGPT.app/Contents/Resources/codex"),
+            Path(shutil.which("codex") or ""),
+        )
     )
-    for candidate in candidates:
-        if candidate.is_file() and os.access(candidate, os.X_OK):
-            return (str(candidate), "app-server", "--stdio")
-    raise RuntimeError("codex_app_server_unavailable")
+    return (str(executable), "app-server", "--stdio")
 
 
 class SubprocessJsonRpcChannel:

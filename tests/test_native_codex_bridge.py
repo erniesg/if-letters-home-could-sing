@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from mac_bridge.codex_app_server import CodexAppServerClient, default_codex_command
+from mac_bridge.codex_app_server import CodexAppServerClient, resolve_codex_executable
 from mac_bridge.contracts import ReviewContractError, parse_review
 from mac_bridge.review_layout import layout_review
 from mac_bridge.server import DEFAULT_USB_BIND, BridgeApplication
@@ -219,12 +219,18 @@ class CodexAppServerContractTests(unittest.TestCase):
         self.assertIn("1696 × 960", prompt)
         self.assertIn("fictional", prompt.lower())
 
-    def test_default_transport_prefers_the_desktop_bundled_codex(self):
-        bundled = Path("/Applications/ChatGPT.app/Contents/Resources/codex")
-        command = default_codex_command()
-        if bundled.is_file():
-            self.assertEqual(command[0], str(bundled))
-        self.assertEqual(command[1:], ("app-server", "--stdio"))
+    def test_transport_prefers_the_first_available_executable_without_host_assumptions(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary = Path(temporary_directory)
+            missing = temporary / "missing-codex"
+            bundled = temporary / "desktop-codex"
+            bundled.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            bundled.chmod(0o755)
+
+            self.assertEqual(
+                resolve_codex_executable((missing, bundled)),
+                bundled,
+            )
 
 
 class ReviewContractTests(unittest.TestCase):
