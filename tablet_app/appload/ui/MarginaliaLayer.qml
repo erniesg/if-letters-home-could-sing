@@ -1,12 +1,9 @@
 import QtQuick 2.5
-import QtQuick.Controls 2.5
 
 Item {
     id: marginaliaLayer
     property var annotations: []
     property string summary: ""
-    Accessible.name: "Reversible marginalia overlay"
-    Accessible.role: Accessible.Pane
 
     Rectangle {
         anchors.right: parent.right
@@ -30,8 +27,6 @@ Item {
             text: marginaliaLayer.summary
             wrapMode: Text.WordWrap
             elide: Text.ElideNone
-            Accessible.name: text
-            Accessible.role: Accessible.StaticText
         }
     }
 
@@ -72,8 +67,6 @@ Item {
                     text: annotation.message
                     wrapMode: Text.WordWrap
                     elide: Text.ElideNone
-                    Accessible.name: annotation.message
-                    Accessible.role: Accessible.StaticText
                 }
             }
         }

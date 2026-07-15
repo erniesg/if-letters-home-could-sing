@@ -115,11 +115,11 @@ def state_values(messages):
 
 
 class AppLoadSourceTests(unittest.TestCase):
-    def test_qml_subcomponents_import_accessibility_attached_type(self):
-        for filename in ("StationeryLayer.qml", "InkLayer.qml", "MarginaliaLayer.qml"):
+    def test_qml_avoids_unsupported_accessibility_attached_object(self):
+        for filename in ("Main.qml", "StationeryLayer.qml", "InkLayer.qml", "MarginaliaLayer.qml"):
             with self.subTest(filename=filename):
                 source = (SOURCE / "ui" / filename).read_text(encoding="utf-8")
-                self.assertIn("import QtQuick.Controls 2.5", source)
+                self.assertNotIn("Accessible.", source)
 
     def test_native_fixture_review_is_teacher_like_and_non_scoring(self):
         source = (SOURCE / "backend" / "native_backend.c").read_text(encoding="utf-8")
@@ -164,7 +164,6 @@ class AppLoadSourceTests(unittest.TestCase):
         qml = (SOURCE / "ui" / "Main.qml").read_text()
         notice = "A fictional letter generated for this encounter"
         self.assertIn(f'text: "{notice}"', qml)
-        self.assertIn("Accessible.description: \"Provenance disclosure\"", qml)
         self.assertIn("qrc:/assets/incoming-qiaopi-ferrari-001.png", qml)
         qrc = (SOURCE / "application.qrc").read_text(encoding="utf-8")
         self.assertIn(
@@ -176,10 +175,10 @@ class AppLoadSourceTests(unittest.TestCase):
             qrc,
         )
 
-    def test_app_has_a_discreet_exit_without_fixture_orientation_chrome(self):
+    def test_app_delegates_exit_to_stock_appload_chrome(self):
         qml = (SOURCE / "ui" / "Main.qml").read_text(encoding="utf-8")
-        self.assertIn("onClicked: root.close()", qml)
-        self.assertIn('Accessible.name: "Close Letters Home"', qml)
+        self.assertNotIn("onClicked: root.close()", qml)
+        self.assertNotIn("id: closeButton", qml)
         self.assertNotIn("Landscape fixture", qml)
         self.assertNotIn("Portrait fixture", qml)
 
@@ -189,7 +188,8 @@ class AppLoadSourceTests(unittest.TestCase):
         self.assertIn('text: "Connect WHOOP"', qml)
         self.assertIn('text: "Continue without heart rate"', qml)
         self.assertIn('visible: biometricConsent === "pending"', qml)
-        self.assertIn('Accessible.description: "Purpose notice " + consentVersion', qml)
+        self.assertIn('property string consentVersion: ""', qml)
+        self.assertIn('consentVersion = payload.consentVersion || ""', qml)
 
     def test_bundle_builder_produces_the_required_appload_directory_shape(self):
         with tempfile.TemporaryDirectory() as temporary:

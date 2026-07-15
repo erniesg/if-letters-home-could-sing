@@ -23,7 +23,7 @@ ADAPTED_QMD_SHA256 = "8a15eada28010751f7b4ae50ae8853837335820d3346887478b4b9736c
 UPSTREAM_RESOURCES_QRC_SHA256 = "ba92f47b52e2af86d33b1953f71f441a7f4fffd26d0ec3e6765c8749d35af70d"
 ADAPTED_RESOURCES_QRC_SHA256 = "093e26c241b2b776228de174c0dce1feab5bb46dcc517ea30b2f3b7313191aee"
 UPSTREAM_WINDOW_QML_SHA256 = "848b234015d2d8671648b6b661e57cdd3b51d80c537c38cb053e503cf3a95c30"
-ADAPTED_WINDOW_QML_SHA256 = "6a16bb0c322ce00fdc960418b85944b3978bbc6706d1e276a26d7108ec787638"
+ADAPTED_WINDOW_QML_SHA256 = UPSTREAM_WINDOW_QML_SHA256
 LETTERS_HOME_ICON_SHA256 = "c0437e3f3d8eb9436d3be8be54c5afa86bfd14370a78c3907c16a1803d5ccb30"
 
 _REMOVED_SCREEN_MODE_LOCATOR = (
@@ -40,23 +40,6 @@ _LETTERS_HOME_ICON_RESOURCE = (
     '\t\t<file alias="letter">icons/letters-home.svg</file>\n'
     "\t</qresource>\n"
 )
-_WINDOW_CHROME_REPLACEMENTS = (
-    (
-        "    property bool forceTopBarVisible: false\n",
-        "    property bool forceTopBarVisible: false\n"
-        '    property bool chromeSuppressed: appName === "Letters Home"\n',
-    ),
-    (
-        "        if(fullscreen && !forceTopBarVisible) {\n",
-        "        if(fullscreen && !forceTopBarVisible && !chromeSuppressed) {\n",
-    ),
-    (
-        "        visible: !fullscreen || forceTopBarVisible\n",
-        "        visible: !chromeSuppressed && (!fullscreen || forceTopBarVisible)\n",
-    ),
-)
-
-
 class AdaptationError(ValueError):
     """Fail-closed refusal for an unexpected upstream runtime source."""
 
@@ -111,18 +94,11 @@ def adapt_resources_qrc(upstream: str) -> str:
 
 
 def adapt_window_qml(upstream: str) -> str:
-    """Suppress AppLoad pull-down chrome only for Letters Home."""
+    """Validate and preserve AppLoad's stock pull-down window chrome."""
 
     if _sha256(upstream) != UPSTREAM_WINDOW_QML_SHA256:
         raise AdaptationError("upstream_window_qml_hash_mismatch")
-    adapted = upstream
-    for old, new in _WINDOW_CHROME_REPLACEMENTS:
-        if adapted.count(old) != 1:
-            raise AdaptationError("upstream_window_qml_boundary_mismatch")
-        adapted = adapted.replace(old, new, 1)
-    if _sha256(adapted) != ADAPTED_WINDOW_QML_SHA256:
-        raise AdaptationError("adapted_window_qml_hash_mismatch")
-    return adapted
+    return upstream
 
 
 def prepare_source_tree(source: Path, icon: Path, output: Path) -> Path:

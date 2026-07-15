@@ -73,7 +73,7 @@ class AppLoadRuntimeAdaptationTests(unittest.TestCase):
         self.assertIn('<qresource prefix="/letters-home/icons">', adapted)
         self.assertIn('<file alias="letter">icons/letters-home.svg</file>', adapted)
 
-    def test_window_adaptation_suppresses_chrome_only_for_letters_home(self):
+    def test_window_validation_preserves_stock_appload_chrome(self):
         upstream = UPSTREAM_WINDOW_FIXTURE.read_text(encoding="utf-8")
         self.assertEqual(
             hashlib.sha256(upstream.encode()).hexdigest(),
@@ -86,18 +86,10 @@ class AppLoadRuntimeAdaptationTests(unittest.TestCase):
             hashlib.sha256(adapted.encode()).hexdigest(),
             ADAPTED_WINDOW_QML_SHA256,
         )
-        self.assertIn(
-            'property bool chromeSuppressed: appName === "Letters Home"',
-            adapted,
-        )
-        self.assertIn(
-            "if(fullscreen && !forceTopBarVisible && !chromeSuppressed)",
-            adapted,
-        )
-        self.assertIn(
-            "visible: !chromeSuppressed && (!fullscreen || forceTopBarVisible)",
-            adapted,
-        )
+        self.assertEqual(adapted, upstream)
+        self.assertIn("if(fullscreen && !forceTopBarVisible)", adapted)
+        self.assertIn("visible: !fullscreen || forceTopBarVisible", adapted)
+        self.assertNotIn("chromeSuppressed", adapted)
 
     def test_window_adaptation_refuses_an_unknown_upstream(self):
         upstream = UPSTREAM_WINDOW_FIXTURE.read_text(encoding="utf-8")

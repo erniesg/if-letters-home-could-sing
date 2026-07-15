@@ -112,8 +112,8 @@ Rectangle {
         Text {
             anchors.left: parent.left
             anchors.leftMargin: 42
-            anchors.right: closeButton.left
-            anchors.rightMargin: 24
+            anchors.right: parent.right
+            anchors.rightMargin: 42
             anchors.verticalCenter: parent.verticalCenter
             color: "#2f2923"
             font.pixelSize: 44
@@ -122,33 +122,6 @@ Rectangle {
                   : stateName === "marginalia" ? "A reading of your reply"
                   : stateName === "submitting" ? "Preparing marginalia"
                   : "Reply saved"
-            Accessible.name: text
-            Accessible.role: Accessible.Heading
-        }
-
-        Rectangle {
-            id: closeButton
-            anchors.right: parent.right
-            anchors.rightMargin: 24
-            anchors.verticalCenter: parent.verticalCenter
-            width: root.minimumTouchTarget
-            height: root.minimumTouchTarget
-            color: "transparent"
-            radius: width / 2
-            Accessible.name: "Close Letters Home"
-            Accessible.role: Accessible.Button
-
-            Text {
-                anchors.centerIn: parent
-                color: "#2f2923"
-                font.pixelSize: 46
-                text: "×"
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                onClicked: root.close()
-            }
         }
     }
 
@@ -172,8 +145,6 @@ Rectangle {
             id: incomingLayer
             anchors.fill: parent
             visible: stateName === "incoming"
-            Accessible.name: "Incoming fictional letter"
-            Accessible.role: Accessible.Pane
 
             Image {
                 id: incomingFixture
@@ -184,9 +155,6 @@ Rectangle {
                 height: parent.height * 0.76
                 fillMode: Image.PreserveAspectFit
                 source: "qrc:/assets/incoming-qiaopi-ferrari-001.png"
-                Accessible.name: "Fictional qiao pi-inspired incoming letter fixture"
-                Accessible.description: "Synthetic correspondence; not an archival accession"
-                Accessible.role: Accessible.Graphic
             }
 
             Text {
@@ -200,9 +168,6 @@ Rectangle {
                 text: "A fictional letter generated for this encounter"
                 wrapMode: Text.WordWrap
                 elide: Text.ElideNone
-                Accessible.name: text
-                Accessible.description: "Provenance disclosure"
-                Accessible.role: Accessible.StaticText
             }
         }
 
@@ -279,8 +244,6 @@ Rectangle {
                 if (mouse.x > pressX + Math.max(70, width * 0.5))
                     send(2, {"direction": "backward"})
             }
-            Accessible.name: "Swipe backward to incoming letter"
-            Accessible.role: Accessible.Button
         }
     }
 
@@ -313,8 +276,6 @@ Rectangle {
                   : "Heart rate is optional"
             wrapMode: Text.WordWrap
             elide: Text.ElideNone
-            Accessible.name: text
-            Accessible.role: Accessible.StaticText
         }
 
         Rectangle {
@@ -327,8 +288,6 @@ Rectangle {
             radius: 10
             color: "#2f2923"
             visible: stateName !== "submitting"
-            Accessible.name: actionLabel.text
-            Accessible.role: Accessible.Button
 
             Text {
                 id: actionLabel
@@ -367,8 +326,6 @@ Rectangle {
             color: "#2f2923"
             font.pixelSize: 32
             text: "Reading your reply…"
-            Accessible.name: text
-            Accessible.role: Accessible.StaticText
         }
     }
 
@@ -378,8 +335,6 @@ Rectangle {
         visible: biometricConsent === "pending"
         z: 30
         color: "#e5d9c2"
-        Accessible.name: "Optional heart-rate purpose notice"
-        Accessible.role: Accessible.Dialog
 
         Rectangle {
             anchors.centerIn: parent
@@ -400,8 +355,6 @@ Rectangle {
                 font.pixelSize: 42
                 text: "Heart rate is optional"
                 wrapMode: Text.WordWrap
-                Accessible.name: text
-                Accessible.role: Accessible.Heading
             }
 
             Text {
@@ -415,9 +368,6 @@ Rectangle {
                 text: purposeNotice
                 wrapMode: Text.WordWrap
                 elide: Text.ElideNone
-                Accessible.name: text
-                Accessible.description: "Purpose notice " + consentVersion
-                Accessible.role: Accessible.StaticText
             }
 
             Row {
@@ -430,7 +380,6 @@ Rectangle {
                     width: 360
                     height: root.minimumTouchTarget
                     text: "Continue without heart rate"
-                    Accessible.name: text
                     onClicked: send(6, {
                         "decision": "declined",
                         "decided_at": new Date().toISOString()
@@ -441,7 +390,6 @@ Rectangle {
                     width: 280
                     height: root.minimumTouchTarget
                     text: "Connect WHOOP"
-                    Accessible.name: text
                     onClicked: send(6, {
                         "decision": "granted",
                         "decided_at": new Date().toISOString()
@@ -462,8 +410,6 @@ Rectangle {
         border.color: "#74362f"
         border.width: 4
         radius: 10
-        Accessible.name: "Confirm blank huipi submission"
-        Accessible.role: Accessible.Dialog
 
         Text {
             id: confirmText
@@ -476,8 +422,6 @@ Rectangle {
             text: "Your huipi is blank. Submit it without ink?"
             wrapMode: Text.WordWrap
             elide: Text.ElideNone
-            Accessible.name: text
-            Accessible.role: Accessible.StaticText
         }
 
         Row {
@@ -490,7 +434,6 @@ Rectangle {
                 width: 240
                 height: root.minimumTouchTarget
                 text: "Keep writing"
-                Accessible.name: text
                 onClicked: emptyConfirmationVisible = false
             }
 
@@ -498,7 +441,6 @@ Rectangle {
                 width: 320
                 height: root.minimumTouchTarget
                 text: "Submit blank huipi"
-                Accessible.name: text
                 onClicked: {
                     emptyConfirmationVisible = false
                     send(4, {"confirm_empty": true, "submitted_at": new Date().toISOString()})

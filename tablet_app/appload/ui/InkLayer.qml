@@ -1,11 +1,8 @@
 import QtQuick 2.5
-import QtQuick.Controls 2.5
 
 Item {
     id: inkLayer
     property var strokes: []
-    Accessible.name: "Participant ink layer"
-    Accessible.role: Accessible.Canvas
 
     onStrokesChanged: canvas.requestPaint()
     onWidthChanged: canvas.requestPaint()

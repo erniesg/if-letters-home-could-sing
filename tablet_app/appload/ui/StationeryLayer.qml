@@ -1,12 +1,8 @@
 import QtQuick 2.5
-import QtQuick.Controls 2.5
 
 Item {
     id: stationery
     property int guideColumns: 12
-    Accessible.name: "Blank huipi stationery"
-    Accessible.description: "Paper, fold memory, border, and writing guides without handwriting or remittance marks"
-    Accessible.role: Accessible.Pane
 
     Rectangle {
         anchors.fill: parent

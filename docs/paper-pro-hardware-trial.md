@@ -1,10 +1,11 @@
 # Ferrari Paper Pro hardware trial
 
 Status: the inert install, placement correction, and approved launch phase all
-completed and remained stable. The owner then reproduced a blank application
-window. Read-only journal evidence identified a QML component load failure; a
-repaired app bundle and Letters Home-only no-chrome AppLoad runtime are built
-and held at the next approval boundary below.
+completed and remained stable. Two attempted launches reproduced a blank app
+because this target rejects the app's `Accessible` attached objects. The tablet
+has been recovered to its main screen. A corrective bundle without those
+objects and with stock AppLoad exit chrome restored is built at the next
+approval boundary below.
 
 ## Initial observed target
 
@@ -44,8 +45,8 @@ The build uses:
   `093e26c241b2b776228de174c0dce1feab5bb46dcc517ea30b2f3b7313191aee`
 - upstream AppLoad `window.qml` SHA-256:
   `848b234015d2d8671648b6b661e57cdd3b51d80c537c38cb053e503cf3a95c30`
-- adapted no-chrome `window.qml` SHA-256:
-  `6a16bb0c322ce00fdc960418b85944b3978bbc6706d1e276a26d7108ec787638`
+- validated and preserved AppLoad `window.qml` SHA-256:
+  `848b234015d2d8671648b6b661e57cdd3b51d80c537c38cb053e503cf3a95c30`
 
 Current reviewed artifacts:
 
@@ -59,14 +60,21 @@ Current reviewed artifacts:
 | Revised launch-action QMD | `002383284266cb9c5d97f01de7da03a071ad66089a6e22999fca77edd287017f` |
 | Envelope SVG embedded in AppLoad | `c0437e3f3d8eb9436d3be8be54c5afa86bfd14370a78c3907c16a1803d5ccb30` |
 
-Repair candidates built from the same pins:
+Installed first render-repair attempt:
 
 | Artifact | SHA-256 |
 |---|---|
-| Letters Home-only no-chrome ARM64 `appload.so` | `9d370d31ac399b7f5b52b92afaaac0283b6ecd400ea0a4e8d6cc543639a5e8d1` |
+| No-chrome ARM64 `appload.so` | `9d370d31ac399b7f5b52b92afaaac0283b6ecd400ea0a4e8d6cc543639a5e8d1` |
 | Repaired native ARM64 backend `entry` | `5fa9f01089ab497226162ae292aebbe8d5415877aa161ea6646597389ec67a20` |
 | Repaired app `resources.rcc` | `1cb98ab70573ad0dbadde2be5b12f8d297c16bed8edbaae648f6d73d43553984` |
 | Codex-generated Ferrari incoming fixture / app `icon.png` | `d8053206b0883fa4b39f3a6cbac9475bec34098586114c9562cb87f812b9495c` |
+
+Corrective candidates built from the same pins:
+
+| Artifact | SHA-256 |
+|---|---|
+| Stock-chrome ARM64 `appload.so` | `f150d6a6fb0f6be726d93a4fe7615fd960abb78260014359b306e000bac0a57a` |
+| App `resources.rcc` without unsupported attached objects | `bfa560d40ceac00a4c7a603d85e1a154812ea59f74b97afea4c89abcaad5d10c` |
 
 The AppLoad build normalizes embedded resource mtimes to upstream commit epoch
 `1779378487`; two clean builds in the same pinned container reproduced the same
@@ -113,32 +121,31 @@ Type StationeryLayer unavailable
 Non-existent attached object
 ```
 
-The custom QML components did not import the module used by their `Accessible`
-attached properties, even though `Main.qml` did. The repair adds the same
-`QtQuick.Controls 2.5` import to all three components. It also replaces the
-fixture-orientation header label with a discreet in-app close control.
+Adding the same Controls import as `Main.qml` did not resolve the failure: the
+target repeated `Non-existent attached object` at the next line. The corrective
+bundle therefore removes every `Accessible.*` attachment from the app QML.
+Target `qmllint` no longer reports unresolved attached types. Visible purpose,
+provenance, state, and error copy remain unchanged.
 
-The pull-down minimize/maximize/close strip was AppLoad window chrome, not part
-of the Letters Home experience. The exact-source AppLoad adaptation now makes
-that strip and its pull-down gesture inactive only when `appName` is exactly
-`Letters Home`; other AppLoad apps are unchanged.
+The no-chrome attempt also trapped the owner when the app failed before its own
+close control could instantiate. The correction preserves upstream AppLoad's
+exact pull-down/minimize/maximize/close behavior for Letters Home. Exit remains
+available even if application QML fails again.
 
 Before a repair install, re-run the exact Ferrari firmware, Xochitl, QRR,
 hashtable, active-QMD, process, free-space, and installed-artifact checks. Back
-up the installed extension and entire app directory, then atomically replace:
+up the currently installed extension and app resource, then atomically replace:
 
 - `/home/root/xovi/extensions.d/appload.so`
-- `/home/root/xovi/exthome/appload/letters-home/icon.png`
 - `/home/root/xovi/exthome/appload/letters-home/resources.rcc`
-- `/home/root/xovi/exthome/appload/letters-home/backend/entry`
 
-The manifest plus inert and launch QMDs remain byte-identical. Run
+The icon, backend, manifest, inert QMD, and launch QMD remain byte-identical. Run
 `/home/root/xovi/start`
 once; no reboot is planned. Expected unavailability is 15–45 seconds, capped at
-two minutes. Rollback restores the four backed-up files and restarts once.
+two minutes. Rollback restores the two backed-up files and restarts once.
 After repair, verify the incoming fictional letter, forward navigation to blank
 huipi stationery, ink preservation, submit, teacher-style non-scoring fixture
-marginalia on page 3, the in-app close control, and absence of pull-down chrome.
+marginalia on page 3, and stock swipe-down/minimize/maximize/close behavior.
 
 The stock reMarkable screenshot helper will not be used while Xovi runs.
 Evidence is manual observation plus service status, restart count, and hashes.

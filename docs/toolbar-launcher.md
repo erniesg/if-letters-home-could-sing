@@ -81,13 +81,11 @@ anchor locates an `Epaper.ScreenModeItem` removed from `MainView.qml` in 3.28.
 resource-manifest hashes, removes only the obsolete self-sidebar block, anchors
 the overlay immediately after `FocusScope#rootItem`, and embeds the Letters Home
 envelope. It also fails closed on AppLoad's exact upstream `window.qml` and, for
-the exact application name `Letters Home` only, disables the pull-down handler
-and top-bar visibility. Other AppLoad applications retain their window chrome.
-Letters Home provides its own close control, so hiding minimize/maximize/close
-chrome does not trap the participant. The adapted QMD retains AppLoad's global
-gesture replacement. Source preparation normalizes AppLoad resource mtimes to
-the pinned upstream commit epoch so Qt RCC metadata and the resulting ARM64
-extension are byte-reproducible across clean builds.
+all applications including Letters Home, preserves its stock pull-down,
+minimize, maximize, and close behavior byte-for-byte. The adapted QMD retains
+AppLoad's global gesture replacement. Source preparation normalizes AppLoad
+resource mtimes to the pinned upstream commit epoch so Qt RCC metadata and the
+resulting ARM64 extension are byte-reproducible across clean builds.
 
 Against Ferrari's saved 3.28 hashtable, the adapted AppLoad QMD plus the inert
 and launch QMDs pass compatibility checking and structurally apply to all six
@@ -127,12 +125,14 @@ scripts/agent-evidence
 
 ## Ferrari observation
 
-The approved first Ferrari mutation installed the inert item and adapted
-AppLoad runtime. The owner confirmed that `Letters Home` was visible and
-Xochitl remained stable, then requested that the item move from its initial
-position to immediately below `Import files`. The revised selector passes both
-target hashtables and structurally applies to the exact recovered Ferrari
-source. The replacement QMD and restart remain a separate physical approval;
-the launch action remains absent. The stock reMarkable screenshot helper is
-forbidden while Xovi is running. Exact hashes, backup, and rollback are recorded
-in [`paper-pro-hardware-trial.md`](paper-pro-hardware-trial.md).
+The approved Ferrari phases installed the adapted AppLoad runtime, placed
+`Letters Home` immediately below `Import files`, and enabled its launch action.
+The sidebar handler, AppLoad coordinator, and native backend start correctly.
+Hardware testing then exposed an unsupported `Accessible` attached object in
+the app QML and showed why suppressing AppLoad chrome is unsafe when app QML
+cannot instantiate. The next corrective bundle removes those attachments and
+restores the exact stock pull-down/minimize/maximize/close behavior; its
+two-file install remains a separate physical approval. The stock reMarkable
+screenshot helper is forbidden while Xovi is running. Exact hashes, backup,
+failure evidence, and rollback are recorded in
+[`paper-pro-hardware-trial.md`](paper-pro-hardware-trial.md).
