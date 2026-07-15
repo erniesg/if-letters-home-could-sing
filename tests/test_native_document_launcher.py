@@ -98,6 +98,7 @@ class NativeLauncherContractTests(unittest.TestCase):
                 "create_notebook": "[[8651031636888757197]]",
                 "create_notebook_window": "[[16344100773210839301]]",
                 "pages": "[[4530443761526121003]]",
+                "pages_actions": "[[11797611520953530268]]",
             },
         )
         self.assertEqual(
@@ -115,6 +116,22 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertEqual(
             contract["symbols"]["createNotebookFromExistingPages"],
             "[[5450413349604854157]]",
+        )
+        self.assertEqual(
+            contract["symbols"]["DocumentController.copyPages"],
+            "[[12188519148798835813]]",
+        )
+        self.assertEqual(
+            contract["symbols"]["document.idForPage"],
+            "[[532004573879022759]]",
+        )
+        self.assertEqual(
+            contract["symbols"]["NavigationManager.activeContext.explorer.currentFolderId"],
+            "[[7073776824345929404]]",
+        )
+        self.assertEqual(
+            contract["recovered_source_sha256"]["pages_actions"],
+            "c920f49ff948a4ecff63ff9da8c62b5ea5249623d8f777d8551aa4ea299c8a9d",
         )
 
     def test_native_notebook_api_loader_rejects_unverified_target_and_hash(self):
@@ -221,15 +238,24 @@ class NativeLauncherContractTests(unittest.TestCase):
         installed = result.installed.decode("utf-8")
 
         self.assertIn("http://10.11.99.16:8765/v1/sessions/start", installed)
+        self.assertIn("http://10.11.99.16:8765/v1/sessions/bind", installed)
+        self.assertIn("LibraryController.createDocument", installed)
+        self.assertIn("DocumentController.setTemplateForPage", installed)
+        self.assertIn("DocumentController.addPageWithTemplateAndPageSize", installed)
+        self.assertIn('"letters-home-ferrari"', installed)
+        self.assertIn("document.idForPage(0)", installed)
+        self.assertIn("document.idForPage(1)", installed)
         self.assertIn('root.windowNavigator.open("legacydevice/window/main"', installed)
-        self.assertIn("documentId: response.document_id", installed)
+        self.assertIn("documentId: lettersHomeLauncher.documentId", installed)
         self.assertIn('lettersHomeLauncher.text = "Preparing letter…"', installed)
         self.assertNotIn("Mac unavailable", installed)
         self.assertIn('lettersHomeLauncher.text = "Letters Home"', installed)
+        self.assertNotIn("response.document_id", installed)
+        self.assertNotIn("upload", installed.lower())
         self.assertNotIn("AppLoadLauncher", installed)
         self.assertNotIn("import net.asivery.AppLoad", installed)
 
-    def test_qmldiff_launch_and_submit_patches_never_open_an_appload_window(self):
+    def test_qmldiff_runs_one_native_notebook_without_replacing_stock_input(self):
         launch = (PACKAGE / "qmldiff" / "20-letters-home-launch.qmd").read_text()
         submit = (PACKAGE / "qmldiff" / "30-letters-home-submit.qmd").read_text()
 
@@ -240,28 +266,53 @@ class NativeLauncherContractTests(unittest.TestCase):
             self.assertNotIn("window.qml", patch)
         self.assertIn("legacydevice/window/main", launch)
         self.assertIn("/v1/sessions/start", launch)
+        self.assertIn("/v1/sessions/bind", launch)
+        self.assertIn("LibraryController.createDocument", launch)
+        self.assertIn("NavigationManager.activeContext.explorer.currentFolderId", launch)
+        self.assertNotIn('LibraryController.createDocument(""', launch)
+        self.assertIn("DocumentController.setTemplateForPage", launch)
+        self.assertIn("DocumentController.addPageWithTemplateAndPageSize", launch)
+        self.assertIn("document.idForPage(0)", launch)
+        self.assertIn("document.idForPage(1)", launch)
+        self.assertIn("interval: 250", launch)
+        self.assertIn("readinessAttempts >= 20", launch)
         self.assertIn("AFFECT [[1224665461898798997]]", submit)
         self.assertIn("/v1/sessions/submit", submit)
+        self.assertIn("/v1/sessions/ink-start", submit)
         self.assertIn("Letters Home", submit)
         self.assertIn("currentPage", submit)
-        self.assertIn("review_page_index", submit)
-        self.assertIn('sessionId.substring(sessionId.length - 4).toLowerCase() === ".pdf"', submit)
+        self.assertIn("DocumentController.copyPages", submit)
+        self.assertIn("DocumentController.addPageWithTemplateAndPageSize", submit)
+        self.assertIn('phase === "response-streaming"', submit)
+        self.assertIn("incoming.glyphs", submit)
+        self.assertIn("response.glyphs", submit)
+        self.assertIn("modelData.x", submit)
+        self.assertIn("modelData.y", submit)
+        self.assertNotIn('split("").join("\\n")', submit)
+        self.assertNotIn("charactersPerColumn", submit)
+        self.assertNotIn("implicitWidth", submit)
+        self.assertNotIn("response.document_id", launch + submit)
+        self.assertNotIn("upload", (launch + submit).lower())
+        self.assertNotIn("createNotebookFromExistingPages", submit)
         self.assertIn('console.warn("[LettersHome] submit failed"', submit)
         self.assertIn("/v1/sessions/", submit)
         self.assertIn("interval: 750", submit)
         self.assertIn("onSessionKeyChanged", submit)
-        self.assertIn("index * lettersHomeStream.letterColumnGap - implicitWidth / 2", submit)
         self.assertIn("item/agentMessage/delta", (ROOT / "docs" / "issues" / "010-native-codex-roundtrip.md").read_text())
         self.assertNotIn("MouseArea", submit)
         self.assertNotIn("TapHandler", submit)
+        self.assertEqual(submit.count("target: root.penHandler"), 1)
+        self.assertIn("function onStrokeCompleted()", submit)
+        self.assertIn("root.currentPageId === lettersHomeLayer.replyPageId", submit)
         self.assertIn("A reply has arrived", submit)
         self.assertIn("Your ink is safe", submit)
         self.assertNotIn("Try Send to Codex again", submit)
-        self.assertIn(
-            "~&233726547792244&~: ~&6504329801&~",
-            submit,
-        )
-        self.assertIn('indexOf("Letters Home Review ") !== 0', submit)
+        self.assertNotIn("toolbarProvider.editingTools", submit)
+        self.assertNotIn("GesturesWindow", submit)
+        self.assertIn("toolbar.innerWidth + 42", submit)
+        self.assertIn("toolbar.innerHeight + 54", submit)
+        self.assertIn("participantNavigated", submit)
+        self.assertIn("guardPageId", submit)
 
     def test_native_packet_contract_is_full_bleed_on_both_devices(self):
         from mac_bridge.native_packet import packet_spec

@@ -45,6 +45,7 @@ def load_native_api_contract(target_name: str) -> dict[str, object]:
         path = NATIVE_API_CONTRACTS[target_name]
         contract = json.loads(path.read_text(encoding="utf-8"))
         resources = contract["resources"]
+        recovered_sources = contract["recovered_source_sha256"]
         symbols = contract["symbols"]
         required_resources = {
             "sidebar",
@@ -52,15 +53,19 @@ def load_native_api_contract(target_name: str) -> dict[str, object]:
             "create_notebook",
             "create_notebook_window",
             "pages",
+            "pages_actions",
         }
         required_symbols = {
             "DocumentController.addPageWithTemplateAndPageSize",
+            "DocumentController.copyPages",
             "DocumentController.setTemplateForPage",
             "LibraryController.createDocument",
+            "NavigationManager.activeContext.explorer.currentFolderId",
             "createNotebook",
             "createNotebookFromExistingPages",
             "currentFolderId",
             "documentName",
+            "document.idForPage",
             "onNotebookClicked",
             "root.createNotebook",
         }
@@ -70,6 +75,12 @@ def load_native_api_contract(target_name: str) -> dict[str, object]:
             or contract["hashtab_sha256"] != target.hashtab_sha256
             or not isinstance(resources, dict)
             or not required_resources.issubset(resources)
+            or not isinstance(recovered_sources, dict)
+            or not required_resources.issubset(recovered_sources)
+            or any(
+                not isinstance(value, str) or len(value) != 64
+                for value in recovered_sources.values()
+            )
             or not isinstance(symbols, dict)
             or not required_symbols.issubset(symbols)
         ):

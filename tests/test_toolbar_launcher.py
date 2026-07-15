@@ -121,6 +121,12 @@ class TargetContractTests(unittest.TestCase):
         self.assertNotIn("AppLoadLauncher", launch)
         self.assertNotIn("launchApplication", launch)
         self.assertIn("http://10.11.99.16:8765/v1/sessions/start", launch)
+        self.assertIn("http://10.11.99.16:8765/v1/sessions/bind", launch)
+        self.assertIn("LibraryController.createDocument", launch)
+        self.assertIn("NavigationManager.activeContext.explorer.currentFolderId", launch)
+        self.assertNotIn('LibraryController.createDocument(""', launch)
+        self.assertIn("DocumentController.setTemplateForPage", launch)
+        self.assertIn("DocumentController.addPageWithTemplateAndPageSize", launch)
         self.assertIn("legacydevice/window/main", launch)
 
     def test_open_document_toolbar_fixture_is_not_a_launcher_target(self):
@@ -194,6 +200,10 @@ class FixturePatchTests(unittest.TestCase):
         self.assertEqual(launched.phase, "launch")
         installed = launched.installed.decode("utf-8")
         self.assertIn("http://10.11.99.16:8765/v1/sessions/start", installed)
+        self.assertIn("http://10.11.99.16:8765/v1/sessions/bind", installed)
+        self.assertIn("LibraryController.createDocument", installed)
+        self.assertIn("DocumentController.setTemplateForPage", installed)
+        self.assertIn("DocumentController.addPageWithTemplateAndPageSize", installed)
         self.assertIn("legacydevice/window/main", installed)
         self.assertNotIn("AppLoadLauncher", installed)
 

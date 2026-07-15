@@ -84,6 +84,7 @@ def test_ferrari_native_notebook_api_contract_pins_required_resources_and_symbol
             "create_notebook": "[[8651031636888757197]]",
             "create_notebook_window": "[[16344100773210839301]]",
             "pages": "[[4530443761526121003]]",
+            "pages_actions": "[[11797611520953530268]]",
         },
     )
     self.assertEqual(contract["symbols"]["LibraryController.createDocument"], "[[16080285492618834883]]")
@@ -115,12 +116,15 @@ Create the JSON with the five resource IDs above and these additional symbol has
   },
   "symbols": {
     "DocumentController.addPageWithTemplateAndPageSize": "[[14285801537390842371]]",
+    "DocumentController.copyPages": "[[12188519148798835813]]",
     "DocumentController.setTemplateForPage": "[[7540657167845513638]]",
     "LibraryController.createDocument": "[[16080285492618834883]]",
     "createNotebook": "[[11689254259907176254]]",
     "createNotebookFromExistingPages": "[[5450413349604854157]]",
     "currentFolderId": "[[1536661485978992373]]",
     "documentName": "[[15793094956877606249]]",
+    "document.idForPage": "[[532004573879022759]]",
+    "NavigationManager.activeContext.explorer.currentFolderId": "[[7073776824345929404]]",
     "onNotebookClicked": "[[15540280890624773142]]",
     "root.createNotebook": "[[13558404569428295472]]"
   },
@@ -621,7 +625,7 @@ self.assertIn("/v1/sessions/bind", launch)
 self.assertIn("LibraryController.createDocument", launch)
 self.assertIn("DocumentController.setTemplateForPage", launch)
 self.assertIn("DocumentController.addPageWithTemplateAndPageSize", launch)
-self.assertIn("createNotebookFromExistingPages", submit)
+self.assertIn("DocumentController.copyPages", submit)
 self.assertIn('phase === "response-streaming"', submit)
 self.assertNotIn("response.document_id", launch + submit)
 self.assertNotIn("upload", launch + submit)
@@ -671,7 +675,8 @@ for this encounter` below the grid without intercepting input.
 
 The stock-styled envelope action appears only on the bound page-2 ID. On submit:
 
-1. duplicate page 2 to page 3 through the exact stock page-management callback;
+1. duplicate page 2 to page 3 through the exact stock
+   `DocumentController.copyPages` callback used by Ferrari `PagesActions`;
 2. add page 4 with `letters-home-ferrari`;
 3. POST IDs to submit and return control immediately;
 4. navigate to page 3 once IDs are durable;

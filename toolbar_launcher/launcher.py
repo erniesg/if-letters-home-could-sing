@@ -111,21 +111,86 @@ def _launcher_block(phase: str) -> str:
                     if (request.readyState !== XMLHttpRequest.DONE) {
                         return;
                     }
-                    if (request.status === 200) {
-                        const response = JSON.parse(request.responseText);
-                        lettersHomeLauncher.text = "Letters Home";
-                        lettersHomeLauncher.enabled = true;
-                        root.toggle();
-                        root.windowNavigator.open("legacydevice/window/main", {
-                            documentId: response.document_id
-                        });
+                    if (request.status !== 200) {
+                        lettersHomeLauncher.failLaunch("mac_bridge_unavailable");
+                        return;
+                    }
+                    const response = JSON.parse(request.responseText);
+                    lettersHomeLauncher.sessionId = response.session_id;
+                    const currentFolderId = NavigationManager.activeContext.explorer.currentFolderId;
+                    const documentId = LibraryController.createDocument(
+                        NavigationManager.activeContext.explorer.currentFolderId,
+                        "Letters Home " + response.session_id
+                    );
+                    lettersHomeLauncher.documentId = documentId;
+                    LibraryController.setOrientation(documentId, Qt.Vertical);
+                    DocumentController.setTemplateForPage(
+                        documentId, 0, "letters-home-ferrari", Qt.size(954, 1696)
+                    );
+                    DocumentController.addPageWithTemplateAndPageSize(
+                        documentId, 1, "letters-home-ferrari", Qt.size(954, 1696),
+                        function() { lettersHomeLauncher.pageCreationComplete = true; }
+                    );
+                    lettersHomeReadyTimer.start();
+                };
+                request.send(JSON.stringify({ profile_id: "ferrari_3.28.0.162" }));
+            }"""
+    native_support = ""
+    if phase == "launch":
+        native_support = """
+            property string sessionId: ""
+            property string documentId: ""
+            property bool pageCreationComplete: false
+            property int readinessAttempts: 0
+
+            function failLaunch(reason) {
+                lettersHomeReadyTimer.stop();
+                console.warn("[LettersHome] native launch failed", reason);
+                text = "Letters Home";
+                enabled = true;
+            }
+
+            function postBinding(document) {
+                const bindRequest = new XMLHttpRequest();
+                bindRequest.open("POST", "http://10.11.99.16:8765/v1/sessions/bind");
+                bindRequest.setRequestHeader("Content-Type", "application/json");
+                bindRequest.onreadystatechange = function() {
+                    if (bindRequest.readyState !== XMLHttpRequest.DONE) return;
+                    if (bindRequest.status !== 200) {
+                        lettersHomeLauncher.failLaunch("native_bind_failed");
                         return;
                     }
                     lettersHomeLauncher.text = "Letters Home";
                     lettersHomeLauncher.enabled = true;
+                    root.toggle();
+                    root.windowNavigator.open("legacydevice/window/main", {
+                        documentId: lettersHomeLauncher.documentId
+                    });
                 };
-                request.send(JSON.stringify({ profile_id: "ferrari_3.28.0.162" }));
-            }"""
+                bindRequest.send(JSON.stringify({
+                    session_id: sessionId,
+                    document_id: documentId,
+                    incoming_page_id: document.idForPage(0),
+                    reply_page_id: document.idForPage(1)
+                }));
+            }
+
+            Timer {
+                id: lettersHomeReadyTimer
+                interval: 250
+                repeat: true
+                onTriggered: {
+                    lettersHomeLauncher.readinessAttempts += 1;
+                    const document = Library.entryForId(lettersHomeLauncher.documentId);
+                    if (document && pageCreationComplete && document.pageCount >= 2) {
+                        stop();
+                        lettersHomeLauncher.postBinding(document);
+                    } else if (lettersHomeLauncher.readinessAttempts >= 20) {
+                        lettersHomeLauncher.failLaunch("native_notebook_not_ready");
+                    }
+                }
+            }
+"""
     return (
         "\n"
         "        ArkControls.SidebarItem {\n"
@@ -138,6 +203,7 @@ def _launcher_block(phase: str) -> str:
         "            Layout.preferredHeight: Common.Values.navigatorSidebarItemHeight\n"
         "            Layout.preferredWidth: parent.width\n"
         f"            onClicked: {clicked}\n"
+        f"{native_support}"
         "        }\n"
     )
 
