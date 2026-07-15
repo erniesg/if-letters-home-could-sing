@@ -6,7 +6,7 @@
 
 **Architecture:** Xochitl creates and owns the notebook, templates, pages, ink, stock toolbar, and gestures. A USB-bound Mac bridge owns durable session state and one two-turn Codex review task; QML polls only bounded render state and draws non-interactive letter/review layers. No code writes Xochitl's private document files or imports a replacement PDF.
 
-**Tech Stack:** Python 3.12, `unittest`, Codex app-server JSON-RPC, Xochitl QML 3.28.0.162, QMLDiff `25681c3`, Xovi/QRR, SVG notebook templates, macOS LaunchAgents.
+**Tech Stack:** Python 3.12, `unittest`, Codex app-server JSON-RPC, Xochitl QML 3.28.0.162, QMLDiff `25681c3`, Xovi/QRR, native declarative `.template` JSON, macOS LaunchAgents.
 
 ## Global Constraints
 
@@ -34,8 +34,7 @@
 - `mac_bridge/notebook_session.py` — durable app-private notebook session state and phase transitions.
 - `mac_bridge/notebook_service.py` — asynchronous start/bind/submit orchestration without PDF import.
 - `mac_bridge/launch_agent.py` — deterministic sanitized LaunchAgent rendering and bidirectional health.
-- `toolbar_launcher/templates/letters-home-ferrari.svg` — app-owned 10×18 native notebook background.
-- `toolbar_launcher/templates/templates.json` — app-owned template registration payload.
+- `toolbar_launcher/templates/letters-home-ferrari.template` — app-owned 10×18 native notebook background in the exact format used by the 3.28 Ferrari backup.
 - `mac_bridge/launchd/com.erniesg.letters-home.bridge.plist` — generated fixture used by installer tests.
 - `scripts/install-letters-home-bridge` and `scripts/uninstall-letters-home-bridge` — reversible per-user Mac service control.
 - `tests/test_letter_grid.py`, `tests/test_notebook_session.py`, `tests/test_notebook_service.py`, and `tests/test_bridge_launch_agent.py` — focused contracts.
@@ -535,8 +534,7 @@ git commit -m "feat: stream a response from the review task"
 
 **Files:**
 
-- Create: `toolbar_launcher/templates/letters-home-ferrari.svg`
-- Create: `toolbar_launcher/templates/templates.json`
+- Create: `toolbar_launcher/templates/letters-home-ferrari.template`
 - Modify: `mac_bridge/trial_bundle.py`
 - Modify: `tests/test_native_document_launcher.py`
 - Modify: `tests/test_device_installer.py`
@@ -549,30 +547,36 @@ git commit -m "feat: stream a response from the review task"
 - [ ] **Step 1: Write failing template geometry and manifest tests**
 
 ```python
-def test_ferrari_template_is_full_size_and_declares_the_10_by_18_grid(self):
-    root = ET.parse(ROOT / "toolbar_launcher/templates/letters-home-ferrari.svg").getroot()
-    self.assertEqual((root.attrib["width"], root.attrib["height"]), ("954", "1696"))
-    manifest = json.loads((ROOT / "toolbar_launcher/templates/templates.json").read_text())
-    item = manifest["templates"][0]
-    self.assertEqual(item["filename"], "letters-home-ferrari")
-    self.assertEqual(item["grid"], {"columns": 10, "rows": 18, "left": 72, "top": 104, "right": 882, "bottom": 1592})
+def test_ferrari_template_is_native_full_size_and_declares_the_10_by_18_grid(self):
+    template = json.loads(
+        (ROOT / "toolbar_launcher/templates/letters-home-ferrari.template").read_text()
+    )
+    constants = {next(iter(item)): next(iter(item.values())) for item in template["constants"]}
+    self.assertEqual(template["formatVersion"], 1)
+    self.assertEqual(template["orientation"], "portrait")
+    self.assertEqual((constants["targetWidth"], constants["targetHeight"]), (954, 1696))
+    self.assertEqual((constants["gridColumns"], constants["gridRows"]), (10, 18))
+    self.assertEqual(
+        (constants["gridLeft"], constants["gridTop"], constants["gridRight"], constants["gridBottom"]),
+        (72, 104, 882, 1592),
+    )
 ```
 
 - [ ] **Step 2: Run tests and verify missing assets fail**
 
-Run: `python3 -m unittest tests.test_native_document_launcher.NativeLauncherContractTests.test_ferrari_template_is_full_size_and_declares_the_10_by_18_grid`
+Run: `python3 -m unittest tests.test_native_document_launcher.NativeLauncherContractTests.test_ferrari_template_is_native_full_size_and_declares_the_10_by_18_grid`
 
 Expected: FAIL because the template assets do not exist.
 
 - [ ] **Step 3: Adapt the existing deterministic stationery fixture**
 
-Start from `fixtures/reply/reply-ferrari.svg`, retain the warm paper, fold memory, border, and muted red rules, and change internal guides to ten equal columns and eighteen equal rows within the declared rectangle. Do not include generated text, signatures, seals, receipts, addresses, logos, or archival claims.
+Translate the visual vocabulary from `fixtures/reply/reply-ferrari.svg` into the stock Ferrari 3.28 declarative `.template` JSON format recovered from the backup: retain the warm paper, fold memory, border, and muted red rules, and use ten equal columns and eighteen equal rows within the declared rectangle. Do not include generated text, signatures, seals, receipts, addresses, logos, or archival claims.
 
-Register only the unique app-owned filename and portrait orientation. Do not replace a stock template entry.
+Install only the unique app-owned `.template` filename and portrait orientation. Do not replace the stock `templates.json` or any stock `.template` entry.
 
 - [ ] **Step 4: Package and hash-pin assets**
 
-Extend the trial bundle with `templates/letters-home-ferrari.svg` and `templates/templates.json`. Manifest entries include SHA-256, byte count, mode `0644`, destination, `app_owned: true`, and rollback action `remove_if_hash_matches`. Refuse a pre-existing destination with different bytes.
+Extend the trial bundle with `templates/letters-home-ferrari.template`. Its manifest entry includes SHA-256, byte count, mode `0644`, destination, `app_owned: true`, and rollback action `remove_if_hash_matches`. Refuse a pre-existing destination with different bytes.
 
 - [ ] **Step 5: Run tests and commit**
 

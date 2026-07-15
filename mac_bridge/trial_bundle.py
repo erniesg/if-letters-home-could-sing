@@ -23,6 +23,12 @@ QMD_NAMES = (
     "20-letters-home-launch.qmd",
     "30-letters-home-submit.qmd",
 )
+TEMPLATE_ASSETS = (
+    (
+        "letters-home-ferrari.template",
+        "/usr/share/remarkable/templates/letters-home-ferrari.template",
+    ),
+)
 DOCUMENT_VIEW_RESOURCE_ID = "[[1224665461898798997]]"
 DOCUMENT_VIEW_SOURCE_SHA256 = "a2102689b1feb4604e98ece588ee4606a64a7b0599bda2a3e8fac431f0fa74a5"
 
@@ -77,6 +83,21 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def validate_app_owned_destination(
+    destination: Path,
+    *,
+    expected_sha256: str,
+) -> str:
+    """Classify one app-owned path without overwriting unknown device bytes."""
+
+    destination = Path(destination)
+    if not destination.exists():
+        return "install"
+    if not destination.is_file() or _sha256(destination) != expected_sha256:
+        raise TrialBundleError("template_destination_conflict")
+    return "already_installed"
+
+
 def build_trial_bundle(output: Path, *, target_name: str) -> Path:
     """Package reviewed patches only; never contact or mutate a tablet."""
 
@@ -103,6 +124,25 @@ def build_trial_bundle(output: Path, *, target_name: str) -> Path:
                     "size_bytes": destination.stat().st_size,
                 }
             )
+        template_destination = staging / "templates"
+        template_destination.mkdir()
+        template_entries = []
+        for name, device_destination in TEMPLATE_ASSETS:
+            source = ROOT / "toolbar_launcher" / "templates" / name
+            destination = template_destination / name
+            shutil.copy2(source, destination)
+            destination.chmod(0o644)
+            template_entries.append(
+                {
+                    "name": name,
+                    "sha256": _sha256(destination),
+                    "size_bytes": destination.stat().st_size,
+                    "mode": "0644",
+                    "destination": device_destination,
+                    "app_owned": True,
+                    "rollback_action": "remove_if_hash_matches",
+                }
+            )
         target = TARGETS[target_name]
         manifest = {
             "schema_version": 1,
@@ -123,6 +163,7 @@ def build_trial_bundle(output: Path, *, target_name: str) -> Path:
             },
             "bridge": {"host": "10.11.99.16", "port": 8765},
             "qmds": entries,
+            "templates": template_entries,
             "requires_live_preflight": True,
             "mutation_authorized_by_manifest": False,
             "rollback": "restore the backed-up Letters Home QMD set and restart Xochitl once",

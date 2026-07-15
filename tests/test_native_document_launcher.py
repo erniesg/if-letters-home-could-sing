@@ -1,4 +1,5 @@
 import unittest
+import hashlib
 import io
 import json
 import tempfile
@@ -31,6 +32,52 @@ def snapshot_for(target_name="ferrari"):
 
 
 class NativeLauncherContractTests(unittest.TestCase):
+    def test_ferrari_template_is_native_full_size_and_declares_the_10_by_18_grid(self):
+        template_path = (
+            ROOT / "toolbar_launcher" / "templates" / "letters-home-ferrari.template"
+        )
+        self.assertTrue(template_path.is_file(), "native Ferrari template is missing")
+        template = json.loads(template_path.read_text(encoding="utf-8"))
+        constants = {
+            next(iter(item)): next(iter(item.values()))
+            for item in template["constants"]
+        }
+
+        self.assertEqual(template["name"], "Letters Home")
+        self.assertEqual(template["formatVersion"], 1)
+        self.assertEqual(template["orientation"], "portrait")
+        self.assertEqual(
+            {
+                key: constants[key]
+                for key in (
+                    "targetWidth",
+                    "targetHeight",
+                    "gridColumns",
+                    "gridRows",
+                    "gridLeft",
+                    "gridTop",
+                    "gridRight",
+                    "gridBottom",
+                )
+            },
+            {
+                "targetWidth": 954,
+                "targetHeight": 1696,
+                "gridColumns": 10,
+                "gridRows": 18,
+                "gridLeft": 72,
+                "gridTop": 104,
+                "gridRight": 882,
+                "gridBottom": 1592,
+            },
+        )
+        item_ids = {item.get("id") for item in template["items"]}
+        self.assertTrue(
+            {"paper", "fold-memory", "border", "vertical-guides", "horizontal-guides"}.issubset(
+                item_ids
+            )
+        )
+
     def test_ferrari_native_notebook_api_contract_pins_required_resources_and_symbols(self):
         contract_path = (
             ROOT / "contracts" / "native-notebook-api.ferrari-3.28.0.162.json"
@@ -142,6 +189,19 @@ class NativeLauncherContractTests(unittest.TestCase):
             for entry in manifest["qmds"]:
                 self.assertTrue((bundled / entry["name"]).is_file())
                 self.assertEqual(len(entry["sha256"]), 64)
+            self.assertEqual(len(manifest["templates"]), 1)
+            template = manifest["templates"][0]
+            self.assertEqual(template["name"], "letters-home-ferrari.template")
+            self.assertEqual(template["mode"], "0644")
+            self.assertTrue(template["app_owned"])
+            self.assertEqual(template["rollback_action"], "remove_if_hash_matches")
+            self.assertEqual(
+                template["destination"],
+                "/usr/share/remarkable/templates/letters-home-ferrari.template",
+            )
+            bundled_template = output / "templates" / template["name"]
+            self.assertTrue(bundled_template.is_file())
+            self.assertEqual(template["sha256"], hashlib.sha256(bundled_template.read_bytes()).hexdigest())
             self.assertEqual(
                 manifest["document_view"]["resource_id"],
                 "[[1224665461898798997]]",

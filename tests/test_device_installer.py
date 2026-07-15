@@ -96,6 +96,30 @@ class InstallerFixtureTests(unittest.TestCase):
             installer.preflight()
         self.assertEqual(context.exception.code, expected)
 
+    def test_native_template_destination_refuses_unowned_existing_bytes(self):
+        from mac_bridge.trial_bundle import (
+            TrialBundleError,
+            validate_app_owned_destination,
+        )
+
+        destination = self.workspace / "letters-home-ferrari.template"
+        expected = hashlib.sha256(b"owned template").hexdigest()
+        self.assertEqual(
+            validate_app_owned_destination(destination, expected_sha256=expected),
+            "install",
+        )
+        destination.write_bytes(b"different template")
+        with self.assertRaisesRegex(
+            TrialBundleError,
+            "template_destination_conflict",
+        ):
+            validate_app_owned_destination(destination, expected_sha256=expected)
+        destination.write_bytes(b"owned template")
+        self.assertEqual(
+            validate_app_owned_destination(destination, expected_sha256=expected),
+            "already_installed",
+        )
+
     def test_release_manifest_pins_targets_versions_modes_and_payload_hashes(self):
         self.assertEqual(self.manifest["installer_version"], INSTALLER_VERSION)
         self.assertTrue(self.manifest["fixture_only"])
