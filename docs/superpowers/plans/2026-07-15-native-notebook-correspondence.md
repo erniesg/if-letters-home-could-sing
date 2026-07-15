@@ -747,7 +747,13 @@ Expected: ERROR importing `render_launch_agent`.
 
 The generated job executes `/usr/bin/env -i` with only `HOME`, explicit `PATH`, and `PYTHONPATH`, then the verified Python executable and `-m mac_bridge.server`. It writes stdout/stderr under `~/.local/share/letters-home/`, uses `KeepAlive: true`, and never embeds tokens or inherited environment values.
 
-Install validates `reportlab`, `pypdf`, `PIL`, `pdftoppm`, and the desktop-bundled Codex executable before atomically writing `~/Library/LaunchAgents/com.erniesg.letters-home.bridge.plist`, bootstrapping it, and checking bidirectional health. Uninstall bootouts only that label and removes only the hash-matching app-owned plist.
+Install validates the active native path's `pdftoppm` and desktop-bundled Codex
+executable before atomically writing
+`~/Library/LaunchAgents/com.erniesg.letters-home.bridge.plist`, bootstrapping it,
+and checking bidirectional health. The legacy packet renderer's optional
+`reportlab`, `pypdf`, and `PIL` packages are not startup dependencies for the
+native notebook path. Uninstall bootouts only that label and removes only the
+hash-matching app-owned plist.
 
 - [ ] **Step 4: Run tests and a disposable plist smoke**
 

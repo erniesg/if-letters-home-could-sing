@@ -342,13 +342,7 @@ class NotebookCoordinator:
 
     @staticmethod
     def _renderer_ready() -> bool:
-        if shutil.which("pdftoppm") is None:
-            return False
-        try:
-            import PIL  # noqa: F401
-        except ImportError:
-            return False
-        return True
+        return shutil.which("pdftoppm") is not None
 
     @staticmethod
     def _codex_ready() -> bool:

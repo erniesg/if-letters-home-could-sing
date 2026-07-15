@@ -307,6 +307,15 @@ class NotebookCoordinatorTests(unittest.TestCase):
                 },
             )
 
+    def test_native_renderer_health_does_not_require_legacy_pdf_python_packages(self):
+        from mac_bridge.notebook_service import NotebookCoordinator
+
+        with patch("mac_bridge.notebook_service.shutil.which", return_value="/opt/pdftoppm"), patch(
+            "builtins.__import__",
+            side_effect=AssertionError("native health imported a legacy PDF package"),
+        ):
+            self.assertTrue(NotebookCoordinator._renderer_ready())
+
     def test_bridge_application_routes_native_notebook_api_and_health(self):
         from mac_bridge.server import BridgeApplication
 
