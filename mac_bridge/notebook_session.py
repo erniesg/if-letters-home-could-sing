@@ -283,6 +283,9 @@ class NotebookSessionStore:
             changed = published != state["response_text"]
             if changed:
                 state["response_text"] = published
+            if state["error"] == "response_failed":
+                state["error"] = None
+                changed = True
             if state["phase"] != "response-streaming":
                 state["phase"] = "response-streaming"
                 changed = True
@@ -291,17 +294,26 @@ class NotebookSessionStore:
                 self._write()
             return self._public(state)
 
-    def finish_response(self, session_id: str) -> dict[str, Any]:
+    def finish_response(
+        self,
+        session_id: str,
+        *,
+        final_text: str | None = None,
+    ) -> dict[str, Any]:
         with self._lock:
             state = self._state(session_id)
             if state["response_complete"]:
                 return self._public(state)
-            state["response_text"] = self._stream(
-                session_id,
-                "response_text",
-            ).finalize()
+            if final_text is not None:
+                stream = SentenceStream(FERRARI_GRID, minimum=self.minimum_letter)
+                stream.append(final_text)
+                self._streams[(session_id, "response_text")] = stream
+            else:
+                stream = self._stream(session_id, "response_text")
+            state["response_text"] = stream.finalize()
             state["response_complete"] = True
             state["active_turn_id"] = None
+            state["error"] = None
             state["phase"] = "complete"
             self._bump(state)
             self._write()
@@ -321,10 +333,34 @@ class NotebookSessionStore:
                 and state["active_turn_id"] == active_turn_id
             ):
                 return self._public(state)
-            if state["thread_id"] not in {None, thread_id}:
+            if state["thread_id"] not in {None, thread_id} and (
+                state["active_turn_id"] is not None
+                or state["phase"] not in {"reviewing", "review-ready"}
+            ):
                 raise ValueError("notebook_codex_task_mismatch")
             state["thread_id"] = thread_id
             state["active_turn_id"] = active_turn_id
+            self._bump(state)
+            self._write()
+            return self._public(state)
+
+    def response_failed(
+        self,
+        session_id: str,
+        error_code: str = "response_failed",
+    ) -> dict[str, Any]:
+        if not _SAFE_ERROR.fullmatch(error_code):
+            raise ValueError("unsafe_notebook_error_code")
+        with self._lock:
+            state = self._state(session_id)
+            if not state["review"]:
+                raise ValueError("notebook_review_not_ready")
+            state["phase"] = "review-ready"
+            state["response_text"] = ""
+            state["response_complete"] = False
+            state["active_turn_id"] = None
+            state["error"] = error_code
+            self._streams.pop((session_id, "response_text"), None)
             self._bump(state)
             self._write()
             return self._public(state)

@@ -4,8 +4,18 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from mac_bridge.codex_app_server import CodexAppServerClient, resolve_codex_executable
-from mac_bridge.contracts import Letter, ReviewContractError, parse_review
+from mac_bridge.codex_app_server import (
+    CodexAppServerClient,
+    CodexResponseTurnError,
+    resolve_codex_executable,
+)
+from mac_bridge.contracts import (
+    Letter,
+    NOTEBOOK_REVIEW_OUTPUT_SCHEMA,
+    ReviewContractError,
+    parse_notebook_review,
+    parse_review,
+)
 from mac_bridge.review_layout import layout_review
 from mac_bridge.server import DEFAULT_USB_BIND, BridgeApplication
 from mac_bridge.service import ReceiptStore, SessionRegistry, SessionStarter, SubmissionService
@@ -39,6 +49,14 @@ VALID_REVIEW = {
     "reflective_question": "如果再写一行，你最想告诉家里什么？",
     "response_letter": "见字如面。读到你的回批，我知道你平安，心里便安定许多。愿你慢慢写来，我们也慢慢回信。",
 }
+
+VALID_NOTEBOOK_REVIEW = {
+    key: value
+    for key, value in VALID_REVIEW.items()
+    if key != "response_letter"
+}
+VALID_NOTEBOOK_REVIEW["schema_version"] = 1
+NOTEBOOK_RESPONSE = "家" * 150 + "。"
 
 
 class ScriptedRpcChannel:
@@ -103,6 +121,203 @@ class ScriptedRpcChannel:
 
 
 class CodexAppServerContractTests(unittest.TestCase):
+    def test_review_and_response_use_two_turns_in_one_persisted_task(self):
+        class TwoTurnChannel(ScriptedRpcChannel):
+            def __init__(self):
+                super().__init__(VALID_NOTEBOOK_REVIEW)
+                self.turn_count = 0
+
+            def request(self, method, params):
+                if method == "turn/start":
+                    self.requests.append((method, params))
+                    self.turn_count += 1
+                    turn_id = "turn-review-001" if self.turn_count == 1 else "turn-response-001"
+                    return {"turn": {"id": turn_id, "status": "inProgress"}}
+                return super().request(method, params)
+
+            def events(self):
+                yield {
+                    "method": "item/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turnId": "turn-review-001",
+                        "item": {
+                            "type": "agentMessage",
+                            "phase": "final_answer",
+                            "text": json.dumps(VALID_NOTEBOOK_REVIEW, ensure_ascii=False),
+                        },
+                    },
+                }
+                yield {
+                    "method": "turn/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turn": {"id": "turn-review-001", "status": "completed"},
+                    },
+                }
+                for delta in (NOTEBOOK_RESPONSE[:75], NOTEBOOK_RESPONSE[75:]):
+                    yield {
+                        "method": "item/agentMessage/delta",
+                        "params": {
+                            "threadId": "thread-letters-home-001",
+                            "turnId": "turn-response-001",
+                            "delta": delta,
+                        },
+                    }
+                yield {
+                    "method": "item/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turnId": "turn-response-001",
+                        "item": {
+                            "type": "agentMessage",
+                            "phase": "final_answer",
+                            "text": NOTEBOOK_RESPONSE,
+                        },
+                    },
+                }
+                yield {
+                    "method": "turn/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turn": {"id": "turn-response-001", "status": "completed"},
+                    },
+                }
+
+        channel = TwoTurnChannel()
+        reviews = []
+        deltas = []
+        turns = []
+
+        result = CodexAppServerClient(channel=channel, cwd=ROOT).review_and_respond(
+            session_id="session-fixture-001",
+            reply_image=ROOT / "fixtures" / "reply" / "reply-ferrari.svg",
+            conversation_context="care across distance",
+            on_review=lambda thread_id, review: reviews.append((thread_id, review)),
+            on_response_delta=deltas.append,
+            on_turn_started=lambda phase, thread_id, turn_id: turns.append(
+                (phase, thread_id, turn_id)
+            ),
+        )
+
+        self.assertEqual(result.thread_id, "thread-letters-home-001")
+        self.assertEqual(result.response_letter.body, NOTEBOOK_RESPONSE)
+        self.assertEqual(len(reviews), 1)
+        self.assertEqual(reviews[0][1].schema_version, 1)
+        self.assertEqual("".join(deltas), NOTEBOOK_RESPONSE)
+        self.assertEqual(
+            turns,
+            [
+                ("review", "thread-letters-home-001", "turn-review-001"),
+                ("response", "thread-letters-home-001", "turn-response-001"),
+            ],
+        )
+        turn_requests = [params for method, params in channel.requests if method == "turn/start"]
+        self.assertEqual(len(turn_requests), 2)
+        self.assertEqual(
+            {request["threadId"] for request in turn_requests},
+            {"thread-letters-home-001"},
+        )
+        self.assertEqual(turn_requests[0]["outputSchema"], NOTEBOOK_REVIEW_OUTPUT_SCHEMA)
+        self.assertTrue(any(item["type"] == "localImage" for item in turn_requests[0]["input"]))
+        self.assertNotIn("outputSchema", turn_requests[1])
+        self.assertEqual(turn_requests[1]["input"][0]["type"], "text")
+
+    def test_response_failure_keeps_review_and_supports_response_only_retry(self):
+        class FailedResponseChannel(ScriptedRpcChannel):
+            def __init__(self):
+                super().__init__(VALID_NOTEBOOK_REVIEW)
+                self.turn_count = 0
+
+            def request(self, method, params):
+                if method == "turn/start":
+                    self.requests.append((method, params))
+                    self.turn_count += 1
+                    return {
+                        "turn": {
+                            "id": "turn-review-001" if self.turn_count == 1 else "turn-response-001"
+                        }
+                    }
+                return super().request(method, params)
+
+            def events(self):
+                yield {
+                    "method": "item/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turnId": "turn-review-001",
+                        "item": {
+                            "type": "agentMessage",
+                            "phase": "final_answer",
+                            "text": json.dumps(VALID_NOTEBOOK_REVIEW, ensure_ascii=False),
+                        },
+                    },
+                }
+                yield {
+                    "method": "turn/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turn": {"id": "turn-review-001", "status": "completed"},
+                    },
+                }
+                yield {
+                    "method": "turn/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turn": {
+                            "id": "turn-response-001",
+                            "status": "failed",
+                            "error": {"message": "fixture response failure"},
+                        },
+                    },
+                }
+
+        reviews = []
+        failed = FailedResponseChannel()
+        with self.assertRaisesRegex(CodexResponseTurnError, "fixture response failure"):
+            CodexAppServerClient(channel=failed, cwd=ROOT).review_and_respond(
+                session_id="session-fixture-001",
+                reply_image=ROOT / "fixtures" / "reply" / "reply-ferrari.svg",
+                conversation_context="fixture",
+                on_review=lambda thread_id, review: reviews.append((thread_id, review)),
+            )
+        self.assertEqual(len(reviews), 1)
+
+        class ResponseOnlyChannel(ScriptedRpcChannel):
+            def request(self, method, params):
+                if method == "turn/start":
+                    self.requests.append((method, params))
+                    return {"turn": {"id": "turn-response-retry"}}
+                return super().request(method, params)
+
+            def events(self):
+                yield {
+                    "method": "item/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turnId": "turn-response-retry",
+                        "item": {
+                            "type": "agentMessage",
+                            "phase": "final_answer",
+                            "text": NOTEBOOK_RESPONSE,
+                        },
+                    },
+                }
+                yield {
+                    "method": "turn/completed",
+                    "params": {
+                        "threadId": "thread-letters-home-001",
+                        "turn": {"id": "turn-response-retry", "status": "completed"},
+                    },
+                }
+
+        retry = ResponseOnlyChannel()
+        letter = CodexAppServerClient(channel=retry, cwd=ROOT).respond_in_thread(
+            thread_id="thread-letters-home-001"
+        )
+        self.assertEqual(letter.body, NOTEBOOK_RESPONSE)
+        self.assertNotIn("thread/start", [method for method, _ in retry.requests])
+
     def test_submission_creates_a_persisted_named_codex_thread_with_reply_image(self):
         channel = ScriptedRpcChannel()
         client = CodexAppServerClient(
@@ -266,6 +481,32 @@ class CodexAppServerContractTests(unittest.TestCase):
 
 
 class ReviewContractTests(unittest.TestCase):
+    def test_notebook_review_schema_has_no_embedded_response_letter(self):
+        review = parse_notebook_review(VALID_NOTEBOOK_REVIEW)
+
+        self.assertEqual(review.schema_version, 1)
+        self.assertEqual(len(review.corrections), 1)
+        self.assertEqual(len(review.annotations), 1)
+        self.assertNotIn("response_letter", NOTEBOOK_REVIEW_OUTPUT_SCHEMA["properties"])
+
+    def test_notebook_review_rejects_scoring_multiglyph_and_excess_marks(self):
+        invalid = []
+        invalid.append(dict(VALID_NOTEBOOK_REVIEW, summary="Score: 8/10"))
+        multiglyph = json.loads(json.dumps(VALID_NOTEBOOK_REVIEW))
+        multiglyph["corrections"][0]["suggested_text"] = "末尾"
+        invalid.append(multiglyph)
+        outside = json.loads(json.dumps(VALID_NOTEBOOK_REVIEW))
+        outside["corrections"][0]["anchor"]["x"] = 1.2
+        invalid.append(outside)
+        excessive = json.loads(json.dumps(VALID_NOTEBOOK_REVIEW))
+        excessive["annotations"] = excessive["annotations"] * 10
+        invalid.append(excessive)
+
+        for payload in invalid:
+            with self.subTest(payload=payload):
+                with self.assertRaises(ReviewContractError):
+                    parse_notebook_review(payload)
+
     def test_teacher_review_is_bounded_uncertainty_aware_and_non_scoring(self):
         review = parse_review(VALID_REVIEW)
         self.assertEqual(review.schema_version, 3)

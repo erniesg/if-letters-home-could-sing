@@ -11,7 +11,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterable, Mapping, Protocol
 
-from .contracts import Letter, REVIEW_OUTPUT_SCHEMA, Review, parse_letter_text, parse_review
+from .contracts import (
+    MIN_NOTEBOOK_LETTER,
+    NOTEBOOK_REVIEW_OUTPUT_SCHEMA,
+    Letter,
+    NotebookReview,
+    REVIEW_OUTPUT_SCHEMA,
+    Review,
+    parse_letter_text,
+    parse_notebook_review,
+    parse_review,
+)
+from .letter_grid import FERRARI_GRID, SentenceStream
 
 
 DEFAULT_REVIEWER_PROMPT = """You are reading a handwritten contemporary huipi on a fictional qiao pi correspondence.
@@ -26,6 +37,15 @@ Offer concise corrections, uncertain readings, tone guidance, affirmations, one 
 reciprocal Chinese response letter that responds to what is actually legible.
 Never score or grade. Never invent a full transcription. Mark uncertain handwriting as uncertain.
 The participant's original ink is immutable. Return only the requested JSON object."""
+
+NOTEBOOK_RESPONSE_PROMPT = (
+    "Write only a 150 to 168 character fictional Chinese reciprocal letter "
+    "responding to the legible huipi. Never exceed 180 including punctuation."
+)
+
+
+class CodexResponseTurnError(RuntimeError):
+    """Raised after marginalia is durable but the reciprocal turn fails."""
 
 
 class RpcChannel(Protocol):
@@ -140,6 +160,13 @@ class CodexReviewResult:
 class CodexLetterResult:
     thread_id: str
     letter: Letter
+
+
+@dataclass(frozen=True)
+class NotebookReviewResult:
+    thread_id: str
+    review: NotebookReview
+    response_letter: Letter
 
 
 def incoming_letter_prompt(conversation_context: str) -> str:
@@ -333,6 +360,198 @@ class CodexAppServerClient:
             if final_text is None:
                 raise RuntimeError("Codex incoming-letter turn completed without text")
             return CodexLetterResult(thread_id, parse_letter_text(final_text))
+        finally:
+            if self._owns_channel and hasattr(channel, "close"):
+                channel.close()
+
+    @staticmethod
+    def _turn_id(started_turn: Mapping[str, Any]) -> str:
+        turn = started_turn.get("turn")
+        turn_id = turn.get("id") if isinstance(turn, Mapping) else None
+        if not isinstance(turn_id, str) or not turn_id:
+            raise RuntimeError("turn/start did not return a Codex turn id")
+        return turn_id
+
+    @staticmethod
+    def _wait_for_turn(
+        events,
+        *,
+        thread_id: str,
+        turn_id: str,
+        on_delta: Callable[[str], None] | None = None,
+        response_turn: bool = False,
+    ) -> str:
+        final_text = None
+        for event in events:
+            method = event.get("method")
+            params = event.get("params")
+            if not isinstance(params, Mapping) or params.get("threadId") != thread_id:
+                continue
+            if method == "item/agentMessage/delta" and params.get("turnId") == turn_id:
+                delta = params.get("delta")
+                if isinstance(delta, str) and delta and on_delta is not None:
+                    on_delta(delta)
+            if method == "item/completed" and params.get("turnId") == turn_id:
+                item = params.get("item")
+                if (
+                    isinstance(item, Mapping)
+                    and item.get("type") == "agentMessage"
+                    and item.get("phase") in {None, "final_answer"}
+                    and isinstance(item.get("text"), str)
+                ):
+                    final_text = item["text"]
+            if method != "turn/completed":
+                continue
+            completed = params.get("turn")
+            if not isinstance(completed, Mapping) or completed.get("id") != turn_id:
+                continue
+            if completed.get("status") != "completed":
+                error = completed.get("error")
+                message = (
+                    error.get("message", str(error))
+                    if isinstance(error, Mapping)
+                    else str(error)
+                )
+                if response_turn:
+                    raise CodexResponseTurnError(message or "Codex response turn failed")
+                raise RuntimeError(message or "Codex review turn failed")
+            break
+        if final_text is None:
+            label = "response" if response_turn else "review"
+            error = f"Codex {label} turn completed without text"
+            if response_turn:
+                raise CodexResponseTurnError(error)
+            raise RuntimeError(error)
+        return final_text
+
+    @staticmethod
+    def _fit_response_letter(text: str) -> Letter:
+        parsed = parse_letter_text(text, minimum=MIN_NOTEBOOK_LETTER)
+        stream = SentenceStream(FERRARI_GRID, minimum=MIN_NOTEBOOK_LETTER)
+        stream.append(parsed.body)
+        return Letter(stream.finalize())
+
+    def review_and_respond(
+        self,
+        *,
+        session_id: str,
+        reply_image: Path,
+        conversation_context: str,
+        on_review: Callable[[str, NotebookReview], None] | None = None,
+        on_response_delta: Callable[[str], None] | None = None,
+        on_turn_started: Callable[[str, str, str], None] | None = None,
+    ) -> NotebookReviewResult:
+        """Review once, then answer in a second turn of the same visible task."""
+
+        reply_image = Path(reply_image).resolve()
+        if not reply_image.is_file():
+            raise ValueError("reply image does not exist")
+        channel = self.channel
+        detail_directory = tempfile.TemporaryDirectory(prefix="letters-home-details-")
+        try:
+            self._initialize()
+            thread_id = self._start_thread(
+                session_id=session_id,
+                purpose="review",
+                developer_instructions=(
+                    "Do not use shell, network, or file-write tools. Analyze the attached reply image, "
+                    "return the requested structured review, then write one reciprocal letter when asked."
+                ),
+            )
+            detail_tiles = self._detail_tiles(reply_image, Path(detail_directory.name))
+            review_prompt = (
+                f"{self.reviewer_prompt}\n\n"
+                "Return marginalia only; do not embed the reciprocal response letter in this object.\n\n"
+                "Conversation context for reciprocity only; do not quote it as if handwritten:\n"
+                f"{conversation_context.strip() or 'No prior context supplied.'}"
+            )
+            review_input = [
+                {"type": "text", "text": review_prompt},
+                {"type": "localImage", "path": str(reply_image), "detail": "original"},
+            ]
+            review_input.extend(
+                {"type": "localImage", "path": str(path), "detail": "original"}
+                for path in detail_tiles
+            )
+            review_started = channel.request(
+                "turn/start",
+                {
+                    "threadId": thread_id,
+                    "input": review_input,
+                    "outputSchema": NOTEBOOK_REVIEW_OUTPUT_SCHEMA,
+                },
+            )
+            review_turn_id = self._turn_id(review_started)
+            if on_turn_started is not None:
+                on_turn_started("review", thread_id, review_turn_id)
+            events = iter(channel.events())
+            review_text = self._wait_for_turn(
+                events,
+                thread_id=thread_id,
+                turn_id=review_turn_id,
+            )
+            try:
+                review_payload = json.loads(review_text)
+            except json.JSONDecodeError as error:
+                raise RuntimeError("Codex notebook review was not valid JSON") from error
+            review = parse_notebook_review(review_payload)
+            if on_review is not None:
+                on_review(thread_id, review)
+
+            response_started = channel.request(
+                "turn/start",
+                {
+                    "threadId": thread_id,
+                    "input": [{"type": "text", "text": NOTEBOOK_RESPONSE_PROMPT}],
+                },
+            )
+            response_turn_id = self._turn_id(response_started)
+            if on_turn_started is not None:
+                on_turn_started("response", thread_id, response_turn_id)
+            response_text = self._wait_for_turn(
+                events,
+                thread_id=thread_id,
+                turn_id=response_turn_id,
+                on_delta=on_response_delta,
+                response_turn=True,
+            )
+            response_letter = self._fit_response_letter(response_text)
+            return NotebookReviewResult(thread_id, review, response_letter)
+        finally:
+            detail_directory.cleanup()
+            if self._owns_channel and hasattr(channel, "close"):
+                channel.close()
+
+    def respond_in_thread(
+        self,
+        *,
+        thread_id: str,
+        on_response_delta: Callable[[str], None] | None = None,
+        on_turn_started: Callable[[str, str, str], None] | None = None,
+    ) -> Letter:
+        """Retry only the reciprocal turn after marginalia is already durable."""
+
+        channel = self.channel
+        try:
+            self._initialize()
+            started = channel.request(
+                "turn/start",
+                {
+                    "threadId": thread_id,
+                    "input": [{"type": "text", "text": NOTEBOOK_RESPONSE_PROMPT}],
+                },
+            )
+            turn_id = self._turn_id(started)
+            if on_turn_started is not None:
+                on_turn_started("response", thread_id, turn_id)
+            text = self._wait_for_turn(
+                iter(channel.events()),
+                thread_id=thread_id,
+                turn_id=turn_id,
+                on_delta=on_response_delta,
+                response_turn=True,
+            )
+            return self._fit_response_letter(text)
         finally:
             if self._owns_channel and hasattr(channel, "close"):
                 channel.close()

@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from mac_bridge.codex_app_server import CodexResponseTurnError
 from mac_bridge.contracts import Letter
 
 
@@ -48,8 +49,11 @@ class FakeLetterGenerator:
 
 
 class FakeReviewer:
-    def __init__(self):
+    def __init__(self, *, fail_response=False):
         self.calls = []
+        self.retry_calls = []
+        self.fail_response = fail_response
+        self.probe = None
 
     def review_reply(self, *, session_id, reply_image, conversation_context):
         self.calls.append((session_id, reply_image, conversation_context))
@@ -60,6 +64,53 @@ class FakeReviewer:
             response_letter=LETTER,
         )
         return SimpleNamespace(thread_id="review-thread-1", review=review)
+
+    @staticmethod
+    def notebook_review():
+        return SimpleNamespace(
+            schema_version=1,
+            summary="字意清楚。",
+            corrections=(),
+            annotations=(),
+            reflective_question="还想告诉家里什么？",
+        )
+
+    def review_and_respond(
+        self,
+        *,
+        session_id,
+        reply_image,
+        conversation_context,
+        on_review,
+        on_response_delta,
+        on_turn_started,
+    ):
+        self.calls.append((session_id, reply_image, conversation_context))
+        on_turn_started("review", "review-thread-1", "review-turn-1")
+        on_review("review-thread-1", self.notebook_review())
+        if self.probe is not None:
+            self.probe()
+        on_turn_started("response", "review-thread-1", "response-turn-1")
+        if self.fail_response:
+            raise CodexResponseTurnError("fixture response failure")
+        on_response_delta(LETTER[:30])
+        return SimpleNamespace(
+            thread_id="review-thread-1",
+            review=self.notebook_review(),
+            response_letter=Letter(LETTER),
+        )
+
+    def respond_in_thread(
+        self,
+        *,
+        thread_id,
+        on_response_delta,
+        on_turn_started,
+    ):
+        self.retry_calls.append(thread_id)
+        on_turn_started("response", thread_id, "response-turn-retry")
+        on_response_delta(LETTER[:25])
+        return Letter(LETTER)
 
 
 class NotebookCoordinatorTests(unittest.TestCase):
@@ -312,6 +363,69 @@ class NotebookCoordinatorTests(unittest.TestCase):
         health_status, health = application.dispatch_get("/health")
         self.assertEqual(health_status, 503)
         self.assertFalse(health["tablet_readable"])
+
+    def test_review_is_durable_before_response_and_final_response_replaces_partial_delta(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            coordinator, _, pending = self.coordinator_fixture(temporary_directory)
+            session_id = self.ready_bound_session(coordinator, pending)
+            phases = []
+            coordinator.reviewer.probe = lambda: phases.append(
+                coordinator.state(session_id)["phase"]
+            )
+            coordinator.submit(
+                {
+                    "session_id": session_id,
+                    "document_id": "doc-1",
+                    "reply_page_id": "p2",
+                    "reply_page_index": 1,
+                    "marked_page_id": "p3",
+                    "response_page_id": "p4",
+                    "profile_id": "ferrari_3.28.0.162",
+                    "conversation_context": "",
+                }
+            )
+
+            pending.pop(0)()
+            state = coordinator.state(session_id)
+
+            self.assertEqual(phases, ["review-ready"])
+            self.assertEqual(state["phase"], "complete")
+            self.assertEqual(state["thread_id"], "review-thread-1")
+            self.assertEqual(state["response"]["text"], LETTER)
+            self.assertNotIn("response_letter", state["review"])
+
+    def test_response_failure_retains_review_and_retries_without_repeating_review(self):
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            coordinator, _, pending = self.coordinator_fixture(temporary_directory)
+            coordinator.reviewer = FakeReviewer(fail_response=True)
+            session_id = self.ready_bound_session(coordinator, pending)
+            coordinator.submit(
+                {
+                    "session_id": session_id,
+                    "document_id": "doc-1",
+                    "reply_page_id": "p2",
+                    "reply_page_index": 1,
+                    "marked_page_id": "p3",
+                    "response_page_id": "p4",
+                    "profile_id": "ferrari_3.28.0.162",
+                    "conversation_context": "",
+                }
+            )
+            pending.pop(0)()
+
+            failed = coordinator.state(session_id)
+            self.assertEqual(failed["phase"], "review-ready")
+            self.assertEqual(failed["error"], "response_failed")
+            self.assertEqual(len(coordinator.reviewer.calls), 1)
+
+            retry = coordinator.retry_response(session_id)
+            self.assertEqual(retry["status"], "response-retrying")
+            pending.pop(0)()
+            completed = coordinator.state(session_id)
+
+            self.assertEqual(completed["phase"], "complete")
+            self.assertEqual(coordinator.reviewer.retry_calls, ["review-thread-1"])
+            self.assertEqual(len(coordinator.reviewer.calls), 1)
 
 
 if __name__ == "__main__":

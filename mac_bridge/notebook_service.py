@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Mapping
 
-from .codex_app_server import default_codex_command
+from .codex_app_server import CodexResponseTurnError, default_codex_command
 from .contracts import MIN_NOTEBOOK_LETTER, Letter, parse_letter_text
 from .notebook_session import NotebookSessionStore
 
@@ -50,6 +50,7 @@ class NotebookCoordinator:
             }
         )
         self._submit_lock = threading.Lock()
+        self._retrying: set[str] = set()
 
     @staticmethod
     def _start_thread(work: Callable[[], None]) -> None:
@@ -172,7 +173,7 @@ class NotebookCoordinator:
         payload.pop("response_letter", None)
         return payload
 
-    def _run_legacy_review(
+    def _run_review(
         self,
         *,
         session_id: str,
@@ -180,6 +181,30 @@ class NotebookCoordinator:
         conversation_context: str,
     ) -> None:
         try:
+            if hasattr(self.reviewer, "review_and_respond"):
+                result = self.reviewer.review_and_respond(
+                    session_id=session_id,
+                    reply_image=reply_image,
+                    conversation_context=conversation_context,
+                    on_review=lambda thread_id, review: self.store.finish_review(
+                        session_id,
+                        self._review_public(review),
+                    ),
+                    on_response_delta=lambda delta: self.store.append_response(
+                        session_id,
+                        delta,
+                    ),
+                    on_turn_started=lambda phase, thread_id, turn_id: self.store.set_codex_task(
+                        session_id,
+                        thread_id=thread_id,
+                        active_turn_id=turn_id,
+                    ),
+                )
+                self.store.finish_response(
+                    session_id,
+                    final_text=result.response_letter.body,
+                )
+                return
             result = self.reviewer.review_reply(
                 session_id=session_id,
                 reply_image=reply_image,
@@ -198,9 +223,36 @@ class NotebookCoordinator:
                     minimum=MIN_NOTEBOOK_LETTER,
                 )
                 self.store.append_response(session_id, letter.body)
-                self.store.finish_response(session_id)
+                self.store.finish_response(session_id, final_text=letter.body)
+        except CodexResponseTurnError:
+            self.store.response_failed(session_id)
         except (OSError, RuntimeError, TypeError, ValueError):
-            self.store.fail(session_id, "review_failed")
+            state = self.store.public_state(session_id)
+            if state["review"]:
+                self.store.response_failed(session_id)
+            else:
+                self.store.fail(session_id, "review_failed")
+
+    def _run_response_retry(self, session_id: str, thread_id: str) -> None:
+        try:
+            letter = self.reviewer.respond_in_thread(
+                thread_id=thread_id,
+                on_response_delta=lambda delta: self.store.append_response(
+                    session_id,
+                    delta,
+                ),
+                on_turn_started=lambda phase, current_thread_id, turn_id: self.store.set_codex_task(
+                    session_id,
+                    thread_id=current_thread_id,
+                    active_turn_id=turn_id,
+                ),
+            )
+            self.store.finish_response(session_id, final_text=letter.body)
+        except (CodexResponseTurnError, OSError, RuntimeError, TypeError, ValueError):
+            self.store.response_failed(session_id)
+        finally:
+            with self._submit_lock:
+                self._retrying.discard(session_id)
 
     def submit(self, payload: Mapping[str, Any]) -> dict[str, Any]:
         required = {
@@ -253,13 +305,30 @@ class NotebookCoordinator:
                 response_page_id=response_page_id,
             )
             self.background(
-                lambda: self._run_legacy_review(
+                lambda: self._run_review(
                     session_id=session_id,
                     reply_image=reply_image,
                     conversation_context=context.strip(),
                 )
             )
             return {"status": "reviewing", **state}
+
+    def retry_response(self, session_id: str) -> dict[str, Any]:
+        session_id = self._identifier(session_id, "session id")
+        with self._submit_lock:
+            state = self.store.public_state(session_id)
+            if (
+                state["phase"] != "review-ready"
+                or state["error"] != "response_failed"
+                or not state["thread_id"]
+            ):
+                raise ValueError("notebook_response_retry_not_ready")
+            if session_id not in self._retrying:
+                self._retrying.add(session_id)
+                self.background(
+                    lambda: self._run_response_retry(session_id, state["thread_id"])
+                )
+            return {"status": "response-retrying", **state}
 
     def state(self, session_id: str) -> dict[str, Any]:
         return self.store.public_state(self._identifier(session_id, "session id"))

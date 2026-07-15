@@ -42,6 +42,12 @@ class CodexReviewRunner:
             conversation_context=conversation_context,
         )
 
+    def review_and_respond(self, **kwargs):
+        return CodexAppServerClient(cwd=self.cwd).review_and_respond(**kwargs)
+
+    def respond_in_thread(self, **kwargs):
+        return CodexAppServerClient(cwd=self.cwd).respond_in_thread(**kwargs)
+
 
 class BridgeApplication:
     def __init__(

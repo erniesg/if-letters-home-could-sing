@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import re
 from dataclasses import dataclass
 from typing import Any, Mapping
@@ -60,6 +61,15 @@ class Review:
     annotations: tuple[Annotation, ...]
     reflective_question: str
     response_letter: str
+
+
+@dataclass(frozen=True)
+class NotebookReview:
+    schema_version: int
+    summary: str
+    corrections: tuple[Annotation, ...]
+    annotations: tuple[Annotation, ...]
+    reflective_question: str
 
 
 def _text(value: Any, field: str, *, maximum: int = MAX_FIELD, allow_empty: bool = False) -> str:
@@ -166,6 +176,34 @@ def parse_review(payload: Mapping[str, Any]) -> Review:
     return Review(3, summary, tuple(annotations), question, response_letter)
 
 
+def parse_notebook_review(payload: Mapping[str, Any]) -> NotebookReview:
+    """Validate reversible marginalia separately from the reciprocal letter."""
+
+    if not isinstance(payload, Mapping) or payload.get("schema_version") != 1:
+        raise ReviewContractError("unsupported notebook review schema")
+    legacy_payload = dict(payload)
+    legacy_payload["schema_version"] = 3
+    legacy_payload["response_letter"] = "家中一切安好，盼你慢慢写信回来。"
+    validated = parse_review(legacy_payload)
+    corrections = tuple(
+        annotation
+        for annotation in validated.annotations
+        if annotation.kind == "correction"
+    )
+    annotations = tuple(
+        annotation
+        for annotation in validated.annotations
+        if annotation.kind != "correction"
+    )
+    return NotebookReview(
+        schema_version=1,
+        summary=validated.summary,
+        corrections=corrections,
+        annotations=annotations,
+        reflective_question=validated.reflective_question,
+    )
+
+
 ANCHOR_OUTPUT_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -252,3 +290,10 @@ REVIEW_OUTPUT_SCHEMA = {
         },
     },
 }
+
+
+NOTEBOOK_REVIEW_OUTPUT_SCHEMA = copy.deepcopy(REVIEW_OUTPUT_SCHEMA)
+NOTEBOOK_REVIEW_OUTPUT_SCHEMA["title"] = "LettersHomeNotebookReview"
+NOTEBOOK_REVIEW_OUTPUT_SCHEMA["required"].remove("response_letter")
+del NOTEBOOK_REVIEW_OUTPUT_SCHEMA["properties"]["response_letter"]
+NOTEBOOK_REVIEW_OUTPUT_SCHEMA["properties"]["schema_version"]["const"] = 1
