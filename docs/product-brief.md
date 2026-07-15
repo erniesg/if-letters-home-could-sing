@@ -12,8 +12,10 @@ The participant's reply is a contemporary **huipi** (回批): the return message
 
 - A `Letters Home` envelope entry appears in the main hamburger sidebar beside
   the library destinations such as `My files`.
-- Tapping it launches the correspondence experience from the home/library UI;
-  it is never inserted into an open document's pen-and-eraser toolbar.
+- Tapping it asks the paired Mac to prepare a native correspondence document,
+  then opens that document in the stock reMarkable reader/writer interface.
+- The experience never replaces the stock pen-and-eraser toolbar, close action,
+  swipe-down menu, or page gestures.
 - A fictional qiao pi-inspired letter is shown as a paper image.
 - It is labelled `A fictional letter generated for this encounter` in the UI or accessible provenance panel.
 - It may be informed by themes such as remittance received, education, health, care, distance, and requests to visit, but it must not reproduce a museum accession, signature, handwriting, seal, or claim a real author.
@@ -28,11 +30,14 @@ The participant's reply is a contemporary **huipi** (回批): the return message
 - Heart-rate connection status is present but unobtrusive: connected, reconnecting, unavailable, or declined.
 - A participant can finish without WHOOP.
 - Submit requires a deliberate action and a confirmation when the page is empty.
+- Submission creates a visible persisted Codex task on the paired Mac and keeps
+  the page open until a reviewed native copy is ready.
 
 ### Page 3 — Marginalia
 
 - The original ink remains visually primary and unmodified.
-- AI comments appear as a reversible overlay or in the margin, never by rewriting the participant's strokes.
+- AI comments appear in a new reviewed copy as numbered anchors and margin
+  notes, never by rewriting the participant's strokes.
 - Feedback is concise, specific, and kind. It can point out likely character/word corrections, ambiguous reading, tone, and a reflective question.
 - Uncertain readings are marked as uncertain; the system does not fabricate a transcription.
 - The page is called `Marginalia` or `A reading of your reply`, not `Score`, `Grade`, or `Correct answer`.

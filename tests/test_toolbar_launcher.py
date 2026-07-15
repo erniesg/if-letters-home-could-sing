@@ -118,10 +118,10 @@ class TargetContractTests(unittest.TestCase):
         self.assertNotIn("~&214642559243&~", inert)  # title
         self.assertNotIn("~&11921478716705041271&~", inert)  # navigationHandler
         self.assertNotIn("launchApplication", inert)
-        self.assertIn(
-            'AppLoadLauncher.launchApplication("letters-home", [], {}, false)',
-            launch,
-        )
+        self.assertNotIn("AppLoadLauncher", launch)
+        self.assertNotIn("launchApplication", launch)
+        self.assertIn("http://10.11.99.2:8765/v1/sessions/start", launch)
+        self.assertIn("legacydevice/window/main", launch)
 
     def test_open_document_toolbar_fixture_is_not_a_launcher_target(self):
         self.assertFalse(any((PACKAGE / "fixtures").glob("*/DocumentView.qml")))
@@ -192,10 +192,10 @@ class FixturePatchTests(unittest.TestCase):
             visual_stability_confirmed=True,
         )
         self.assertEqual(launched.phase, "launch")
-        self.assertIn(
-            'AppLoadLauncher.launchApplication("letters-home", [], {}, false)',
-            launched.installed.decode("utf-8"),
-        )
+        installed = launched.installed.decode("utf-8")
+        self.assertIn("http://10.11.99.2:8765/v1/sessions/start", installed)
+        self.assertIn("legacydevice/window/main", installed)
+        self.assertNotIn("AppLoadLauncher", installed)
 
     def test_uninstall_restores_byte_identical_preinstall_sidebar(self):
         result = apply_toolbar_patch(snapshot_for())

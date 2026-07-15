@@ -10,7 +10,7 @@ from toolbar_launcher.targets import TARGETS
 
 
 HUMAN_DECISION_REQUIRED = 4
-APPLOAD_APPLICATION_DESTINATION = "/home/root/xovi/exthome/appload/letters-home"
+MAC_BRIDGE_DESTINATION = "10.11.99.2:8765"
 
 
 def approval_plan(target_name: str) -> dict[str, object]:
@@ -65,16 +65,17 @@ def approval_plan(target_name: str) -> dict[str, object]:
             "Xochitl and CJK patch health without restart",
         ],
         "proposed_destinations": {
-            "appload_application": APPLOAD_APPLICATION_DESTINATION,
-            "basis": "maintained AppLoad v0.5.3 README",
-            "sidebar_qmd": "pending_read_only_discovery",
-            "sidebar_rcc": "pending_read_only_discovery",
+            "mac_bridge": MAC_BRIDGE_DESTINATION,
+            "sidebar_launch_qmd": "pending_read_only_discovery",
+            "document_submit_qmd": "pending_read_only_discovery",
+            "existing_appload_payload": "leave unchanged; native launcher never opens it",
+            "basis": "recovered exact 3.28 Sidebar.qml and DocumentView.qml resources",
         },
         "proposed_first_mutation": {
             "authorized": False,
-            "phase": "inert main-sidebar item only",
-            "launch_action": False,
-            "requires_second_owner_approval": True,
+            "phase": "replace sidebar handler with native document launch and add page-2 submit action",
+            "launch_action": "Mac bridge to stock legacydevice/window/main",
+            "requires_second_owner_approval": False,
         },
         "expected_downtime": {
             "read_only_discovery_seconds": 0,
@@ -88,9 +89,12 @@ def approval_plan(target_name: str) -> dict[str, object]:
             "commands": "pending observed paths and backup hashes",
         },
         "controlled_trial_checks": [
-            "inert main-sidebar placement below Import files and CJK coexistence",
+            "main-sidebar placement below Import files and CJK coexistence",
             "Xochitl stability",
-            "incoming letter, blank huipi reply, and reversible marginalia pages",
+            "full-bleed incoming letter and blank huipi in stock DocumentView",
+            "stock pen, marker, eraser, undo, close, toolbar, and swipe-down behavior",
+            "submit creates a persisted Codex task on the Mac",
+            "returned reviewed copy opens at page 3 with anchored marginalia",
             "pen input and first-ink timing",
             "mock heart rate through atomic submit",
             "submit, duplicate submit, timeout, and retry",

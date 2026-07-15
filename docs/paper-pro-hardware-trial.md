@@ -1,11 +1,18 @@
 # Ferrari Paper Pro hardware trial
 
-Status: the inert install, placement correction, and approved launch phase all
-completed and remained stable. Two attempted launches reproduced a blank app
-because this target rejects the app's `Accessible` attached objects. The tablet
-has been recovered to its main screen. A corrective bundle without those
-objects and with stock AppLoad exit chrome restored is built at the next
-approval boundary below.
+Status: the AppLoad window path is retired. It caused the blank/custom-chrome
+behavior recorded below and must not be repaired or relaunched. The current
+candidate keeps the existing main-sidebar placement but changes its action to
+request a native PDF from the paired Mac and open stock `DocumentView`. A second
+exact QMLDiff adds one page-2 `Send to Codex` action; the stock pen toolbar,
+close action, swipe-down behavior, and gestures remain owned by Xochitl.
+
+The portable and trusted-Mac gates for this native candidate pass. A synthetic
+review created a persisted desktop Codex task, a conversation-conditioned
+incoming task produced a real image, the renderer produced exact `1696×954`
+two- and three-page PDFs, and the three QMDs apply cleanly to recovered Ferrari
+3.28 resources. Physical installation remains held until the USB web interface
+and bridge are reachable and current on-device hashes are re-confirmed.
 
 ## Initial observed target
 
@@ -110,7 +117,7 @@ installed launch QMD SHA-256
 and restarted Xochitl once. The item then launched AppLoad and its native
 backend successfully, with zero automatic Xochitl restarts.
 
-## Reproduced blank-window failure and repair boundary
+## Reproduced blank-window failure and retired repair boundary
 
 The live journal showed that the sidebar handler, AppLoad coordinator, native
 backend process, and `SOCK_SEQPACKET` connection all started. The UI then
@@ -122,30 +129,24 @@ Non-existent attached object
 ```
 
 Adding the same Controls import as `Main.qml` did not resolve the failure: the
-target repeated `Non-existent attached object` at the next line. The corrective
-bundle therefore removes every `Accessible.*` attachment from the app QML.
-Target `qmllint` no longer reports unresolved attached types. Visible purpose,
-provenance, state, and error copy remain unchanged.
+target repeated `Non-existent attached object` at the next line. An attempted
+corrective bundle removed every `Accessible.*` attachment from the app QML, but
+that AppLoad branch is now historical and must not be installed.
 
 The no-chrome attempt also trapped the owner when the app failed before its own
-close control could instantiate. The correction preserves upstream AppLoad's
-exact pull-down/minimize/maximize/close behavior for Letters Home. Exit remains
-available even if application QML fails again.
+close control could instantiate. The native replacement avoids AppLoad
+entirely, so exit and swipe behavior are the stock document behavior even when
+the Mac bridge is unavailable.
 
-Before a repair install, re-run the exact Ferrari firmware, Xochitl, QRR,
-hashtable, active-QMD, process, free-space, and installed-artifact checks. Back
-up the currently installed extension and app resource, then atomically replace:
-
-- `/home/root/xovi/extensions.d/appload.so`
-- `/home/root/xovi/exthome/appload/letters-home/resources.rcc`
-
-The icon, backend, manifest, inert QMD, and launch QMD remain byte-identical. Run
-`/home/root/xovi/start`
-once; no reboot is planned. Expected unavailability is 15–45 seconds, capped at
-two minutes. Rollback restores the two backed-up files and restarts once.
-After repair, verify the incoming fictional letter, forward navigation to blank
-huipi stationery, ink preservation, submit, teacher-style non-scoring fixture
-marginalia on page 3, and stock swipe-down/minimize/maximize/close behavior.
+For the native trial, re-run the exact Ferrari firmware, Xochitl, Sidebar,
+DocumentView, QRR hashtable, active-QMD, process, free-space, and
+installed-artifact checks. Back up the current Letters Home QMDs, replace only
+the sidebar launch action, add the exact DocumentView submit QMD, and run
+`/home/root/xovi/start` once. No reboot is planned. Expected unavailability is
+15–45 seconds, capped at two minutes. Rollback restores the backed-up QMD set
+and restarts once. Verify the full-bleed incoming page, native pen controls on
+the huipi, persisted Codex task, reviewed page 3, and unchanged stock
+close/swipe behavior.
 
 The stock reMarkable screenshot helper will not be used while Xovi runs.
 Evidence is manual observation plus service status, restart count, and hashes.
@@ -165,8 +166,8 @@ rather than broadening a hash or locator.
 
 ## Trial scope
 
-The repaired vertical slice uses the bundled fictional incoming image and a
-transparent teacher-style fixture review. It makes no live OpenAI or WHOOP
-call. Response-dependent OCR/model review and real heart-rate capture remain
-later human-approved provider lanes; the present trial proves the three-page
-tablet interaction and preservation of the writer's original ink.
+The native vertical slice uses the signed-in desktop Codex app-server for both
+conversation-conditioned image generation and a structured teacher-style
+review. It transfers native PDFs through the enabled USB web interface and
+preserves the writer's original page. Real WHOOP capture remains a later
+human-approved provider lane.

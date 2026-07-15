@@ -101,7 +101,31 @@ def _compose_active_mods(source: bytes, active_qmds: tuple[str, ...]) -> bytes:
 def _launcher_block(phase: str) -> str:
     clicked = "{}"
     if phase == "launch":
-        clicked = 'AppLoadLauncher.launchApplication("letters-home", [], {}, false)'
+        clicked = """{
+                lettersHomeLauncher.enabled = false;
+                lettersHomeLauncher.text = "Preparing letter…";
+                const request = new XMLHttpRequest();
+                request.open("POST", "http://10.11.99.2:8765/v1/sessions/start");
+                request.setRequestHeader("Content-Type", "application/json");
+                request.onreadystatechange = function() {
+                    if (request.readyState !== XMLHttpRequest.DONE) {
+                        return;
+                    }
+                    if (request.status === 200) {
+                        const response = JSON.parse(request.responseText);
+                        lettersHomeLauncher.text = "Letters Home";
+                        lettersHomeLauncher.enabled = true;
+                        root.toggle();
+                        root.windowNavigator.open("legacydevice/window/main", {
+                            documentId: response.document_id
+                        });
+                        return;
+                    }
+                    lettersHomeLauncher.text = "Letters Home · Mac unavailable";
+                    lettersHomeLauncher.enabled = true;
+                };
+                request.send(JSON.stringify({ profile_id: "ferrari_3.28.0.162" }));
+            }"""
     return (
         "\n"
         "        ArkControls.SidebarItem {\n"
@@ -138,12 +162,6 @@ def _patch_sidebar(preinstall: bytes, phase: str) -> bytes:
         raise PatchError("fixture_locator_mismatch")
     patched_sidebar = sidebar.replace(anchor, _launcher_block(phase) + anchor, 1)
     patched = contents[:start] + patched_sidebar + contents[end:]
-    if phase == "launch":
-        patched = patched.replace(
-            "import QtQuick\n",
-            "import QtQuick\nimport net.asivery.AppLoad 1.0\n",
-            1,
-        )
     return patched.encode("utf-8")
 
 

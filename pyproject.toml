@@ -12,7 +12,15 @@ dependencies = []
 
 [project.optional-dependencies]
 dev = []
+trusted-mac = [
+  "Pillow>=12,<13",
+  "pypdf>=6.7,<7",
+  "reportlab>=4.4,<5",
+]
+
+[project.scripts]
+letters-home-bridge = "mac_bridge.server:main"
 
 [tool.setuptools]
-packages = ["device_installer", "experience_core", "heart_rate", "tablet_app", "toolbar_launcher"]
+packages = ["device_installer", "experience_core", "heart_rate", "mac_bridge", "tablet_app", "toolbar_launcher"]
 py-modules = []

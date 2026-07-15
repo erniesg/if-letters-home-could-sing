@@ -127,6 +127,7 @@ class InstallerFixtureTests(unittest.TestCase):
             "appload/letters-home/resources.rcc",
             "toolbar/10-letters-home-inert.qmd",
             "toolbar/20-letters-home-launch.qmd",
+            "toolbar/30-letters-home-submit.qmd",
             "toolbar/letter-icon.qrc",
             "toolbar/letter.svg",
         }
@@ -403,8 +404,12 @@ class InstallerFixtureTests(unittest.TestCase):
                     target.hashtab_sha256,
                 )
                 self.assertEqual(
-                    plan["proposed_destinations"]["appload_application"],
-                    "/home/root/xovi/exthome/appload/letters-home",
+                    plan["proposed_destinations"]["mac_bridge"],
+                    "10.11.99.2:8765",
+                )
+                self.assertIn(
+                    "stock legacydevice/window/main",
+                    plan["proposed_first_mutation"]["launch_action"],
                 )
                 self.assertIsNone(plan["observed_device_state"])
                 self.assertFalse(plan["authorization"]["network_access"])

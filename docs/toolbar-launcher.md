@@ -1,5 +1,21 @@
 # Fixture-only main-sidebar launcher spike
 
+## Native-document update
+
+The AppLoad launch path described later in this historical spike is retired.
+`20-letters-home-launch.qmd` now calls the paired Mac at
+`10.11.99.2:8765/v1/sessions/start` and opens the returned document through
+stock `legacydevice/window/main`. `30-letters-home-submit.qmd` targets exact
+Ferrari `DocumentView.qml` resource `[[1224665461898798997]]` (recovered source
+SHA-256 `a2102689b1feb4604e98ece588ee4606a64a7b0599bda2a3e8fac431f0fa74a5`)
+and adds one bottom-right action only on page 2 of an original Letters Home
+packet. It leaves the stock toolbar and gestures intact.
+
+All three QMDs pass the pinned compatibility checker and structurally apply to
+the recovered Ferrari 3.28 Sidebar and DocumentView sources. The resulting
+submit action decodes to `enabled: true`; reviewed copies are excluded to avoid
+recursive submission.
+
 The portable proof uses deterministic host fixtures. The fixture hash identifies
 checked-in sanitized bytes; separate device-source, Xochitl, and hashtable hashes
 come from verified full backups. Ferrari hardware observations and mutations are
@@ -65,10 +81,10 @@ eraser controls inside an open document.
 
 `10-letters-home-inert.qmd` adds one `Letters Home` sidebar item with an
 envelope icon and an empty click handler. `20-letters-home-launch.qmd` changes
-only that item's handler to
-`AppLoadLauncher.launchApplication("letters-home", [], {}, false)`. The host
-harness refuses the launch phase unless visual/stability confirmation is
-explicitly represented. The SVG icon is packaged under
+only that item's handler to request and open the native packet through the Mac
+bridge. `30-letters-home-submit.qmd` adds the bounded page-2 submit action to
+stock DocumentView. The host harness refuses the launch phase unless
+visual/stability confirmation is explicitly represented. The SVG icon is packaged under
 `qrc:/letters-home/icons/letter` and embedded in the adapted AppLoad runtime,
 so the launcher does not depend on an unregistered standalone RCC.
 

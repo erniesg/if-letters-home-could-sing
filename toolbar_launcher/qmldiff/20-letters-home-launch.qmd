@@ -1,11 +1,34 @@
-; Fixture phase 2. Install only after human-reviewed visual/stability confirmation.
+; Fixture phase 2. Ask the paired Mac for a native packet, then open stock Xochitl.
 ; Chiappa/Ferrari Sidebar fixture SHA-256: dba999d3dbadf0a2c61506398a11f5ae485d637e15036d9dd508db2021df0fca
 VERSION 3.28.0.162
 AFFECT [[4911547370760691430]]
-    IMPORT net.asivery.AppLoad 1.0
     TRAVERSE [[8397993708429497603]] > [[14125623155555875541]]#[[15885405667098360701]] > [[5882927607508357618]]#lettersHomeLauncher
         REPLACE [[254542236275632405]] WITH {
-            ~&254542236275632405&~: AppLoadLauncher.launchApplication("letters-home", [], {}, false)
+            ~&254542236275632405&~: {
+                lettersHomeLauncher.enabled = false;
+                lettersHomeLauncher.text = "Preparing letter…";
+                const request = new XMLHttpRequest();
+                request.open("POST", "http://10.11.99.2:8765/v1/sessions/start");
+                request.setRequestHeader("Content-Type", "application/json");
+                request.onreadystatechange = function() {
+                    if (request.readyState !== XMLHttpRequest.DONE) {
+                        return;
+                    }
+                    if (request.status === 200) {
+                        const response = JSON.parse(request.responseText);
+                        lettersHomeLauncher.text = "Letters Home";
+                        lettersHomeLauncher.enabled = true;
+                        root.toggle();
+                        root.windowNavigator.open("legacydevice/window/main", {
+                            documentId: response.document_id
+                        });
+                        return;
+                    }
+                    lettersHomeLauncher.text = "Letters Home · Mac unavailable";
+                    lettersHomeLauncher.enabled = true;
+                };
+                request.send(JSON.stringify({ profile_id: "ferrari_3.28.0.162" }));
+            }
         }
     END TRAVERSE
 END AFFECT

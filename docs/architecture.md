@@ -2,24 +2,30 @@
 
 ## Decision
 
-Build a small, version-pinned AppLoad application and launch it from a
-QMLDiff-inserted entry in Xochitl's main hamburger/library sidebar. Do not write
-directly into reMarkable's proprietary notebook files for the first vertical
-slice.
+Open each encounter as a native PDF document in Xochitl's stock `DocumentView`.
+Two exact-resource QMLDiff actions are the only device-specific UI: the main
+sidebar entry starts a packet through the paired Mac, and one page-2 action
+submits the huipi. The experience does not open an AppLoad window and does not
+replace the stock document toolbar, close action, pen controls, or gestures.
 
-This keeps the stock notebook application responsible for notebooks while the experience owns only its three-page session. It also matches the existing Xovi/QMLDiff setup and provides a rollback boundary.
+The paired Mac uses reMarkable's enabled USB web interface to import the initial
+PDF and export the participant-annotated PDF. It never merges files into the
+live Xochitl document store. This keeps drawing and navigation native while
+preserving an exact-resource rollback boundary.
 
 ```mermaid
 flowchart LR
     A["Main Xochitl hamburger sidebar"] -->|"Letters Home entry"| B["QMLDiff launcher patch"]
-    B --> C["AppLoad QML experience"]
-    C --> D["Device backend"]
-    D -->|"HTTPS / WebSocket"| E["Session gateway"]
-    E --> F["Letter image adapter"]
-    E --> G["Reply review adapter"]
-    H["Phone / edge WHOOP BLE bridge"] -->|"live HR samples"| E
-    I["WHOOP OAuth v2"] -->|"optional aggregate context"| E
-    E --> J["Consent-scoped session store"]
+    B -->|"USB-private HTTP"| C["Paired Mac bridge"]
+    C --> D["Persisted Codex incoming task"]
+    D --> E["GPT Image 2 letter"]
+    C -->|"official USB import"| F["Native two-page PDF"]
+    F --> G["Stock Xochitl DocumentView"]
+    G -->|"page 2 submit + USB export"| C
+    C --> H["Persisted Codex review task"]
+    H --> I["Structured teacher review"]
+    C -->|"append page 3+ and USB import"| G
+    J["Phone / edge WHOOP BLE bridge"] -->|"future live HR samples"| C
 ```
 
 ## Components
@@ -27,34 +33,47 @@ flowchart LR
 ### 1. Main-sidebar launcher
 
 - QMLDiff patch against exact, hashed Xochitl/QRR resources for Ferrari and Chiappa on OS `3.28.0.162`.
-- Adds one envelope-labelled sidebar item immediately below `Import files`, plus
-  its AppLoad launch action after the inert item is confirmed.
+- Adds one envelope-labelled sidebar item immediately below `Import files`.
+- Calls the paired Mac bridge and opens the returned document through
+  `windowNavigator.open("legacydevice/window/main", ...)`.
 - Must coexist with the installed CJK font/language QMDs.
 - A missing or mismatched hash must fail closed without changing the device.
 
-The launcher targets `/qml/device/view/navigator/Sidebar.qml`, never
-`/qml/DocumentView.qml` or `toolbarProvider.editingTools`. The exact source
-structure remains a reverse-engineering and hardware-validation boundary.
+The launcher targets `/qml/device/view/navigator/Sidebar.qml`. A separate exact
+`DocumentView.qml` patch adds only the page-2 submit action; it does not modify
+`toolbarProvider.editingTools`. Both exact source structures remain a
+reverse-engineering and hardware-validation boundary.
 Xochitl is proprietary and reMarkable does not promise patch compatibility
 between versions.
 
-### 2. Tablet application
+### 2. Native correspondence packet
 
-- Pure Qt Quick frontend compatible with AppLoad's supported Qt runtime.
-- Device backend follows AppLoad's Unix-socket frontend/backend protocol; Rust is preferred because the maintained example and client library use it.
-- Three explicit states: `incoming`, `reply`, `marginalia`.
-- Session state is recoverable after frontend restart and erased according to retention policy.
-- Stroke capture is behind a `StrokeSource` interface so host tests use deterministic fixtures while hardware input remains an integration adapter.
+- Page 1 is a full-bleed fictional incoming letter at the exact device profile.
+- Page 2 is deterministic full-page huipi stationery annotated with stock tools.
+- The reviewed copy preserves pages 1 and 2, appends page 3+, and opens at page 3.
+- Page 3 shows the preserved reply with numbered anchor markers and reversible
+  margin notes. Overflow becomes additional pages instead of clipped content.
+- Ferrari and Chiappa remain independent exact-version targets even where
+  current resource bytes match.
 
-### 3. Session gateway
+### 3. Paired Mac bridge
 
-The tablet never contains OpenAI or WHOOP client secrets. The gateway owns:
+The tablet never contains OpenAI or WHOOP client secrets. A private bridge bound
+to the Mac side of the USB link owns:
 
-- image generation requests and caching;
-- stroke/transcript review requests;
+- native PDF import/export through the enabled USB web interface;
+- persisted Codex app-server tasks for incoming image generation and reply review;
+- deterministic full-bleed packet and paginated marginalia rendering;
+- restart-safe submit receipts containing identifiers only;
 - WHOOP OAuth token exchange and refresh;
 - ingestion from the live BLE relay;
 - consent, retention, deletion, and installation export.
+
+Submission creates a non-ephemeral task named `Letters Home review · <session>`
+in the signed-in desktop Codex store. The participant's rendered huipi is
+attached at original detail and the final response is constrained to the
+versioned review schema. The bridge prefers the Codex binary bundled with the
+desktop app, then explicitly selects an image-capable model from its catalog.
 
 Provider-facing code must sit behind interfaces with deterministic fakes:
 
@@ -81,7 +100,9 @@ Capture semantics:
 - Render profiles request model-valid dimensions and deterministically crop/pad to device dimensions.
 - Image prompts include provenance and anti-copy constraints.
 - The review service returns structured annotations, never a replacement image as its only output.
-- Annotation coordinates are normalised to page space and overlaid locally so the participant's original strokes remain intact.
+- Annotation coordinates are normalised to page space and rendered as numbered
+  markers plus margin notes on a new page so the participant's original strokes
+  remain intact.
 
 ## Render profiles
 

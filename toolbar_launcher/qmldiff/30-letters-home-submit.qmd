@@ -1,0 +1,52 @@
+; Add one page-2 action inside stock DocumentView. It does not replace stock toolbar or gestures.
+; Ferrari recovered DocumentView.qml SHA-256: a2102689b1feb4604e98ece588ee4606a64a7b0599bda2a3e8fac431f0fa74a5
+VERSION 3.28.0.162
+AFFECT [[1224665461898798997]]
+    TRAVERSE FocusScope > Item#_uiContainer
+        LOCATE AFTER Toolbar#toolbar
+        INSERT {
+            ~&16889273474833229381&~ {
+                ~&5972374&~: lettersHomeSubmit
+                ~&8399878573055752961&~: "letters-home-submit"
+                ~&6504315758&~: ~&6504222003&~("Send to Codex")
+                ~&233748328658231&~: root.document
+                    && root.document.visibleName.indexOf("Letters Home ") === 0
+                    && root.document.visibleName.indexOf("Letters Home Review ") !== 0
+                    && root.currentPage === 1
+                ~&233726547792244&~: ~&6504329801&~
+                ~&233721384511543&~.~&214640173127&~: ~&7083038346995&~.~&214640173127&~
+                ~&233721384511543&~.~&7082507142622&~: ~&7083038346995&~.~&7082507142622&~
+                ~&233721384511543&~.~&233736391113274&~: 48
+                ~&254542236275632405&~: {
+                    lettersHomeSubmit.enabled = false;
+                    lettersHomeSubmit.text = "Sending to Codex…";
+                    const request = new XMLHttpRequest();
+                    request.open("POST", "http://10.11.99.2:8765/v1/sessions/submit");
+                    request.setRequestHeader("Content-Type", "application/json");
+                    request.onreadystatechange = function() {
+                        if (request.readyState !== XMLHttpRequest.DONE) {
+                            return;
+                        }
+                        if (request.status === 200) {
+                            const response = JSON.parse(request.responseText);
+                            root.windowNavigator.open("legacydevice/window/main", {
+                                documentId: response.document_id,
+                                page: response.review_page_index
+                            });
+                            return;
+                        }
+                        lettersHomeSubmit.text = "Try Send to Codex again";
+                        lettersHomeSubmit.enabled = true;
+                    };
+                    request.send(JSON.stringify({
+                        session_id: root.document.visibleName.substring("Letters Home ".length),
+                        document_id: root.document.id,
+                        reply_page_index: root.currentPage,
+                        profile_id: "ferrari_3.28.0.162",
+                        conversation_context: ""
+                    }));
+                }
+            }
+        }
+    END TRAVERSE
+END AFFECT
