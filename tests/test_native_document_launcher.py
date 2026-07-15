@@ -1,7 +1,8 @@
-import unittest
+import importlib.util
 import io
 import json
 import tempfile
+import unittest
 from pathlib import Path
 
 from toolbar_launcher import TARGETS, TabletSnapshot, apply_toolbar_patch
@@ -141,6 +142,10 @@ class NativeLauncherContractTests(unittest.TestCase):
                     self.assertEqual((page.width, page.height), dimensions)
                     self.assertEqual(page.chrome_margin, 0)
 
+    @unittest.skipUnless(
+        importlib.util.find_spec("pypdf") and importlib.util.find_spec("reportlab"),
+        "requires the trusted-mac extra",
+    )
     def test_ferrari_renderer_emits_two_full_page_portrait_media_boxes(self):
         from pypdf import PdfReader
 
@@ -163,6 +168,10 @@ class NativeLauncherContractTests(unittest.TestCase):
         self.assertIn("阿", pages[0].extract_text())
         self.assertNotIn("阿", pages[1].extract_text())
 
+    @unittest.skipUnless(
+        importlib.util.find_spec("pypdf") and importlib.util.find_spec("reportlab"),
+        "requires the trusted-mac extra",
+    )
     def test_reviewed_packet_opens_on_full_size_marked_copy_then_response_letter(self):
         from pypdf import PdfReader
 

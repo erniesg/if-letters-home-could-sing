@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import tempfile
 import unittest
@@ -172,6 +173,7 @@ class CodexAppServerContractTests(unittest.TestCase):
                 conversation_context="fixture",
             )
 
+    @unittest.skipUnless(importlib.util.find_spec("PIL"), "requires the trusted-mac extra")
     def test_raster_reply_adds_four_private_detail_tiles_to_the_vision_turn(self):
         from PIL import Image
 
